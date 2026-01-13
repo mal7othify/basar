@@ -1,3 +1,5 @@
+import kotlin.jvm.java
+
 rootProject.name = "Basar"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -45,3 +47,6 @@ dependencyResolutionManagement {
 include(":composeApp")
 include(":server")
 include(":shared")
+include(":spatial-core")
+include(":spatial-compose")
+include(":spatial-renderer-canvas")
