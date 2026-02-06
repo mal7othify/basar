@@ -43,6 +43,14 @@ data class Vec3(
     operator fun times(scalar: Float): Vec3 = Vec3(x * scalar, y * scalar, z * scalar)
 
     /**
+     * Component-wise multiplication with another vector.
+     *
+     * @param other The vector to multiply with
+     * @return A new vector with each component multiplied
+     */
+    operator fun times(other: Vec3): Vec3 = Vec3(x * other.x, y * other.y, z * other.z)
+
+    /**
      * Divides this vector by a scalar value.
      *
      * @param scalar The scalar value to divide by
