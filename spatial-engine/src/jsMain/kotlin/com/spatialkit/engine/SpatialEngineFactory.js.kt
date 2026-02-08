@@ -3,12 +3,21 @@ package com.spatialkit.engine
 /**
  * JavaScript implementation of SpatialEngineFactory.
  *
- * NOTE: This is a minimal implementation. The full WebXR implementation
- * is in the spatial-engine-webxr module. To use WebXR, depend on that module.
+ * **Important**: To use WebXR, depend on the `spatial-engine-webxr` module
+ * and use `createWebXREngine()` from `com.spatialkit.engine.webxr`.
+ *
+ * Example:
+ * ```kotlin
+ * // In your JS/Browser code
+ * val engine = createWebXREngine()
+ * ```
+ *
+ * This factory returns [FallbackEngine] for compatibility with cross-platform code.
+ * The platform-specific module provides the real implementation.
  */
 actual object SpatialEngineFactory {
     actual fun isSupported(): Boolean {
-        // Check if WebXR is available
+        // Check if WebXR API is available
         val navigator = js("typeof navigator !== 'undefined' ? navigator : undefined")
         if (navigator === undefined) return false
 
@@ -18,7 +27,6 @@ actual object SpatialEngineFactory {
 
     actual fun getSupportedModes(): List<SessionMode> {
         return if (isSupported()) {
-            // Return all possible modes - actual support checked at runtime
             listOf(SessionMode.AR, SessionMode.VR)
         } else {
             emptyList()
@@ -26,11 +34,9 @@ actual object SpatialEngineFactory {
     }
 
     actual fun create(): SpatialEngine {
-        // Return fallback engine
-        // Apps should use spatial-engine-webxr for full WebXR support
-        console.warn("Using FallbackEngine. For WebXR support, use spatial-engine-webxr module.")
+        console.warn("Use createWebXREngine() from spatial-engine-webxr for WebXR support")
         return FallbackEngine()
     }
 
-    actual fun getEngineName(): String = "Fallback (JS)"
+    actual fun getEngineName(): String = "Fallback (JS - use spatial-engine-webxr)"
 }

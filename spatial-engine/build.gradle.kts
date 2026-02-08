@@ -6,6 +6,9 @@ plugins {
 }
 
 kotlin {
+    // Enable default hierarchy for shared source sets (iosMain, etc.)
+    applyDefaultHierarchyTemplate()
+
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
@@ -26,12 +29,22 @@ kotlin {
         commonMain.dependencies {
             // Depend on core for math types (Vec3, Quaternion, etc.)
             implementation(project(":spatial-core"))
-            implementation(project(":spatial-engine-arkit"))
-            implementation(project(":spatial-engine-arcore"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+
+        // NOTE: Platform-specific engine modules (arcore, arkit, webxr) are NOT
+        // dependencies here to avoid circular dependencies. Those modules depend
+        // on spatial-engine, not the other way around.
+        //
+        // Usage pattern:
+        // - Android: depend on :spatial-engine-arcore, use createARCoreEngine(context)
+        // - iOS: depend on :spatial-engine-arkit, use createARKitEngine()
+        // - JS: depend on :spatial-engine-webxr, use createWebXREngine()
+        //
+        // The SpatialEngineFactory.create() returns FallbackEngine unless you're
+        // using the platform-specific modules which override the behavior.
     }
 }
 

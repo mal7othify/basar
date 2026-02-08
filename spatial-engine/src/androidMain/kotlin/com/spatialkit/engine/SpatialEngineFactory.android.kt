@@ -3,14 +3,26 @@ package com.spatialkit.engine
 /**
  * Android implementation of SpatialEngineFactory.
  *
- * NOTE: This is a minimal fallback implementation.
- * For full ARCore support, depend on the spatial-engine-arcore module
- * and use SpatialEngineFactory.createWithContext(context).
+ * **Important**: ARCore requires an Android Context for initialization,
+ * which cannot be provided through the cross-platform factory API.
+ *
+ * To use ARCore on Android:
+ * 1. Add dependency: `implementation(project(":spatial-engine-arcore"))`
+ * 2. Use `createARCoreEngine(context)` from `com.spatialkit.engine.arcore`
+ *
+ * Example:
+ * ```kotlin
+ * // In your Android Activity or ViewModel
+ * val engine = createARCoreEngine(context)
+ * ```
+ *
+ * This factory returns [FallbackEngine] for compatibility with cross-platform code
+ * that doesn't have access to platform-specific context.
  */
 actual object SpatialEngineFactory {
     actual fun isSupported(): Boolean {
-        // Fallback implementation always returns false
-        // Use spatial-engine-arcore for real ARCore support
+        // Returns false because ARCore requires Context for proper detection
+        // Use isARCoreAvailable(context) from spatial-engine-arcore for accurate check
         return false
     }
 
@@ -19,10 +31,10 @@ actual object SpatialEngineFactory {
     actual fun create(): SpatialEngine {
         android.util.Log.w(
             "SpatialEngineFactory",
-            "Using FallbackEngine. For ARCore support, use spatial-engine-arcore module.",
+            "ARCore requires Context. Use createARCoreEngine(context) from spatial-engine-arcore module.",
         )
         return FallbackEngine()
     }
 
-    actual fun getEngineName(): String = "Fallback (Android)"
+    actual fun getEngineName(): String = "Fallback (Android - use spatial-engine-arcore)"
 }

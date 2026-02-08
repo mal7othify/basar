@@ -319,13 +319,15 @@ class ARKitEngine : SpatialEngine {
         val nearZ = 0.01 // 1cm
         val farZ = 1000.0 // 1km
 
-        val projectionMatrix =
+        // Use useContents to extract the CGSize value for the interop call
+        val projectionMatrix = viewport.useContents {
             camera.projectionMatrixForOrientation(
                 orientation = UIInterfaceOrientationPortrait,
-                viewportSize = viewport, // Argument type mismatch: actual type is 'CGSize', but 'CValue<CGSize>' was expected.
+                viewportSize = CGSizeMake(width, height),
                 zNear = nearZ,
                 zFar = farZ,
             )
+        }
 
         return convertMatrixToFloatArray(projectionMatrix)
     }
@@ -455,7 +457,6 @@ class ARKitEngine : SpatialEngine {
             }
 
         val center = convertTransform(planeAnchor.transform)
-        val extenwt: simd_float3 = planeAnchor.extent
         val extent: Vector128 = planeAnchor.extent
         val extentX = extent.getFloatAt(0)
         val extentZ = extent.getFloatAt(2)

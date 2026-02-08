@@ -90,7 +90,7 @@ class SpatialRuntimeAndroid(
 
         try {
             // Create ARCore engine with context
-            val spatialEngine = SpatialEngineFactory.createWithContext(context)
+            val spatialEngine = createARCoreEngine(context)
             engine = spatialEngine
 
             // Initialize
@@ -117,9 +117,9 @@ class SpatialRuntimeAndroid(
             }
 
             // Register frame callback
-            spatialEngine.onFrame { frameData ->
+            spatialEngine.onFrame { frame: FrameData ->
                 try {
-                    onFrame(frameData)
+                    onFrame(frame)
                 } catch (e: Exception) {
                     onError(
                         EngineError.InitializationFailed(
@@ -214,8 +214,8 @@ class SpatialRuntimeAndroid(
      * @param userRequested If user explicitly requested AR
      * @return Installation status
      */
-    fun requestARCoreInstallation(
+    fun requestInstallation(
         activity: android.app.Activity,
         userRequested: Boolean = true,
-    ) = SpatialEngineFactory.requestInstallation(activity, userRequested)
+    ) = requestARCoreInstallation(activity, userRequested)
 }

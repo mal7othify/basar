@@ -3,9 +3,19 @@ plugins {
 }
 
 kotlin {
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+    // Enable default hierarchy for iosMain shared source set
+    applyDefaultHierarchyTemplate()
+
+    listOf(
+        iosX64(),
+        iosArm64(),
+        iosSimulatorArm64()
+    ).forEach { iosTarget ->
+        iosTarget.binaries.framework {
+            baseName = "SpatialEngineARKit"
+            isStatic = true
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {

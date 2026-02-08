@@ -66,6 +66,7 @@ class WebXREngine : SpatialEngine {
                 supportsVR = false,
                 supportsPlaneDetection = false,
                 supportsImageTracking = false,
+                supportsFaceTracking = false,
                 supportsHandTracking = false,
                 supportsDepthOcclusion = false,
                 supportsSpatialAnchors = false,
@@ -664,6 +665,7 @@ class WebXREngine : SpatialEngine {
                 supportsVR = supportsVR,
                 supportsPlaneDetection = supportsAR, // AR implies some plane detection
                 supportsImageTracking = false,
+                supportsFaceTracking = false, // WebXR doesn't standardize face tracking
                 supportsHandTracking = true, // WebXR supports hand tracking
                 supportsDepthOcclusion = false,
                 supportsSpatialAnchors = supportsAR,
@@ -675,6 +677,7 @@ class WebXREngine : SpatialEngine {
                 supportsVR = false,
                 supportsPlaneDetection = false,
                 supportsImageTracking = false,
+                supportsFaceTracking = false,
                 supportsHandTracking = false,
                 supportsDepthOcclusion = false,
                 supportsSpatialAnchors = false,

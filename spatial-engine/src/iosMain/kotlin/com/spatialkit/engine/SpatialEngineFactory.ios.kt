@@ -1,30 +1,36 @@
 package com.spatialkit.engine
 
-import com.spatialkit.engine.arkit.ARKitEngine
+import platform.ARKit.ARWorldTrackingConfiguration
 
 /**
  * iOS implementation of SpatialEngineFactory.
  *
- * Provides ARKit-based spatial engine when available,
- * falls back to FallbackEngine otherwise.
+ * **Important**: To use ARKit, depend on the `spatial-engine-arkit` module
+ * and use `createARKitEngine()` from `com.spatialkit.engine.arkit`.
+ *
+ * Example:
+ * ```kotlin
+ * // In your iOS code
+ * val engine = createARKitEngine()
+ * ```
+ *
+ * This factory returns [FallbackEngine] for compatibility with cross-platform code.
+ * The platform-specific module provides the real implementation.
  */
 actual object SpatialEngineFactory {
-    actual fun isSupported(): Boolean = ARKitEngine().capabilities.supportsAR
+    actual fun isSupported(): Boolean = ARWorldTrackingConfiguration.isSupported
 
     actual fun getSupportedModes(): List<SessionMode> =
         if (isSupported()) {
-            listOf(SessionMode.AR) // ARKit supports AR mode only (no VR)
+            listOf(SessionMode.AR) // ARKit supports AR mode only
         } else {
             emptyList()
         }
 
-    actual fun create(): SpatialEngine =
-        if (isSupported()) {
-            ARKitEngine()
-        } else {
-            println("⚠️ ARKit not supported on this device, using FallbackEngine")
-            FallbackEngine()
-        }
+    actual fun create(): SpatialEngine {
+        println("Use createARKitEngine() from spatial-engine-arkit for ARKit support")
+        return FallbackEngine()
+    }
 
-    actual fun getEngineName(): String = if (isSupported()) "ARKit" else "Fallback (iOS)"
+    actual fun getEngineName(): String = "Fallback (iOS - use spatial-engine-arkit)"
 }

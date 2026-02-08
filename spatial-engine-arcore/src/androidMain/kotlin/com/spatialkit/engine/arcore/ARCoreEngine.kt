@@ -1,6 +1,5 @@
 package com.spatialkit.engine.arcore
 
-import android.R.id.message
 import android.content.Context
 import android.view.Surface
 import com.google.ar.core.Anchor
@@ -82,7 +81,7 @@ class ARCoreEngine(
         get() =
             _capabilities ?: EngineCapabilities(
                 supportsAR = false,
-                supportsVR = false, // ARCode
+                supportsVR = false, // ARCore doesn't support VR
                 supportsPlaneDetection = false,
                 supportsImageTracking = false,
                 supportsFaceTracking = false,
