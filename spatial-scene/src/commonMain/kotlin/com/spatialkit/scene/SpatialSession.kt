@@ -44,7 +44,7 @@ import com.spatialkit.engine.Vec3
  * ```
  */
 class SpatialSession(
-    private val runtime: SpatialRuntime,
+    val runtime: SpatialRuntime,
 ) {
     /**
      * The mutable scene graph.

@@ -41,6 +41,11 @@ kotlin {
             implementation(libs.androidx.activity.compose)
         }
 
+        iosMain.dependencies {
+            // ARKit engine for iOS
+            implementation(project(":spatial-engine-arkit"))
+        }
+
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }

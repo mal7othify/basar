@@ -10,11 +10,15 @@ import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.EngineError
 import com.spatialkit.engine.EngineState
 import com.spatialkit.engine.FrameData
+import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.HitTestResult
+import com.spatialkit.engine.MaterialData
+import com.spatialkit.engine.MaterialType
 import com.spatialkit.engine.PlaneType
 import com.spatialkit.engine.Pose
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
+import com.spatialkit.engine.SceneNode
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.TrackingState
@@ -58,10 +62,23 @@ import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRect
 import platform.CoreGraphics.CGSize
 import platform.CoreGraphics.CGSizeMake
+import platform.Foundation.NSNumber
 import platform.Foundation.NSTimer
+import platform.Foundation.numberWithFloat
 import platform.QuartzCore.CACurrentMediaTime
+import platform.SceneKit.SCNBox
+import platform.SceneKit.SCNCapsule
+import platform.SceneKit.SCNCylinder
+import platform.SceneKit.SCNLightingModelPhysicallyBased
+import platform.SceneKit.SCNMaterial
+import platform.SceneKit.SCNNode
+import platform.SceneKit.SCNPlane
+import platform.SceneKit.SCNScene
+import platform.SceneKit.SCNSphere
+import platform.SceneKit.SCNVector3Make
+import platform.SceneKit.SCNVector4Make
+import platform.UIKit.UIColor
 import platform.UIKit.UIInterfaceOrientationPortrait
-import platform.darwin.simd_float3
 import platform.darwin.simd_float4x4
 import kotlin.math.sqrt
 
@@ -76,6 +93,11 @@ class ARKitEngine : SpatialEngine {
     private var lastFrameTime: Long = 0L
 
     private var viewportSize: CValue<CGSize>? = null
+
+    // SceneKit node management
+    private val contentRoot = SCNNode()
+    private val sceneNodeMap = mutableMapOf<String, SCNNode>()
+    private var currentScene: SceneData? = null
 
     override var state: EngineState = EngineState.Uninitialized
         private set
@@ -142,6 +164,17 @@ class ARKitEngine : SpatialEngine {
             view.bounds.useContents {
                 CGSizeMake(size.width, size.height)
             }
+
+        // Ensure the view has a scene, create one if needed
+        if (view.scene == null) {
+            view.scene = SCNScene()
+        }
+
+        // Attach content root to the AR scene
+        view.scene?.rootNode?.addChildNode(contentRoot)
+
+        // Enable default lighting for better visuals
+        view.autoenablesDefaultLighting = true
     }
 
     fun updateViewportSize(
@@ -481,7 +514,241 @@ class ARKitEngine : SpatialEngine {
     }
 
     override fun submitScene(scene: SceneData) {
-        // TODO: integrate with SceneKit/Metal
+        currentScene = scene
+
+        // Collect all node IDs in the new scene
+        val newNodeIds = mutableSetOf<String>()
+        collectNodeIds(scene.nodes, newNodeIds)
+
+        // Remove nodes that are no longer in the scene
+        val toRemove = sceneNodeMap.keys - newNodeIds
+        toRemove.forEach { id ->
+            sceneNodeMap[id]?.removeFromParentNode()
+            sceneNodeMap.remove(id)
+        }
+
+        // Create or update nodes
+        scene.nodes.forEach { node ->
+            processSceneNode(node, contentRoot)
+        }
+    }
+
+    private fun collectNodeIds(
+        nodes: List<SceneNode>,
+        ids: MutableSet<String>,
+    ) {
+        nodes.forEach { node ->
+            ids.add(node.id)
+            if (node is SceneNode.Group) {
+                collectNodeIds(node.children, ids)
+            }
+        }
+    }
+
+    private fun processSceneNode(
+        node: SceneNode,
+        parent: SCNNode,
+    ) {
+        when (node) {
+            is SceneNode.Mesh -> processMeshNode(node, parent)
+            is SceneNode.Group -> processGroupNode(node, parent)
+        }
+    }
+
+    private fun processMeshNode(
+        mesh: SceneNode.Mesh,
+        parent: SCNNode,
+    ) {
+        val scnNode =
+            sceneNodeMap[mesh.id] ?: run {
+                val newNode = createSCNNodeForMesh(mesh)
+                sceneNodeMap[mesh.id] = newNode
+                parent.addChildNode(newNode)
+                newNode
+            }
+
+        // Update transform
+        updateNodeTransform(scnNode, mesh.transform)
+
+        // Update visibility
+        scnNode.hidden = !mesh.visible
+
+        // Update material if needed
+        updateNodeMaterial(scnNode, mesh.material)
+    }
+
+    private fun processGroupNode(
+        group: SceneNode.Group,
+        parent: SCNNode,
+    ) {
+        val scnNode =
+            sceneNodeMap[group.id] ?: run {
+                val newNode = SCNNode()
+                sceneNodeMap[group.id] = newNode
+                parent.addChildNode(newNode)
+                newNode
+            }
+
+        // Update transform
+        updateNodeTransform(scnNode, group.transform)
+
+        // Update visibility
+        scnNode.hidden = !group.visible
+
+        // Process children
+        group.children.forEach { child ->
+            processSceneNode(child, scnNode)
+        }
+    }
+
+    private fun createSCNNodeForMesh(mesh: SceneNode.Mesh): SCNNode {
+        val geometry = createGeometry(mesh.geometry.type, mesh.transform.scale)
+        val node = SCNNode.nodeWithGeometry(geometry)
+
+        // Apply material
+        geometry?.firstMaterial = createMaterial(mesh.material)
+
+        return node
+    }
+
+    private fun createGeometry(
+        type: GeometryType,
+        scale: Vec3,
+    ): platform.SceneKit.SCNGeometry? =
+        when (type) {
+            GeometryType.CUBE -> {
+                // Unit cube scaled by transform
+                SCNBox.boxWithWidth(
+                    width = scale.x.toDouble(),
+                    height = scale.y.toDouble(),
+                    length = scale.z.toDouble(),
+                    chamferRadius = 0.0,
+                )
+            }
+
+            GeometryType.SPHERE -> {
+                // Sphere uses average of scale for radius
+                val radius = (scale.x + scale.y + scale.z) / 3f
+                SCNSphere.sphereWithRadius(radius = (radius / 2f).toDouble())
+            }
+
+            GeometryType.CYLINDER -> {
+                // Cylinder: x/z for radius, y for height
+                val radius = (scale.x + scale.z) / 4f // diameter to radius
+                SCNCylinder.cylinderWithRadius(
+                    radius = radius.toDouble(),
+                    height = scale.y.toDouble(),
+                )
+            }
+
+            GeometryType.PLANE -> {
+                // Plane: x for width, z for height (y is typically 1)
+                SCNPlane.planeWithWidth(
+                    width = scale.x.toDouble(),
+                    height = scale.z.toDouble(),
+                )
+            }
+
+            GeometryType.CAPSULE -> {
+                // Capsule: similar to cylinder
+                val radius = (scale.x + scale.z) / 4f
+                SCNCapsule.capsuleWithCapRadius(
+                    capRadius = radius.toDouble(),
+                    height = scale.y.toDouble(),
+                )
+            }
+
+            GeometryType.CUSTOM_MESH -> {
+                // TODO: Implement custom mesh support
+                null
+            }
+        }
+
+    private fun createMaterial(materialData: MaterialData): SCNMaterial {
+        val material = SCNMaterial()
+
+        // Set base color
+        val color =
+            UIColor(
+                red = materialData.baseColor.x.toDouble(),
+                green = materialData.baseColor.y.toDouble(),
+                blue = materialData.baseColor.z.toDouble(),
+                alpha = materialData.baseColor.w.toDouble(),
+            )
+        material.diffuse.contents = color
+
+        // Set PBR properties
+        when (materialData.type) {
+            MaterialType.PBR -> {
+                material.lightingModelName = SCNLightingModelPhysicallyBased
+                material.metalness.contents = NSNumber.numberWithFloat(materialData.metallic)
+                material.roughness.contents = NSNumber.numberWithFloat(materialData.roughness)
+            }
+
+            MaterialType.LIT -> {
+                // Default lighting model is fine for LIT
+            }
+
+            MaterialType.UNLIT -> {
+                // Use emission for unlit appearance
+                material.emission.contents = color
+                material.diffuse.contents = UIColor.clearColor
+            }
+        }
+
+        return material
+    }
+
+    private fun updateNodeTransform(
+        node: SCNNode,
+        transform: com.spatialkit.core.math.Transform,
+    ) {
+        // Set position
+        node.position =
+            SCNVector3Make(
+                transform.position.x,
+                transform.position.y,
+                transform.position.z,
+            )
+
+        // Set rotation (quaternion to SCNVector4 - axis-angle representation)
+        // SCNVector4 for rotation is (x, y, z, angle) where (x,y,z) is axis
+        // We need to convert quaternion to axis-angle
+        val q = transform.rotation
+        val angle = 2f * kotlin.math.acos(q.w.coerceIn(-1f, 1f))
+        val sinHalfAngle = sqrt(1f - q.w * q.w)
+
+        if (sinHalfAngle > 0.001f) {
+            node.rotation =
+                SCNVector4Make(
+                    q.x / sinHalfAngle,
+                    q.y / sinHalfAngle,
+                    q.z / sinHalfAngle,
+                    angle,
+                )
+        } else {
+            // No rotation or very small rotation
+            node.rotation = SCNVector4Make(0f, 1f, 0f, 0f)
+        }
+
+        // Note: Scale is already baked into geometry creation for primitives
+        // For more complex scenarios, you might want to use node.scale
+    }
+
+    private fun updateNodeMaterial(
+        node: SCNNode,
+        materialData: MaterialData,
+    ) {
+        node.geometry?.firstMaterial?.let { material ->
+            val color =
+                UIColor(
+                    red = materialData.baseColor.x.toDouble(),
+                    green = materialData.baseColor.y.toDouble(),
+                    blue = materialData.baseColor.z.toDouble(),
+                    alpha = materialData.baseColor.w.toDouble(),
+                )
+            material.diffuse.contents = color
+        }
     }
 
     override fun onFrame(callback: (FrameData) -> Unit) {
@@ -617,6 +884,13 @@ class ARKitEngine : SpatialEngine {
         arView = null
         frameCallback = null
         currentConfig = null
+        currentScene = null
+
+        // Clean up SceneKit nodes
+        contentRoot.removeFromParentNode()
+        sceneNodeMap.values.forEach { it.removeFromParentNode() }
+        sceneNodeMap.clear()
+
         state = EngineState.Uninitialized
         println("ARKitEngine disposed")
     }

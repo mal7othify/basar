@@ -32,6 +32,26 @@ class SpatialRuntime {
     private var errorCallback: ((EngineError) -> Unit)? = null
 
     /**
+     * Access the underlying engine for platform-specific configuration.
+     *
+     * Use this to configure platform-specific features like setting an ARView on iOS.
+     * Returns null if the engine hasn't been created yet.
+     */
+    fun getEngine(): SpatialEngine? = engine
+
+    /**
+     * Set a custom engine instance.
+     *
+     * Use this for platform-specific engine setup where the engine needs to be
+     * created with platform-specific configuration (like an ARSCNView on iOS).
+     *
+     * Must be called before start() if you want to use a custom engine.
+     */
+    fun setEngine(customEngine: SpatialEngine) {
+        engine = customEngine
+    }
+
+    /**
      * Check if AR/VR is supported on this platform.
      *
      * NOTE: On Android, this may return false until you call
@@ -87,8 +107,8 @@ class SpatialRuntime {
         }
 
         try {
-            // Create and initialize engine
-            val spatialEngine = SpatialEngineFactory.create()
+            // Create and initialize engine (use existing if already set)
+            val spatialEngine = engine ?: SpatialEngineFactory.create()
             engine = spatialEngine
 
             spatialEngine.initialize(config)
