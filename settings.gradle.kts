@@ -56,9 +56,3 @@ include(":spatial-scene")
 include(":spatial-dsl")
 include(":spatial-compose")
 include(":spatial-renderer-canvas")
-
-// Samples
-include(":samples:webxr-test")
-include(":samples:compose-webxr-example")
-include(":samples:compose-arcore-example")
-include(":samples:compose-arkit-example")

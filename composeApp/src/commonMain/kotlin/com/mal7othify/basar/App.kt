@@ -1,47 +1,67 @@
 package com.mal7othify.basar
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import basar.composeapp.generated.resources.Res
-import basar.composeapp.generated.resources.compose_multiplatform
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.spatialkit.compose.SpatialView
+import com.spatialkit.dsl.cm
+import com.spatialkit.dsl.rgb
+import com.spatialkit.dsl.vec3
+import com.spatialkit.engine.SessionMode
 
 @Composable
-@Preview
 fun App() {
+    var sessionReady by remember { mutableStateOf(false) }
+
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier =
-                Modifier
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .safeContentPadding()
-                    .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
+        Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+            Card(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Spatial-KMP ARKit Example",
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    Text("Session: ${if (sessionReady) "Ready" else "Starting..."}")
+                }
             }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                SpatialView(
+                    mode = SessionMode.AR,
+                    onSessionReady = { sessionReady = true },
                 ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+                    // Red cube
+                    cube(size = 10.cm, color = rgb(0xFF0000)) {
+                        position = vec3(0f, 0f, -1f)
+                    }
+
+                    // Green sphere
+                    sphere(radius = 5.cm, color = rgb(0x00FF00)) {
+                        position = vec3(0.3f, 0f, -1f)
+                    }
+
+                    // Blue cylinder
+                    cylinder(radius = 3.cm, height = 15.cm, color = rgb(0x0000FF)) {
+                        position = vec3(-0.3f, 0f, -1f)
+                    }
                 }
             }
         }

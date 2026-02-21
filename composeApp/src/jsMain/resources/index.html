@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spatial-KMP WebXR Example</title>
+    <title>Basar AR - Spatial-KMP</title>
     <style>
         body {
             margin: 0;
@@ -15,12 +15,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
         }
 
-        #root {
-            width: 100%;
-            height: 100%;
-        }
-
-        canvas {
+        #ComposeTarget {
             display: block;
             width: 100%;
             height: 100%;
@@ -81,15 +76,15 @@
 </head>
 <body>
 <div id="loading">
-    <h1>Spatial-KMP</h1>
+    <h1>Basar AR</h1>
     <div class="spinner"></div>
-    <p>Loading WebXR Example...</p>
+    <p>Loading Spatial-KMP...</p>
     <p style="font-size: 0.9em; margin-top: 20px;">
-        Full Compose Multiplatform + WebXR
+        Compose Multiplatform + WebXR
     </p>
 </div>
 
-<div id="root"></div>
+<div id="ComposeTarget"></div>
 
 <script src="app.js"></script>
 

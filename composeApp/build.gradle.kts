@@ -1,5 +1,3 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -27,16 +25,12 @@ kotlin {
         }
     }
 
-    jvm()
-
-    js {
-        browser()
-        binaries.executable()
-    }
-
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
+    js(IR) {
+        browser {
+            commonWebpackConfig {
+                outputFileName = "app.js"
+            }
+        }
         binaries.executable()
     }
 
@@ -44,6 +38,10 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
+
+            // Platform-specific: ARCore engine
+            implementation(project(":spatial-engine-arcore"))
+            implementation(libs.arcore)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -55,13 +53,27 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(projects.shared)
+
+            // Spatial libraries - common API
+            implementation(project(":spatial-compose"))
+            implementation(project(":spatial-dsl"))
+            implementation(project(":spatial-scene"))
+            implementation(project(":spatial-engine"))
+            implementation(project(":spatial-core"))
+        }
+        iosMain.dependencies {
+            // Platform-specific: ARKit engine
+            implementation(project(":spatial-engine-arkit"))
+        }
+        jsMain.dependencies {
+            // Platform-specific: WebXR engine
+            implementation(project(":spatial-engine-webxr"))
+
+            // NPM libs
+            implementation(npm("three", "0.160.0"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-        }
-        jvmMain.dependencies {
-            implementation(compose.desktop.currentOs)
-            implementation(libs.kotlinx.coroutines.swing)
         }
     }
 }
@@ -104,16 +116,4 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
-}
-
-compose.desktop {
-    application {
-        mainClass = "com.mal7othify.basar.MainKt"
-
-        nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.mal7othify.basar"
-            packageVersion = "1.0.0"
-        }
-    }
 }
