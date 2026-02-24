@@ -39,6 +39,8 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
+            // ARCore engine for Android
+            implementation(project(":spatial-engine-arcore"))
         }
 
         iosMain.dependencies {

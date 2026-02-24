@@ -91,27 +91,38 @@ class ARCoreEngine(
                 maxAnchors = 0,
             )
 
-    override suspend fun initialize(config: EngineConfig) =
+    override suspend fun initialize(config: EngineConfig) {
         withContext(Dispatchers.Main) {
+            android.util.Log.d("ARCoreEngine", "=== INITIALIZE CALLED ===")
+            android.util.Log.d("ARCoreEngine", "Current state: $_state")
+
             if (_state != EngineState.Uninitialized) {
+                android.util.Log.e("ARCoreEngine", "Engine already initialized!")
                 throw IllegalStateException("Engine already initialized")
             }
 
             _state = EngineState.Initializing
             currentConfig = config
+            android.util.Log.d("ARCoreEngine", "State set to Initializing")
 
             try {
                 // Check ARCore availability
+                android.util.Log.d("ARCoreEngine", "Checking ARCore availability...")
                 val availability = ArCoreApk.getInstance().checkAvailability(context)
+                android.util.Log.d("ARCoreEngine", "ARCore availability: $availability")
+
                 if (availability != ArCoreApk.Availability.SUPPORTED_INSTALLED) {
+                    android.util.Log.e("ARCoreEngine", "ARCore not available!")
                     throw EngineError.NotSupported.toException()
                 }
 
                 // Create ARCore session
+                android.util.Log.d("ARCoreEngine", "Creating ARCore session...")
                 val arSession =
                     Session(context, EnumSet.noneOf(Session.Feature::class.java)).also {
                         session = it
                     }
+                android.util.Log.d("ARCoreEngine", "ARCore session created successfully")
 
                 // Configure session
                 val arConfig =
@@ -142,12 +153,18 @@ class ARCoreEngine(
                 this@ARCoreEngine.config = arConfig
 
                 // Initialize OpenGL renderer
+                android.util.Log.d("ARCoreEngine", "Creating renderer...")
                 renderer = SimpleRenderer(context)
+                android.util.Log.d("ARCoreEngine", "Renderer created")
 
                 // Check capabilities
+                android.util.Log.d("ARCoreEngine", "Checking capabilities...")
                 _capabilities = checkCapabilities(arSession)
+                android.util.Log.d("ARCoreEngine", "Capabilities: $_capabilities")
 
                 _state = EngineState.Ready
+                android.util.Log.d("ARCoreEngine", "=== INITIALIZATION COMPLETE ===")
+                android.util.Log.d("ARCoreEngine", "State: $_state")
             } catch (e: UnavailableArcoreNotInstalledException) {
                 _state =
                     EngineState.Error(
@@ -186,13 +203,22 @@ class ARCoreEngine(
                 throw e
             }
         }
+    }
 
     override fun startSession(mode: SessionMode) {
+        android.util.Log.d("ARCoreEngine", "=== START SESSION CALLED ===")
+        android.util.Log.d("ARCoreEngine", "Mode: $mode, State: $_state")
+
         if (_state != EngineState.Ready) {
+            android.util.Log.e("ARCoreEngine", "Engine not ready! Current state: $_state")
             throw IllegalStateException("Engine not ready. Current state: $_state")
         }
 
-        val arSession = session ?: throw IllegalStateException("ARCore session not initialized")
+        val arSession = session ?: run {
+            android.util.Log.e("ARCoreEngine", "ARCore session not initialized!")
+            throw IllegalStateException("ARCore session not initialized")
+        }
+        android.util.Log.d("ARCoreEngine", "Session exists, starting...")
 
         // ARCore only supports AR mode
         if (mode !is SessionMode.AR) {
@@ -308,16 +334,29 @@ class ARCoreEngine(
      * to update the AR frame and invoke callbacks.
      */
     fun onDrawFrame(surface: Surface? = null) {
-        val arSession = session ?: return
-        val arRenderer = renderer ?: return
+        val arSession = session ?: run {
+            println("ARCore: onDrawFrame - session is null")
+            return
+        }
+        val arRenderer = renderer ?: run {
+            println("ARCore: onDrawFrame - renderer is null")
+            return
+        }
 
-        if (_state !is EngineState.Running) return
+        if (_state !is EngineState.Running) {
+            println("ARCore: onDrawFrame - state is $_state (not Running)")
+            return
+        }
 
         try {
             // Update ARCore session
-            arSession.setCameraTextureName(arRenderer.getCameraTextureId())
+            val textureId = arRenderer.getCameraTextureId()
+            println("ARCore: Setting camera texture ID: $textureId")
+            arSession.setCameraTextureName(textureId)
             val frame = arSession.update()
             val camera = frame.camera
+
+            println("ARCore: Camera tracking state: ${camera.trackingState}")
 
             // Skip if not tracking
             if (camera.trackingState != TrackingState.TRACKING) {
@@ -348,6 +387,14 @@ class ARCoreEngine(
                     EngineError.SessionFailed("Camera not available during frame: ${e.message}"),
                 )
         }
+    }
+
+    /**
+     * Call this when the OpenGL surface is created.
+     * This initializes the renderer with a valid GL context.
+     */
+    fun onSurfaceCreated() {
+        renderer?.initialize()
     }
 
     /**

@@ -99,19 +99,26 @@ class SpatialRuntime {
         onFrame: (FrameData) -> Unit,
         onError: (EngineError) -> Unit = {},
     ) {
+        println("SpatialRuntime: === START CALLED ===")
         errorCallback = onError
 
-        if (!isSupported) {
+        // Skip isSupported check if an engine was already set (e.g., via setEngine())
+        if (engine == null && !isSupported) {
+            println("SpatialRuntime: ERROR - Platform not supported!")
             onError(EngineError.NotSupported)
             return
         }
 
         try {
             // Create and initialize engine (use existing if already set)
+            println("SpatialRuntime: Creating/getting engine...")
             val spatialEngine = engine ?: SpatialEngineFactory.create()
             engine = spatialEngine
+            println("SpatialRuntime: Engine acquired: ${spatialEngine::class.simpleName}")
 
+            println("SpatialRuntime: Calling engine.initialize()...")
             spatialEngine.initialize(config)
+            println("SpatialRuntime: Engine initialized")
 
             // Check if initialization succeeded
             when (val engineState = spatialEngine.state) {
@@ -169,6 +176,8 @@ class SpatialRuntime {
                 }
             }
         } catch (e: Exception) {
+            println("SpatialRuntime: EXCEPTION during start: ${e.message}")
+            e.printStackTrace()
             onError(
                 EngineError.InitializationFailed(
                     "Failed to start runtime: ${e.message}",
