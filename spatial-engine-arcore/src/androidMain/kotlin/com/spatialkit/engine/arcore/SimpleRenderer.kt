@@ -5,8 +5,13 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import android.opengl.Matrix
 import com.google.ar.core.Camera
+import com.google.ar.core.Coordinates2d
 import com.google.ar.core.Frame
-import com.spatialkit.engine.*
+import com.spatialkit.engine.GeometryType
+import com.spatialkit.engine.RaycastResult
+import com.spatialkit.engine.SceneData
+import com.spatialkit.engine.SceneNode
+import com.spatialkit.engine.Vec3
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -38,6 +43,19 @@ class SimpleRenderer(
 
     // Display rotation handling
     private val transformedUvs = FloatArray(8)
+
+    // NDC coordinates for the fullscreen quad (in 0-1 range for ARCore transformation)
+    private val ndcCoordinates =
+        floatArrayOf(
+            0f,
+            0f, // bottom-left
+            1f,
+            0f, // bottom-right
+            0f,
+            1f, // top-left
+            1f,
+            1f, // top-right
+        )
 
     private fun initializeCameraTexture() {
         val textureIds = IntArray(1)
@@ -92,30 +110,40 @@ class SimpleRenderer(
         // Fullscreen quad vertices (NDC coordinates)
         val quadVertices =
             floatArrayOf(
-                -1.0f, -1.0f, // bottom-left
-                1.0f, -1.0f, // bottom-right
-                -1.0f, 1.0f, // top-left
-                1.0f, 1.0f, // top-right
+                -1.0f,
+                -1.0f, // bottom-left
+                1.0f,
+                -1.0f, // bottom-right
+                -1.0f,
+                1.0f, // top-left
+                1.0f,
+                1.0f, // top-right
             )
 
         // Texture coordinates
         val texCoords =
             floatArrayOf(
-                0.0f, 0.0f, // bottom-left
-                1.0f, 0.0f, // bottom-right
-                0.0f, 1.0f, // top-left
-                1.0f, 1.0f, // top-right
+                0.0f,
+                0.0f, // bottom-left
+                1.0f,
+                0.0f, // bottom-right
+                0.0f,
+                1.0f, // top-left
+                1.0f,
+                1.0f, // top-right
             )
 
         backgroundVertexBuffer =
-            ByteBuffer.allocateDirect(quadVertices.size * 4)
+            ByteBuffer
+                .allocateDirect(quadVertices.size * 4)
                 .order(ByteOrder.nativeOrder())
                 .asFloatBuffer()
                 .put(quadVertices)
                 .apply { position(0) }
 
         backgroundTexCoordBuffer =
-            ByteBuffer.allocateDirect(texCoords.size * 4)
+            ByteBuffer
+                .allocateDirect(texCoords.size * 4)
                 .order(ByteOrder.nativeOrder())
                 .asFloatBuffer()
                 .put(texCoords)
@@ -282,20 +310,21 @@ class SimpleRenderer(
 
         GLES30.glUseProgram(backgroundProgram)
 
-        // Get display-rotated UV coordinates from ARCore
+        // Transform NDC coordinates to texture coordinates based on camera/display orientation
+        // This handles all rotation and flipping automatically
         frame.transformCoordinates2d(
-            android.opengl.GLES20.GL_TEXTURE_COORD_ARRAY,
-            floatArrayOf(0f, 0f, 1f, 0f, 0f, 1f, 1f, 1f),
-            android.opengl.GLES20.GL_TEXTURE_COORD_ARRAY,
-            transformedUvs
+            Coordinates2d.OPENGL_NORMALIZED_DEVICE_COORDINATES,
+            ndcCoordinates,
+            Coordinates2d.TEXTURE_NORMALIZED,
+            transformedUvs,
         )
 
-        // Update texture coordinate buffer with transformed UVs
-        val texCoordBuffer = ByteBuffer.allocateDirect(transformedUvs.size * 4)
-            .order(ByteOrder.nativeOrder())
-            .asFloatBuffer()
-            .put(transformedUvs)
-            .apply { position(0) }
+        // Update texture coordinate buffer with transformed values
+        backgroundTexCoordBuffer?.apply {
+            position(0)
+            put(transformedUvs)
+            position(0)
+        }
 
         // Bind camera texture
         GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
@@ -309,8 +338,10 @@ class SimpleRenderer(
         }
 
         // Set transformed texture coordinates
-        GLES30.glEnableVertexAttribArray(1)
-        GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 0, texCoordBuffer)
+        backgroundTexCoordBuffer?.let { buffer ->
+            GLES30.glEnableVertexAttribArray(1)
+            GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 0, buffer)
+        }
 
         // Draw fullscreen quad
         GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
@@ -342,7 +373,10 @@ class SimpleRenderer(
         // Render each node (only Mesh nodes)
         sceneNodes.forEach { node ->
             when (node) {
-                is SceneNode.Mesh -> renderMesh(node)
+                is SceneNode.Mesh -> {
+                    renderMesh(node)
+                }
+
                 is SceneNode.Group -> {} // Groups don't render directly
             }
         }
@@ -406,9 +440,18 @@ class SimpleRenderer(
 
         // Render geometry based on type
         when (mesh.geometry.type) {
-            GeometryType.CUBE -> renderCube()
-            GeometryType.SPHERE -> renderSphere()
-            GeometryType.CYLINDER -> renderCylinder()
+            GeometryType.CUBE -> {
+                renderCube()
+            }
+
+            GeometryType.SPHERE -> {
+                renderSphere()
+            }
+
+            GeometryType.CYLINDER -> {
+                renderCylinder()
+            }
+
             else -> {} // Other types not implemented yet
         }
     }
@@ -420,45 +463,107 @@ class SimpleRenderer(
         val vertices =
             floatArrayOf(
                 // Front face
-                -halfSize, -halfSize, halfSize, // 0
-                halfSize, -halfSize, halfSize, // 1
-                halfSize, halfSize, halfSize, // 2
-                -halfSize, halfSize, halfSize, // 3
+                -halfSize,
+                -halfSize,
+                halfSize, // 0
+                halfSize,
+                -halfSize,
+                halfSize, // 1
+                halfSize,
+                halfSize,
+                halfSize, // 2
+                -halfSize,
+                halfSize,
+                halfSize, // 3
                 // Back face
-                -halfSize, -halfSize, -halfSize, // 4
-                halfSize, -halfSize, -halfSize, // 5
-                halfSize, halfSize, -halfSize, // 6
-                -halfSize, halfSize, -halfSize, // 7
+                -halfSize,
+                -halfSize,
+                -halfSize, // 4
+                halfSize,
+                -halfSize,
+                -halfSize, // 5
+                halfSize,
+                halfSize,
+                -halfSize, // 6
+                -halfSize,
+                halfSize,
+                -halfSize, // 7
             )
 
         val normals =
             floatArrayOf(
                 // Front
-                0f, 0f, 1f,
-                0f, 0f, 1f,
-                0f, 0f, 1f,
-                0f, 0f, 1f,
+                0f,
+                0f,
+                1f,
+                0f,
+                0f,
+                1f,
+                0f,
+                0f,
+                1f,
+                0f,
+                0f,
+                1f,
                 // Back
-                0f, 0f, -1f,
-                0f, 0f, -1f,
-                0f, 0f, -1f,
-                0f, 0f, -1f,
+                0f,
+                0f,
+                -1f,
+                0f,
+                0f,
+                -1f,
+                0f,
+                0f,
+                -1f,
+                0f,
+                0f,
+                -1f,
             )
 
         val indices =
             shortArrayOf(
                 // Front
-                0, 1, 2, 0, 2, 3,
+                0,
+                1,
+                2,
+                0,
+                2,
+                3,
                 // Right
-                1, 5, 6, 1, 6, 2,
+                1,
+                5,
+                6,
+                1,
+                6,
+                2,
                 // Back
-                5, 4, 7, 5, 7, 6,
+                5,
+                4,
+                7,
+                5,
+                7,
+                6,
                 // Left
-                4, 0, 3, 4, 3, 7,
+                4,
+                0,
+                3,
+                4,
+                3,
+                7,
                 // Top
-                3, 2, 6, 3, 6, 7,
+                3,
+                2,
+                6,
+                3,
+                6,
+                7,
                 // Bottom
-                4, 5, 1, 4, 1, 0,
+                4,
+                5,
+                1,
+                4,
+                1,
+                0,
             )
 
         drawGeometry(vertices, normals, indices)
@@ -606,7 +711,8 @@ class SimpleRenderer(
     ) {
         // Create vertex buffer
         val vertexBuffer =
-            ByteBuffer.allocateDirect(vertices.size * 4)
+            ByteBuffer
+                .allocateDirect(vertices.size * 4)
                 .order(ByteOrder.nativeOrder())
                 .asFloatBuffer()
                 .put(vertices)
@@ -614,7 +720,8 @@ class SimpleRenderer(
 
         // Create normal buffer
         val normalBuffer =
-            ByteBuffer.allocateDirect(normals.size * 4)
+            ByteBuffer
+                .allocateDirect(normals.size * 4)
                 .order(ByteOrder.nativeOrder())
                 .asFloatBuffer()
                 .put(normals)
@@ -622,7 +729,8 @@ class SimpleRenderer(
 
         // Create index buffer
         val indexBuffer =
-            ByteBuffer.allocateDirect(indices.size * 2)
+            ByteBuffer
+                .allocateDirect(indices.size * 2)
                 .order(ByteOrder.nativeOrder())
                 .asShortBuffer()
                 .put(indices)

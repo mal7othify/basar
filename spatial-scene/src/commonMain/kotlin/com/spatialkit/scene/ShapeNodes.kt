@@ -279,13 +279,14 @@ class CustomMeshNode(
 
 /**
  * Extension function to convert Color to Vec4.
+ * Color values are already in 0-1 range, so no conversion needed.
  */
 private fun Color.toVec4(): Vec4 =
     Vec4(
-        this.r / 255f,
-        this.g / 255f,
-        this.b / 255f,
-        this.a / 255f,
+        this.r,
+        this.g,
+        this.b,
+        this.a,
     )
 
 /**

@@ -398,6 +398,14 @@ class ARCoreEngine(
     }
 
     /**
+     * Get the display rotation from the window manager.
+     */
+    private fun getDisplayRotation(): Int {
+        val windowManager = context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+        return windowManager.defaultDisplay.rotation
+    }
+
+    /**
      * Call this when the surface is created or changed.
      */
     fun onSurfaceChanged(
@@ -405,7 +413,11 @@ class ARCoreEngine(
         height: Int,
     ) {
         renderer?.resize(width, height)
-        session?.setDisplayGeometry(0, width, height)
+
+        // Get actual display rotation and pass it to ARCore
+        val displayRotation = getDisplayRotation()
+        android.util.Log.d("ARCoreEngine", "Display rotation: $displayRotation, size: ${width}x${height}")
+        session?.setDisplayGeometry(displayRotation, width, height)
     }
 
     // === Private Implementation ===
