@@ -77,7 +77,9 @@ import platform.SceneKit.SCNScene
 import platform.SceneKit.SCNSphere
 import platform.SceneKit.SCNVector3Make
 import platform.SceneKit.SCNVector4Make
+import platform.UIKit.UIApplication
 import platform.UIKit.UIColor
+import platform.UIKit.UIInterfaceOrientation
 import platform.UIKit.UIInterfaceOrientationPortrait
 import platform.darwin.simd_float4x4
 import kotlin.math.sqrt
@@ -93,6 +95,7 @@ class ARKitEngine : SpatialEngine {
     private var lastFrameTime: Long = 0L
 
     private var viewportSize: CValue<CGSize>? = null
+    private var currentOrientation: UIInterfaceOrientation = UIInterfaceOrientationPortrait
 
     // SceneKit node management
     private val contentRoot = SCNNode()
@@ -124,7 +127,14 @@ class ARKitEngine : SpatialEngine {
     override suspend fun initialize(config: EngineConfig) {
         try {
             currentConfig = config
-            arSession = ARSession()
+            // Only create a new session if setARView hasn't been called yet
+            // (arView's session takes precedence)
+            if (arSession == null) {
+                arSession = ARSession()
+                println("ARKitEngine: Created new ARSession")
+            } else {
+                println("ARKitEngine: Using existing ARSession from ARSCNView")
+            }
             state = EngineState.Ready
             println("ARKitEngine initialized successfully")
         } catch (e: Exception) {
@@ -165,6 +175,9 @@ class ARKitEngine : SpatialEngine {
                 CGSizeMake(size.width, size.height)
             }
 
+        // Get initial interface orientation
+        currentOrientation = getCurrentInterfaceOrientation()
+
         // Ensure the view has a scene, create one if needed
         if (view.scene == null) {
             view.scene = SCNScene()
@@ -175,6 +188,8 @@ class ARKitEngine : SpatialEngine {
 
         // Enable default lighting for better visuals
         view.autoenablesDefaultLighting = true
+
+        println("ARKitEngine: ARSCNView connected, session=${arSession != null}")
     }
 
     fun updateViewportSize(
@@ -182,6 +197,34 @@ class ARKitEngine : SpatialEngine {
         height: Double,
     ) {
         viewportSize = CGSizeMake(width, height)
+        // Update orientation based on current interface orientation
+        currentOrientation = getCurrentInterfaceOrientation()
+    }
+
+    /**
+     * Get the current interface orientation from the application.
+     * This ensures we use the correct orientation for camera matrix calculations.
+     */
+    private fun getCurrentInterfaceOrientation(): UIInterfaceOrientation {
+        // Try to get orientation from the ARView's window scene (iOS 13+)
+        return try {
+            val view = arView
+            if (view != null) {
+                // Get orientation from the view's window scene (most reliable)
+                val windowScene = view.window?.windowScene
+                val orientation = windowScene?.interfaceOrientation
+                if (orientation != null) {
+                    return orientation
+                }
+            }
+
+            // Fallback: try from shared application (deprecated but still works)
+            @Suppress("DEPRECATION")
+            UIApplication.sharedApplication.statusBarOrientation
+        } catch (e: Exception) {
+            // Default to portrait if we can't determine orientation
+            UIInterfaceOrientationPortrait
+        }
     }
 
     override fun startSession(mode: SessionMode) {
@@ -199,6 +242,7 @@ class ARKitEngine : SpatialEngine {
 
             if (arConfig == null) return
 
+            println("ARKitEngine: Starting session with config, arView=${arView != null}")
             session.runWithConfiguration(arConfig)
             state = EngineState.Running(mode)
             println("ARKit session started: $mode")
@@ -209,6 +253,7 @@ class ARKitEngine : SpatialEngine {
                 EngineState.Error(
                     EngineError.InitializationFailed("Failed to start session: ${e.message}"),
                 )
+            println("ARKitEngine: Failed to start session: ${e.message}")
         }
     }
 
@@ -342,6 +387,7 @@ class ARKitEngine : SpatialEngine {
 
     /**
      * Extract projection matrix from ARCamera.
+     * Uses current interface orientation to ensure correct camera perspective.
      */
     @OptIn(ExperimentalForeignApi::class)
     private fun getProjectionMatrix(camera: ARCamera): FloatArray {
@@ -353,14 +399,16 @@ class ARKitEngine : SpatialEngine {
         val farZ = 1000.0 // 1km
 
         // Use useContents to extract the CGSize value for the interop call
-        val projectionMatrix = viewport.useContents {
-            camera.projectionMatrixForOrientation(
-                orientation = UIInterfaceOrientationPortrait,
-                viewportSize = CGSizeMake(width, height),
-                zNear = nearZ,
-                zFar = farZ,
-            )
-        }
+        // Use current orientation instead of hardcoded portrait
+        val projectionMatrix =
+            viewport.useContents {
+                camera.projectionMatrixForOrientation(
+                    orientation = currentOrientation,
+                    viewportSize = CGSizeMake(width, height),
+                    zNear = nearZ,
+                    zFar = farZ,
+                )
+            }
 
         return convertMatrixToFloatArray(projectionMatrix)
     }
@@ -368,14 +416,16 @@ class ARKitEngine : SpatialEngine {
     /**
      * Extract view matrix from ARCamera.
      * The view matrix is the inverse of the camera transform.
+     * Uses current interface orientation to ensure correct camera perspective.
      */
     @OptIn(ExperimentalForeignApi::class)
     private fun getViewMatrix(camera: ARCamera): FloatArray {
         val viewport = viewportSize ?: return FloatArray(16) { if (it % 5 == 0) 1f else 0f }
 
+        // Use current orientation instead of hardcoded portrait
         val viewMatrix =
             camera.viewMatrixForOrientation(
-                orientation = UIInterfaceOrientationPortrait,
+                orientation = currentOrientation,
             )
 
         return convertMatrixToFloatArray(viewMatrix)

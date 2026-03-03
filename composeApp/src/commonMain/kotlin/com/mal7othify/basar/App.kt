@@ -45,6 +45,7 @@ fun App() {
 
             Box(modifier = Modifier.fillMaxSize()) {
                 SpatialView(
+                    modifier = Modifier.fillMaxSize(),
                     mode = SessionMode.AR,
                     onSessionReady = { sessionReady = true },
                 ) {

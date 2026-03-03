@@ -40,6 +40,7 @@ actual fun SpatialSurface(
         modifier = modifier,
         factory = {
             // Create ARSCNView with a default frame
+            println("SpatialSurface: Creating ARSCNView")
             ARSCNView(frame = CGRectMake(0.0, 0.0, 1.0, 1.0)).apply {
                 // Connect the view to the engine
                 arkitEngine.setARView(this)
@@ -47,11 +48,18 @@ actual fun SpatialSurface(
                 // Enable AR features
                 autoenablesDefaultLighting = true
                 automaticallyUpdatesLighting = true
+
+                // Ensure the view is visible
+                hidden = false
+                alpha = 1.0
+
+                println("SpatialSurface: ARSCNView created and configured")
             }
         },
         update = { view ->
             // Update viewport size on layout changes
             view.bounds.useContents {
+                println("SpatialSurface: Updating viewport size: ${size.width}x${size.height}")
                 arkitEngine.updateViewportSize(size.width, size.height)
             }
         },
