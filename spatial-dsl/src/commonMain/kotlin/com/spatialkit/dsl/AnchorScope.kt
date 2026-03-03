@@ -1,9 +1,12 @@
 package com.spatialkit.dsl
 
-import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
-import com.spatialkit.engine.Pose
-import com.spatialkit.scene.*
+import com.spatialkit.scene.CubeNode
+import com.spatialkit.scene.GroupNode
+import com.spatialkit.scene.SpatialAnchor
+import com.spatialkit.scene.SpatialNode
+import com.spatialkit.scene.SpatialScene
+import com.spatialkit.scene.SphereNode
 
 /**
  * DSL scope for building content attached to spatial anchors.
@@ -44,12 +47,11 @@ class AnchorScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CubeNode.() -> Unit = {},
-    ): CubeNode {
-        return CubeNode(size, color, id).apply(configure).also {
+    ): CubeNode =
+        CubeNode(size, color, id).apply(configure).also {
             anchoredNodes.add(it)
             scene.add(it)
         }
-    }
 
     /**
      * Creates a sphere node anchored to this spatial anchor.
@@ -59,12 +61,11 @@ class AnchorScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: SphereNode.() -> Unit = {},
-    ): SphereNode {
-        return SphereNode(radius, color, id).apply(configure).also {
+    ): SphereNode =
+        SphereNode(radius, color, id).apply(configure).also {
             anchoredNodes.add(it)
             scene.add(it)
         }
-    }
 
     /**
      * Creates a group node anchored to this spatial anchor.

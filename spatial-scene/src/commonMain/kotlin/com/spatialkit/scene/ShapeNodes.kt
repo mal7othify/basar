@@ -1,7 +1,14 @@
 package com.spatialkit.scene
 
+import com.spatialkit.core.math.Transform
+import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
-import com.spatialkit.engine.*
+import com.spatialkit.engine.GeometryData
+import com.spatialkit.engine.GeometryType
+import com.spatialkit.engine.MaterialData
+import com.spatialkit.engine.MaterialType
+import com.spatialkit.engine.SceneNode
+import com.spatialkit.engine.Vec4
 
 /**
  * A cubic mesh node.

@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// TODO: Replace this with KMP Permission later on!
 @Composable
 fun PermissionScreen(onRequestPermission: () -> Unit) {
     Surface(
@@ -68,9 +69,10 @@ fun PermissionScreen(onRequestPermission: () -> Unit) {
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
             verticalArrangement = Arrangement.Center,
         ) {
             Text(

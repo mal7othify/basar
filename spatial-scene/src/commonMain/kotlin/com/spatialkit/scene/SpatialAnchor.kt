@@ -1,6 +1,10 @@
 package com.spatialkit.scene
 
-import com.spatialkit.engine.*
+import com.spatialkit.engine.AnchorRequest
+import com.spatialkit.engine.AnchorState
+import com.spatialkit.engine.AnchorStatus
+import com.spatialkit.engine.AnchorType
+import com.spatialkit.engine.Pose
 import kotlin.random.Random
 
 /**
@@ -130,10 +134,12 @@ class SpatialAnchor(
             status == AnchorStatus.TRACKING && previousStatus != AnchorStatus.TRACKING -> {
                 onTrackingCallback?.invoke(this)
             }
+
             (status == AnchorStatus.PAUSED || status == AnchorStatus.LOST) &&
                 previousStatus == AnchorStatus.TRACKING -> {
                 onLostCallback?.invoke(this)
             }
+
             status == AnchorStatus.ERROR && previousStatus != AnchorStatus.ERROR -> {
                 onFailedCallback?.invoke(this)
             }
@@ -151,8 +157,7 @@ class SpatialAnchor(
             type = type,
         )
 
-    override fun toString(): String =
-        "SpatialAnchor(id=$id, type=$type, status=$status, tracking=$isTracking)"
+    override fun toString(): String = "SpatialAnchor(id=$id, type=$type, status=$status, tracking=$isTracking)"
 
     companion object {
         private var anchorCounter = 0

@@ -3,7 +3,15 @@ package com.spatialkit.dsl
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
 import com.spatialkit.engine.AnchorType
-import com.spatialkit.scene.*
+import com.spatialkit.scene.CapsuleNode
+import com.spatialkit.scene.CubeNode
+import com.spatialkit.scene.CylinderNode
+import com.spatialkit.scene.GroupNode
+import com.spatialkit.scene.PlaneNode
+import com.spatialkit.scene.SpatialAnchor
+import com.spatialkit.scene.SpatialNode
+import com.spatialkit.scene.SpatialScene
+import com.spatialkit.scene.SphereNode
 
 /**
  * DSL scope for building spatial scenes.
@@ -46,9 +54,7 @@ class SpatialSceneScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CubeNode.() -> Unit = {},
-    ): CubeNode {
-        return CubeNode(size, color, id).apply(configure).also { scene.add(it) }
-    }
+    ): CubeNode = CubeNode(size, color, id).apply(configure).also { scene.add(it) }
 
     /**
      * Creates a sphere node and adds it to the scene.
@@ -64,9 +70,7 @@ class SpatialSceneScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: SphereNode.() -> Unit = {},
-    ): SphereNode {
-        return SphereNode(radius, color, id).apply(configure).also { scene.add(it) }
-    }
+    ): SphereNode = SphereNode(radius, color, id).apply(configure).also { scene.add(it) }
 
     /**
      * Creates a plane node and adds it to the scene.
@@ -84,9 +88,7 @@ class SpatialSceneScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: PlaneNode.() -> Unit = {},
-    ): PlaneNode {
-        return PlaneNode(width, height, color, id).apply(configure).also { scene.add(it) }
-    }
+    ): PlaneNode = PlaneNode(width, height, color, id).apply(configure).also { scene.add(it) }
 
     /**
      * Creates a cylinder node and adds it to the scene.
@@ -104,9 +106,7 @@ class SpatialSceneScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CylinderNode.() -> Unit = {},
-    ): CylinderNode {
-        return CylinderNode(radius, height, color, id).apply(configure).also { scene.add(it) }
-    }
+    ): CylinderNode = CylinderNode(radius, height, color, id).apply(configure).also { scene.add(it) }
 
     /**
      * Creates a capsule node and adds it to the scene.
@@ -124,9 +124,7 @@ class SpatialSceneScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CapsuleNode.() -> Unit = {},
-    ): CapsuleNode {
-        return CapsuleNode(radius, height, color, id).apply(configure).also { scene.add(it) }
-    }
+    ): CapsuleNode = CapsuleNode(radius, height, color, id).apply(configure).also { scene.add(it) }
 
     /**
      * Creates a group node with nested content.
