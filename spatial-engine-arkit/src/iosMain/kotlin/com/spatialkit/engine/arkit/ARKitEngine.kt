@@ -54,6 +54,7 @@ import platform.ARKit.ARRaycastResult
 import platform.ARKit.ARRaycastTarget
 import platform.ARKit.ARRaycastTargetAlignment
 import platform.ARKit.ARSCNView
+import platform.ARKit.ARSCNViewDelegateProtocol
 import platform.ARKit.ARSession
 import platform.ARKit.ARTrackingState
 import platform.ARKit.ARWorldAlignment
@@ -63,7 +64,6 @@ import platform.CoreGraphics.CGRect
 import platform.CoreGraphics.CGSize
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSNumber
-import platform.Foundation.NSTimer
 import platform.Foundation.numberWithFloat
 import platform.QuartzCore.CACurrentMediaTime
 import platform.SceneKit.SCNBox
@@ -74,6 +74,7 @@ import platform.SceneKit.SCNMaterial
 import platform.SceneKit.SCNNode
 import platform.SceneKit.SCNPlane
 import platform.SceneKit.SCNScene
+import platform.SceneKit.SCNSceneRendererProtocol
 import platform.SceneKit.SCNSphere
 import platform.SceneKit.SCNVector3Make
 import platform.SceneKit.SCNVector4Make
@@ -81,8 +82,31 @@ import platform.UIKit.UIApplication
 import platform.UIKit.UIColor
 import platform.UIKit.UIInterfaceOrientation
 import platform.UIKit.UIInterfaceOrientationPortrait
+import platform.darwin.NSObject
 import platform.darwin.simd_float4x4
 import kotlin.math.sqrt
+
+/**
+ * ARSCNView delegate for handling frame updates efficiently.
+ */
+@OptIn(ExperimentalForeignApi::class)
+private class ARViewDelegate(
+    private val engine: ARKitEngine,
+) : NSObject(),
+    ARSCNViewDelegateProtocol {
+    // Called every frame for smooth updates
+    override fun renderer(
+        renderer: SCNSceneRendererProtocol,
+        didAddNode: SCNNode,
+        forAnchor: ARAnchor,
+    ) {
+        // Get the current ARFrame from the session
+        val arView = renderer as? ARSCNView ?: return
+        val frame = arView.session.currentFrame ?: return
+
+        engine.processFrame(frame)
+    }
+}
 
 @OptIn(ExperimentalForeignApi::class)
 class ARKitEngine : SpatialEngine {
@@ -101,6 +125,9 @@ class ARKitEngine : SpatialEngine {
     private val contentRoot = SCNNode()
     private val sceneNodeMap = mutableMapOf<String, SCNNode>()
     private var currentScene: SceneData? = null
+
+    // Delegate for frame updates
+    private val viewDelegate = ARViewDelegate(this)
 
     override var state: EngineState = EngineState.Uninitialized
         private set
@@ -131,12 +158,8 @@ class ARKitEngine : SpatialEngine {
             // (arView's session takes precedence)
             if (arSession == null) {
                 arSession = ARSession()
-                println("ARKitEngine: Created new ARSession")
-            } else {
-                println("ARKitEngine: Using existing ARSession from ARSCNView")
             }
             state = EngineState.Ready
-            println("ARKitEngine initialized successfully")
         } catch (e: Exception) {
             state =
                 EngineState.Error(
@@ -189,7 +212,8 @@ class ARKitEngine : SpatialEngine {
         // Enable default lighting for better visuals
         view.autoenablesDefaultLighting = true
 
-        println("ARKitEngine: ARSCNView connected, session=${arSession != null}")
+        // Set the delegate for efficient frame updates
+        view.delegate = viewDelegate
     }
 
     fun updateViewportSize(
@@ -242,18 +266,13 @@ class ARKitEngine : SpatialEngine {
 
             if (arConfig == null) return
 
-            println("ARKitEngine: Starting session with config, arView=${arView != null}")
             session.runWithConfiguration(arConfig)
             state = EngineState.Running(mode)
-            println("ARKit session started: $mode")
-
-            startFrameLoop()
         } catch (e: Exception) {
             state =
                 EngineState.Error(
                     EngineError.InitializationFailed("Failed to start session: ${e.message}"),
                 )
-            println("ARKitEngine: Failed to start session: ${e.message}")
         }
     }
 
@@ -276,25 +295,14 @@ class ARKitEngine : SpatialEngine {
         return arConfig
     }
 
-    private fun startFrameLoop() {
-        // Poll currentFrame at a timer. Better: use ARSessionDelegate callbacks.
-        NSTimer.scheduledTimerWithTimeInterval(
-            interval = 1.0 / 60.0,
-            repeats = true,
-        ) { timer ->
-            if (state !is EngineState.Running) {
-                timer?.invalidate()
-                return@scheduledTimerWithTimeInterval
-            }
+    /**
+     * Process a frame update from ARKit.
+     * Called by the ARViewDelegate on each frame.
+     */
+    internal fun processFrame(frame: ARFrame) {
+        // Only process frames when session is running
+        if (state !is EngineState.Running) return
 
-            val session = arSession ?: return@scheduledTimerWithTimeInterval
-            val frame = session.currentFrame ?: return@scheduledTimerWithTimeInterval
-
-            processFrame(frame)
-        }
-    }
-
-    private fun processFrame(frame: ARFrame) {
         val currentTime = (CACurrentMediaTime() * 1000).toLong()
         val deltaTime =
             if (lastFrameTime > 0) {
@@ -925,7 +933,6 @@ class ARKitEngine : SpatialEngine {
     override fun stopSession() {
         arSession?.pause()
         state = EngineState.Ready
-        println("ARKit session stopped")
     }
 
     override fun dispose() {
@@ -942,7 +949,6 @@ class ARKitEngine : SpatialEngine {
         sceneNodeMap.clear()
 
         state = EngineState.Uninitialized
-        println("ARKitEngine disposed")
     }
 }
 
