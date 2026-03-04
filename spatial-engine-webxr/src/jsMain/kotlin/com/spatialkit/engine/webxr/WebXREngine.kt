@@ -88,6 +88,15 @@ class WebXREngine : SpatialEngine {
 
             val canvas = document.createElement("canvas") as HTMLCanvasElement
             canvas.id = "webxr-canvas"
+            // Style the canvas to be visible and fill the screen
+            canvas.style.apply {
+                position = "fixed"
+                top = "0"
+                left = "0"
+                width = "100%"
+                height = "100%"
+                zIndex = "999" // Above Compose canvas but below button overlay (1000)
+            }
             document.body?.appendChild(canvas)
 
             renderer =
@@ -116,8 +125,22 @@ class WebXREngine : SpatialEngine {
     }
 
     override fun startSession(mode: SessionMode) {
+        // Allow retry from Error state if the error was due to missing user activation
+        // (WebXR requires user gesture which may not be available on first call)
         if (_state != EngineState.Ready) {
-            throw IllegalStateException("Engine not ready. Current state: $_state")
+            val currentState = _state
+            if (currentState is EngineState.Error) {
+                val errorMessage = currentState.error.toString()
+                if (errorMessage.contains("user activation", ignoreCase = true)) {
+                    // Reset to Ready state to allow retry with user gesture
+                    _state = EngineState.Ready
+                    console.log("WebXR: Retrying session start with user gesture")
+                } else {
+                    throw IllegalStateException("Engine not ready. Current state: $_state")
+                }
+            } else {
+                throw IllegalStateException("Engine not ready. Current state: $_state")
+            }
         }
 
         val xrMode =
@@ -134,16 +157,58 @@ class WebXREngine : SpatialEngine {
                 return
             }
 
+        // For AR mode, request camera permission first via MediaDevices API
+        // This ensures Chrome prompts for camera access
+        if (mode is SessionMode.AR) {
+            console.log("WebXR: Requesting camera permission...")
+            val mediaDevices = navigator.asDynamic().mediaDevices
+            if (mediaDevices != null) {
+                val constraints = js("{video: true}")
+                mediaDevices
+                    .getUserMedia(constraints).then { stream ->
+                        console.log("WebXR: Camera permission granted!")
+                        // Stop the stream immediately - we just needed permission
+                        stream.getTracks().forEach { track ->
+                            track.stop()
+                        }
+                        // Now request XR session with camera access
+                        requestXRSession(xr, xrMode, mode)
+                    }.catch { error ->
+                        console.error("WebXR: Camera permission denied: $error")
+                        _state =
+                            EngineState.Error(
+                                EngineError.SessionFailed("Camera permission denied: $error"),
+                            )
+                    }
+            } else {
+                console.warn("WebXR: MediaDevices API not available, trying XR session anyway...")
+                requestXRSession(xr, xrMode, mode)
+            }
+        } else {
+            // For VR mode, no camera needed
+            requestXRSession(xr, xrMode, mode)
+        }
+    }
+
+    private fun requestXRSession(
+        xr: dynamic,
+        xrMode: String,
+        mode: SessionMode,
+    ) {
         // Request XR session
+        console.log("WebXR: Requesting $xrMode session...")
         xr
             .requestSession(
                 xrMode,
                 object {
-                    val optionalFeatures = arrayOf("hit-test", "dom-overlay", "hand-tracking")
+                    val requiredFeatures = arrayOf("local-floor")
+                    val optionalFeatures = arrayOf("camera-access", "hit-test", "dom-overlay", "hand-tracking")
                 },
             ).then { session ->
+                console.log("WebXR: Session granted! Configuring...")
                 handleSessionStarted(session, mode)
             }.catch { error ->
+                console.error("WebXR: Session request failed: $error")
                 _state =
                     EngineState.Error(
                         EngineError.SessionFailed("Failed to start session: $error"),
@@ -155,17 +220,21 @@ class WebXREngine : SpatialEngine {
         session: XRSession,
         mode: SessionMode,
     ) {
+        console.log("WebXR: handleSessionStarted() entered")
         xrSession = session
 
         // Set up session end handler
         session.onend = {
+            console.log("WebXR: Session ended")
             handleSessionEnded()
         }
 
         // Request reference space
+        console.log("WebXR: Requesting reference space...")
         session
             .requestReferenceSpace("local-floor")
             .then { referenceSpace ->
+                console.log("WebXR: Reference space acquired!")
                 xrReferenceSpace = referenceSpace
 
                 // Set up hit test source for AR
@@ -180,30 +249,37 @@ class WebXREngine : SpatialEngine {
                         }.catch { }
                 }
 
-                // Configure WebGL layer
-                val gl =
-                    renderer?.domElement?.getContext(
-                        "webgl2",
+                // Get the WebGL context from the Three.js renderer
+                // Don't call getContext() again - use the existing context
+                val gl = renderer?.asDynamic()?.getContext()
+                console.log("WebXR: Got WebGL context from renderer: ${gl != null}")
+
+                if (gl != null) {
+                    console.log("WebXR: Setting up render state with WebGL context")
+                    session.updateRenderState(
                         object {
-                            val xrCompatible = true
+                            val baseLayer = XRWebGLLayer(session, gl)
                         },
                     )
-
-                session.updateRenderState(
-                    object {
-                        val baseLayer = XRWebGLLayer(session, gl)
-                    },
-                )
+                    console.log("WebXR: Render state configured")
+                } else {
+                    console.error("WebXR: Failed to get WebGL context from renderer!")
+                }
 
                 // Start animation loop
+                console.log("WebXR: Setting up animation loop")
                 renderer?.setAnimationLoop { time, frame ->
                     if (frame != null) {
                         onXRFrame(time, frame.unsafeCast<XRFrame>())
+                    } else {
+                        console.log("WebXR: Frame is null!")
                     }
                 }
 
                 _state = EngineState.Running(mode)
+                console.log("WebXR: Session running, state = ${_state}")
             }.catch { error ->
+                console.error("WebXR: Failed to setup reference space or render state: $error")
                 _state =
                     EngineState.Error(
                         EngineError.SessionFailed("Failed to get reference space: $error"),
@@ -335,18 +411,46 @@ class WebXREngine : SpatialEngine {
 
     // === Private Implementation ===
 
+    private var frameCount = 0
+
     private fun onXRFrame(
         time: Double,
         frame: XRFrame,
     ) {
-        val referenceSpace = xrReferenceSpace ?: return
+        frameCount++
+        if (frameCount == 1) {
+            console.log("WebXR: First frame! Starting render loop...")
+            console.log("WebXR: Scene children count = ${scene?.children?.size}")
+        }
+
+        val referenceSpace =
+            xrReferenceSpace ?: run {
+                if (frameCount == 1) console.log("WebXR: No reference space!")
+                return
+            }
         val session = frame.session
-        val threeScene = scene ?: return
-        val threeCamera = camera ?: return
-        val threeRenderer = renderer ?: return
+        val threeScene =
+            scene ?: run {
+                if (frameCount == 1) console.log("WebXR: No scene!")
+                return
+            }
+        val threeCamera =
+            camera ?: run {
+                if (frameCount == 1) console.log("WebXR: No camera!")
+                return
+            }
+        val threeRenderer =
+            renderer ?: run {
+                if (frameCount == 1) console.log("WebXR: No renderer!")
+                return
+            }
 
         // Get viewer pose
-        val pose = frame.getViewerPose(referenceSpace) ?: return
+        val pose =
+            frame.getViewerPose(referenceSpace) ?: run {
+                if (frameCount == 1) console.log("WebXR: No viewer pose!")
+                return
+            }
 
         // Calculate delta time
         val deltaTime =
@@ -363,8 +467,13 @@ class WebXREngine : SpatialEngine {
         // Call user callback
         frameCallback?.invoke(frameData)
 
-        // Render
+        // Render - Three.js handles WebXR rendering automatically when xr.enabled = true
+        // It will render to the XR framebuffer and composite with camera feed
         threeRenderer.render(threeScene, threeCamera)
+
+        if (frameCount % 60 == 0) {
+            console.log("WebXR: Rendered frame $frameCount, scene has ${threeScene.children.size} objects")
+        }
     }
 
     private fun convertToFrameData(

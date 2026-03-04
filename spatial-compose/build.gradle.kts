@@ -48,6 +48,11 @@ kotlin {
             implementation(project(":spatial-engine-arkit"))
         }
 
+        jsMain.dependencies {
+            // WebXR engine for JavaScript/Browser
+            implementation(project(":spatial-engine-webxr"))
+        }
+
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
