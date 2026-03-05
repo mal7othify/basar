@@ -127,6 +127,15 @@ class WebXREngine : SpatialEngine {
                     xr.enabled = true
                 }
 
+            // Listen for session end via Three.js's XR manager (registered once).
+            // This fires AFTER Three.js's own cleanup, avoiding the race condition
+            // where session.onend + setSession(null) would null out Three.js's
+            // internal reference before its removeEventListener call.
+            renderer?.xr.asDynamic().addEventListener("sessionend") {
+                console.log("WebXR: Session ended (via Three.js XR manager).")
+                handleSessionEnded()
+            }
+
             // Check WebXR capabilities
             _capabilities = checkCapabilities()
 
@@ -249,12 +258,6 @@ class WebXREngine : SpatialEngine {
         console.log("WebXR: handleSessionStarted() entered")
         xrSession = session
 
-        // Set up session end handler
-        session.onend = {
-            console.log("WebXR: Session ended.")
-            handleSessionEnded()
-        }
-
         // Configure Three.js XR reference space type BEFORE setting session
         val referenceSpaceType = if (mode is SessionMode.AR) "local" else "local-floor"
         renderer?.xr?.setReferenceSpaceType(referenceSpaceType)
@@ -369,9 +372,6 @@ class WebXREngine : SpatialEngine {
         // Stop the animation loop
         renderer?.setAnimationLoop(null)
 
-        // Clear the XR session from Three.js so it can accept a new one
-        renderer?.xr?.setSession(null)
-
         // Show the Compose canvas again
         composeCanvas?.style?.display = ""
         document.body?.style?.background = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
@@ -380,9 +380,7 @@ class WebXREngine : SpatialEngine {
     }
 
     override fun stopSession() {
-        xrSession?.end()?.then {
-            handleSessionEnded()
-        }
+        xrSession?.end()
     }
 
     override fun dispose() {
