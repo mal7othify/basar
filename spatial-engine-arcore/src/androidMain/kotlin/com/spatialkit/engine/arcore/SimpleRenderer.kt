@@ -8,6 +8,7 @@ import com.google.ar.core.Camera
 import com.google.ar.core.Coordinates2d
 import com.google.ar.core.Frame
 import com.spatialkit.engine.GeometryType
+import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SceneNode
@@ -300,6 +301,33 @@ class SimpleRenderer(
 
         // Render 3D scene nodes
         render3DScene(frame, arCamera)
+    }
+
+    /**
+     * Render only the camera background (used when camera isn't tracking yet).
+     * This prevents the brown screen during initialization.
+     */
+    fun renderCameraOnly(
+        frame: Frame,
+        arCamera: Camera,
+    ) {
+        // Ensure initialization happened
+        if (!isInitialized) {
+            initialize()
+        }
+
+        // Clear buffers
+        GLES30.glClearColor(0f, 0f, 0f, 1f)
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
+
+        // Disable depth test for background rendering
+        GLES30.glDisable(GLES30.GL_DEPTH_TEST)
+        GLES30.glDepthMask(false)
+
+        // Render camera background only
+        renderBackground(frame)
+
+        // Don't render 3D scene - camera isn't tracking yet
     }
 
     private fun initialize3DShader() {
@@ -862,14 +890,211 @@ class SimpleRenderer(
     // functions removed. They were creating new ByteBuffers every frame causing memory leaks.
     // Replaced with VBO/VAO caching implemented above.
 
+    /**
+     * Perform world-space raycasting against scene meshes (P2 bug #11 fix).
+     *
+     * Tests a ray against all visible mesh nodes in the scene and returns
+     * the closest intersection point.
+     *
+     * @param origin Ray origin in world space
+     * @param direction Ray direction (should be normalized)
+     * @return Closest intersection or null if no hit
+     */
     fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? {
-        // Raycasting would be implemented here
-        // For now, return null
-        return null
+        val nodesToTest =
+            sceneLock.withLock {
+                sceneNodes.toList()
+            }
+
+        var closestHit: RaycastResult? = null
+        var closestDistance = Float.MAX_VALUE
+
+        nodesToTest.forEach { node ->
+            when (node) {
+                is SceneNode.Mesh -> {
+                    if (!node.visible) return@forEach
+
+                    val hit = raycastMesh(origin, direction, node)
+                    if (hit != null && hit.distance < closestDistance) {
+                        closestDistance = hit.distance
+                        closestHit = hit
+                    }
+                }
+                is SceneNode.Group -> {} // Groups don't have geometry
+            }
+        }
+
+        return closestHit
     }
+
+    /**
+     * Test ray against a single mesh node.
+     */
+    private fun raycastMesh(
+        origin: Vec3,
+        direction: Vec3,
+        mesh: SceneNode.Mesh,
+    ): RaycastResult? {
+        val transform = mesh.transform
+
+        // Build inverse model matrix to transform ray to model space
+        val invPosition = Vec3(-transform.position.x, -transform.position.y, -transform.position.z)
+        val invRotation = transform.rotation.conjugate()
+        val invScale =
+            Vec3(
+                if (transform.scale.x != 0f) 1f / transform.scale.x else 1f,
+                if (transform.scale.y != 0f) 1f / transform.scale.y else 1f,
+                if (transform.scale.z != 0f) 1f / transform.scale.z else 1f,
+            )
+
+        // Transform ray to model space
+        val localOrigin = (invRotation * (origin + invPosition)) * invScale
+        val localDir = (invRotation * direction) * invScale
+
+        // Perform intersection test based on geometry type
+        val localHit =
+            when (mesh.geometry.type) {
+                GeometryType.CUBE -> raycastBox(localOrigin, localDir)
+                GeometryType.SPHERE -> raycastSphere(localOrigin, localDir)
+                GeometryType.CYLINDER -> raycastCylinder(localOrigin, localDir)
+                else -> null
+            }
+
+        if (localHit == null) return null
+
+        // Transform hit back to world space
+        val worldHitPos = (transform.rotation * (localHit * transform.scale)) + transform.position
+
+        val distance = (worldHitPos - origin).length()
+        val normal = transform.rotation * localHit.normalized()
+
+        return RaycastResult(
+            position = worldHitPos,
+            normal = normal,
+            distance = distance,
+            nodeId = mesh.id,
+        )
+    }
+
+    /**
+     * Ray-box intersection (unit cube centered at origin).
+     */
+    private fun raycastBox(
+        origin: Vec3,
+        direction: Vec3,
+    ): Vec3? {
+        val bounds = 0.5f
+        var tMin = -Float.MAX_VALUE
+        var tMax = Float.MAX_VALUE
+
+        // Test each axis
+        for (axis in 0..2) {
+            val o = origin.component(axis)
+            val d = direction.component(axis)
+
+            if (kotlin.math.abs(d) < 0.0001f) {
+                // Ray is parallel to slab
+                if (o < -bounds || o > bounds) return null
+            } else {
+                val t1 = (-bounds - o) / d
+                val t2 = (bounds - o) / d
+
+                val tNear = kotlin.math.min(t1, t2)
+                val tFar = kotlin.math.max(t1, t2)
+
+                tMin = kotlin.math.max(tMin, tNear)
+                tMax = kotlin.math.min(tMax, tFar)
+
+                if (tMin > tMax) return null
+            }
+        }
+
+        if (tMin < 0) return null // Behind ray origin
+
+        return Vec3(
+            origin.x + direction.x * tMin,
+            origin.y + direction.y * tMin,
+            origin.z + direction.z * tMin,
+        )
+    }
+
+    /**
+     * Ray-sphere intersection (unit sphere at origin).
+     */
+    private fun raycastSphere(
+        origin: Vec3,
+        direction: Vec3,
+    ): Vec3? {
+        val radius = 0.5f
+
+        // Solve quadratic equation: |origin + t*direction| = radius
+        val a = direction.dot(direction)
+        val b = 2f * origin.dot(direction)
+        val c = origin.dot(origin) - radius * radius
+
+        val discriminant = b * b - 4f * a * c
+        if (discriminant < 0) return null
+
+        val t = (-b - kotlin.math.sqrt(discriminant)) / (2f * a)
+        if (t < 0) return null
+
+        return Vec3(
+            origin.x + direction.x * t,
+            origin.y + direction.y * t,
+            origin.z + direction.z * t,
+        )
+    }
+
+    /**
+     * Ray-cylinder intersection (unit cylinder along Y axis).
+     */
+    private fun raycastCylinder(
+        origin: Vec3,
+        direction: Vec3,
+    ): Vec3? {
+        val radius = 0.5f
+        val halfHeight = 0.5f
+
+        // Test infinite cylinder first (ignore Y)
+        val a = direction.x * direction.x + direction.z * direction.z
+        val b = 2f * (origin.x * direction.x + origin.z * direction.z)
+        val c = origin.x * origin.x + origin.z * origin.z - radius * radius
+
+        val discriminant = b * b - 4f * a * c
+        if (discriminant < 0) return null
+
+        val t1 = (-b - kotlin.math.sqrt(discriminant)) / (2f * a)
+        val t2 = (-b + kotlin.math.sqrt(discriminant)) / (2f * a)
+
+        // Check if intersection is within height bounds
+        val y1 = origin.y + t1 * direction.y
+        val y2 = origin.y + t2 * direction.y
+
+        val t =
+            when {
+                t1 >= 0 && y1 >= -halfHeight && y1 <= halfHeight -> t1
+                t2 >= 0 && y2 >= -halfHeight && y2 <= halfHeight -> t2
+                else -> return null
+            }
+
+        return Vec3(
+            origin.x + direction.x * t,
+            origin.y + direction.y * t,
+            origin.z + direction.z * t,
+        )
+    }
+
+    // Helper function for Vec3
+    private fun Vec3.component(index: Int): Float =
+        when (index) {
+            0 -> x
+            1 -> y
+            2 -> z
+            else -> throw IllegalArgumentException("Invalid component index: $index")
+        }
 
     /**
      * Clean up all OpenGL resources (P0.2 fix).

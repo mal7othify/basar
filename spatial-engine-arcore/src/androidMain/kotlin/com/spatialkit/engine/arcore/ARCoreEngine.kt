@@ -74,6 +74,10 @@ class ARCoreEngine(
     // Frame timing
     private var lastFrameTime = 0L
 
+    // Cached frame for thread-safe access (from main thread)
+    @Volatile
+    private var lastFrame: Frame? = null
+
     override val state: EngineState
         get() = _state
 
@@ -291,8 +295,8 @@ class ARCoreEngine(
         screenX: Float,
         screenY: Float,
     ): HitTestResult? {
-        val arSession: Session = session ?: return null
-        val frame: Frame = arSession.update()
+        // Use cached frame - safe to call from main thread
+        val frame: Frame = lastFrame ?: return null
 
         // Perform ARCore hit test
         val hits: List<HitResult> = frame.hitTest(screenX, screenY)
@@ -320,12 +324,8 @@ class ARCoreEngine(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? {
-        val arSession = session ?: return null
-        val frame: Frame = arSession.update()
-
-        // TODO: ARCore doesn't have direct world-space raycasting
-        // Would need to implement using the renderer's scene raycasting
-        // For now, return null
+        // Use renderer's raycasting (doesn't need ARCore frame)
+        // This is thread-safe and works from any thread
         return renderer?.performRaycast(origin, direction)
     }
 
@@ -351,17 +351,25 @@ class ARCoreEngine(
         try {
             // Update ARCore session
             val textureId = arRenderer.getCameraTextureId()
-            println("ARCore: Setting camera texture ID: $textureId")
             arSession.setCameraTextureName(textureId)
             val frame = arSession.update()
             val camera = frame.camera
 
-            println("ARCore: Camera tracking state: ${camera.trackingState}")
+            // Cache frame for thread-safe access from main thread
+            lastFrame = frame
 
-            // Skip if not tracking
-            if (camera.trackingState != TrackingState.TRACKING) {
+            // ALWAYS render camera background, even when not tracking
+            // This prevents the brown screen issue during initialization
+            val isTracking = camera.trackingState == TrackingState.TRACKING
+
+            if (!isTracking) {
+                // Not tracking yet - just render the camera background
+                // Don't invoke callbacks or render 3D scene
+                arRenderer.renderCameraOnly(frame, camera)
                 return
             }
+
+            // Camera is tracking - proceed with full rendering
 
             // Calculate delta time
             val currentTime = System.currentTimeMillis()
@@ -379,7 +387,7 @@ class ARCoreEngine(
             // Invoke callback
             frameCallback?.invoke(frameData)
 
-            // Render scene
+            // Render full scene (camera + 3D objects)
             arRenderer.render(frame, camera)
         } catch (e: CameraNotAvailableException) {
             _state =
