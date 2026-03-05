@@ -15,16 +15,40 @@ fun App() {
 }
 ```
 
+## ⚠️ Production Readiness Warning
+
+> **IMPORTANT**: This library is **NOT production-ready** for Android.
+>
+> **Status**: `0.1.0-alpha` - Architecture Complete, Critical Bugs Present
+>
+> **3 Critical (P0) Issues Found**:
+> - ❌ **Memory leak** in Android renderer (will crash apps in minutes)
+> - ❌ **OpenGL resource leaks** (GPU memory not freed)
+> - ❌ **Thread safety issues** (race conditions in scene mutations)
+>
+> **Safe for**: Prototypes, demos, learning
+> **NOT safe for**: Production apps, app store submissions
+>
+> **See**: [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for full assessment
+
+---
+
 ## Status
 
-🎉 **All Core Phases Complete!** (Phase 1-7)
+✅ **Architecture Complete** (Phase 1-7)
+⚠️ **Critical Bugs Present** (3 P0 issues)
 
-- ✅ Full architecture stack working
+- ✅ Full architecture stack implemented
 - ✅ Compiles on Android, iOS, and Web
-- ✅ ARCore and WebXR engines implemented
+- ⚠️ ARCore engine has critical memory leaks
+- ✅ WebXR engine structurally complete (untested)
+- ❌ iOS ARKit has syntax errors
 - ✅ Comprehensive documentation
 
-**See**: [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed status
+**Detailed Status**:
+
+- [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) - Honest production assessment
+- [PROJECT_STATUS.md](PROJECT_STATUS.md) - Detailed implementation status
 
 ## Architecture
 
@@ -102,12 +126,12 @@ fun MyARApp() {
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| **[PROJECT_STATUS.md](PROJECT_STATUS.md)** | Complete project status and roadmap |
-| **[USAGE_EXAMPLES.md](USAGE_EXAMPLES.md)** | Comprehensive examples (basic → advanced) |
-| **[spatial-dsl/DSL_GUIDE.md](spatial-dsl/DSL_GUIDE.md)** | Complete DSL reference |
-| **[.claude/CLAUDE.md](.claude/CLAUDE.md)** | Project principles and philosophy |
+| Document                                                 | Description                               |
+|----------------------------------------------------------|-------------------------------------------|
+| **[PROJECT_STATUS.md](PROJECT_STATUS.md)**               | Complete project status and roadmap       |
+| **[USAGE_EXAMPLES.md](USAGE_EXAMPLES.md)**               | Comprehensive examples (basic → advanced) |
+| **[spatial-dsl/DSL_GUIDE.md](spatial-dsl/DSL_GUIDE.md)** | Complete DSL reference                    |
+| **[.claude/CLAUDE.md](.claude/CLAUDE.md)**               | Project principles and philosophy         |
 
 ## Examples
 
@@ -192,26 +216,30 @@ fun Interactive() {
 
 ## Platform Support
 
-| Platform | Math | Scene Graph | DSL | Compose | Rendering |
-|----------|------|-------------|-----|---------|-----------|
-| Android  | ✅   | ✅          | ✅  | ✅      | ✅ ARCore |
-| iOS      | ✅   | ✅          | ✅  | ✅      | ⚠️ Fallback |
-| Web      | ✅   | ✅          | ✅  | ✅      | ✅ WebXR |
+| Platform | Math | Scene Graph | DSL | Compose | Rendering               | Production Ready |
+|----------|------|-------------|-----|---------|-------------------------|------------------|
+| Android  | ✅    | ✅           | ✅   | ✅       | ⚠️ ARCore (P0 bugs)     | ❌ **NO**         |
+| iOS      | ✅    | ✅           | ✅   | ✅       | ❌ ARKit (syntax errors) | ❌ **NO**         |
+| Web      | ✅    | ✅           | ✅   | ✅       | ⚠️ WebXR (untested)     | ⚠️ **MAYBE**     |
 
-**Note**: iOS ARKit engine implementation is TODO. Currently uses fallback engine.
+**Notes**:
+
+- **Android**: ARCore has critical memory leaks and thread safety issues (P0 blockers)
+- **iOS**: ARKit engine has Kotlin/Native syntax errors, needs 1-2 hours fix
+- **Web**: WebXR structurally complete but needs integration testing
 
 ## Modules
 
-| Module | Description | Status |
-|--------|-------------|--------|
-| `spatial-core` | Math primitives (Vec3, Quaternion, Transform) | ✅ Complete |
-| `spatial-engine` | Engine interface + abstractions | ✅ Complete |
-| `spatial-engine-arcore` | ARCore renderer (Android) | ✅ Complete |
-| `spatial-engine-webxr` | WebXR renderer (Web/Three.js) | ✅ Complete |
-| `spatial-engine-arkit` | ARKit renderer (iOS) | ⚠️ TODO |
-| `spatial-scene` | Scene graph and session management | ✅ Complete |
-| `spatial-dsl` | Kotlin DSL builders and extensions | ✅ Complete |
-| `spatial-compose` | Compose Multiplatform integration | ✅ Complete |
+| Module                  | Description                                   | Status                                |
+|-------------------------|-----------------------------------------------|---------------------------------------|
+| `spatial-core`          | Math primitives (Vec3, Quaternion, Transform) | ✅ Complete + Tested                   |
+| `spatial-engine`        | Engine interface + abstractions               | ✅ Complete                            |
+| `spatial-engine-arcore` | ARCore renderer (Android)                     | ⚠️ Architecture complete, **P0 bugs** |
+| `spatial-engine-webxr`  | WebXR renderer (Web/Three.js)                 | ⚠️ Complete, untested                 |
+| `spatial-engine-arkit`  | ARKit renderer (iOS)                          | ❌ Syntax errors (1-2h fix)            |
+| `spatial-scene`         | Scene graph and session management            | ✅ Complete + Tested                   |
+| `spatial-dsl`           | Kotlin DSL builders and extensions            | ✅ Complete + Tested                   |
+| `spatial-compose`       | Compose Multiplatform integration             | ✅ Complete                            |
 
 ## Requirements
 
@@ -251,22 +279,31 @@ fun Interactive() {
 ## Roadmap
 
 ### ✅ Completed (Phase 1-7)
+
 - Core math primitives
 - Engine interface layer
 - Scene graph system
 - Kotlin DSL layer
 - Compose integration
-- ARCore renderer
-- WebXR renderer
+- ARCore renderer (architecture)
+- WebXR renderer (architecture)
 
-### 🎯 Next Steps
-1. Example applications
-2. ARKit engine implementation
-3. Animation system completion
-4. Gesture support
-5. Performance optimization
+### 🚨 Critical Path (P0 - Must Fix Before Production)
 
-**See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed roadmap.**
+1. **Fix Android memory leak** (drawGeometry() VBO/VAO caching) - 4-6h
+2. **Fix OpenGL resource cleanup** (shader/program deletion) - 2h
+3. **Add thread safety** (scene mutation synchronization) - 4-6h
+4. **Integration testing** on real Android devices - 2-3 days
+
+### 🎯 Next Steps (P1/P2)
+
+5. Fix iOS ARKit syntax errors (1-2h)
+6. Fix Android example Gradle config (2-3h)
+7. Complete animation system
+8. Add gesture support
+9. Performance optimization
+
+**See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for detailed priority breakdown.**
 
 ## Contributing
 
@@ -284,6 +321,7 @@ Contributions welcome! Please:
 ## Credits
 
 Built with:
+
 - [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html)
 - [Compose Multiplatform](https://www.jetbrains.com/lp/compose-multiplatform/)
 - [ARCore](https://developers.google.com/ar) (Android)
@@ -292,6 +330,8 @@ Built with:
 
 ---
 
-**Status**: 🎉 Core Foundation Complete
-**Version**: 0.1.0-alpha
-**Last Updated**: 2026-01-16
+**Status**: ⚠️ Architecture Complete, Critical Bugs Present
+**Production Status**: ❌ NOT READY (3 P0 blockers)
+**Version**: 0.1.0-alpha (development only)
+**Last Updated**: 2026-03-05
+**See**: [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for details

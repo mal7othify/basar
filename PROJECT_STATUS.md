@@ -1,14 +1,23 @@
 # Spatial-KMP Project Status
 
-**Last Updated**: 2026-01-16
-**Status**: ✅ **All Core Phases Complete**
+**Last Updated**: 2026-03-05
+**Status**: ⚠️ **Architecture Complete, Critical Bugs Present**
 
 ---
 
 ## Executive Summary
 
-Spatial-KMP is a complete Kotlin Multiplatform library for building AR/VR/Spatial applications with a Compose-like API.
+> **⚠️ PRODUCTION WARNING**: This library has **3 critical (P0) bugs** that make it **NOT production-ready**.
+> - ❌ Android has memory leaks that will crash apps
+> - ❌ Thread safety issues across all platforms
+> - ❌ Resource cleanup incomplete
+>
+> **See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for complete assessment.**
+
+Spatial-KMP is a Kotlin Multiplatform library for building AR/VR/Spatial applications with a Compose-like API.
 All core architectural phases (1-7) are implemented and compiling successfully across Android, iOS, and Web platforms.
+
+**However**, runtime implementation has critical bugs that must be fixed before production use.
 
 ## Architecture Stack
 
@@ -38,16 +47,16 @@ All core architectural phases (1-7) are implemented and compiling successfully a
 
 ## Module Status
 
-| Module                    | Purpose                                  | Status     | Platforms | Tests      |
-|---------------------------|------------------------------------------|------------|-----------|------------|
-| **spatial-core**          | Math primitives (Vec3, Quaternion, etc.) | ✅ Complete | All       | ✅ Yes      |
-| **spatial-engine**        | Engine interface + abstractions          | ✅ Complete | All       | ⚠️ Partial |
-| **spatial-engine-arcore** | ARCore renderer implementation           | ✅ Complete | Android   | ❌ No       |
-| **spatial-engine-webxr**  | WebXR renderer implementation            | ✅ Complete | JS        | ❌ No       |
-| **spatial-engine-arkit**  | ARKit renderer implementation            | ⚠️ TODO    | iOS       | ❌ No       |
-| **spatial-scene**         | Scene graph and session management       | ✅ Complete | All       | ✅ Yes      |
-| **spatial-dsl**           | Kotlin DSL builders and extensions       | ✅ Complete | All       | ✅ Yes      |
-| **spatial-compose**       | Compose Multiplatform integration        | ✅ Complete | All       | ❌ No       |
+| Module                    | Purpose                                  | Architecture | Runtime Status | Platforms | Tests      |
+|---------------------------|------------------------------------------|--------------|----------------|-----------|------------|
+| **spatial-core**          | Math primitives (Vec3, Quaternion, etc.) | ✅ Complete   | ✅ Production   | All       | ✅ Yes      |
+| **spatial-engine**        | Engine interface + abstractions          | ✅ Complete   | ✅ Production   | All       | ⚠️ Partial |
+| **spatial-engine-arcore** | ARCore renderer implementation           | ✅ Complete   | ❌ **P0 Bugs**  | Android   | ❌ No       |
+| **spatial-engine-webxr**  | WebXR renderer implementation            | ✅ Complete   | ⚠️ Untested    | JS        | ❌ No       |
+| **spatial-engine-arkit**  | ARKit renderer implementation            | ⚠️ Partial   | ❌ Syntax Errors| iOS       | ❌ No       |
+| **spatial-scene**         | Scene graph and session management       | ✅ Complete   | ⚠️ **P0.3**    | All       | ✅ Yes      |
+| **spatial-dsl**           | Kotlin DSL builders and extensions       | ✅ Complete   | ✅ Production   | All       | ✅ Yes      |
+| **spatial-compose**       | Compose Multiplatform integration        | ✅ Complete   | ✅ Production   | All       | ❌ No       |
 
 ### Legend
 
@@ -59,18 +68,22 @@ All core architectural phases (1-7) are implemented and compiling successfully a
 
 ## Platform Support
 
-| Feature                 | Android  | iOS         | Web (JS) |
-|-------------------------|----------|-------------|----------|
-| **Core Math**           | ✅        | ✅           | ✅        |
-| **Engine Interface**    | ✅        | ✅           | ✅        |
-| **Scene Graph**         | ✅        | ✅           | ✅        |
-| **Kotlin DSL**          | ✅        | ✅           | ✅        |
-| **Compose Integration** | ✅        | ✅           | ✅        |
-| **AR Rendering**        | ✅ ARCore | ⚠️ Fallback | ✅ WebXR  |
-| **Compilation**         | ✅        | ✅           | ✅        |
+| Feature                 | Android      | iOS             | Web (JS)       |
+|-------------------------|--------------|-----------------|----------------|
+| **Core Math**           | ✅            | ✅               | ✅              |
+| **Engine Interface**    | ✅            | ✅               | ✅              |
+| **Scene Graph**         | ⚠️ P0.3 issue | ⚠️ P0.3 issue   | ⚠️ P0.3 issue  |
+| **Kotlin DSL**          | ✅            | ✅               | ✅              |
+| **Compose Integration** | ✅            | ✅               | ✅              |
+| **AR Rendering**        | ❌ P0 bugs   | ❌ Syntax errors| ⚠️ Untested    |
+| **Compilation**         | ✅            | ⚠️ ARKit fails  | ✅              |
+| **Production Ready**    | ❌ **NO**    | ❌ **NO**       | ⚠️ **MAYBE**   |
 
-**Note**: All modules compile successfully on all target platforms. iOS rendering uses fallback engine pending ARKit
-implementation.
+**Notes**:
+- **Android ARCore**: 3 P0 bugs (memory leak, resource leak, thread safety) - NOT production ready
+- **iOS ARKit**: Kotlin/Native syntax errors, needs 1-2 hours to fix
+- **Web WebXR**: Structurally complete but needs integration testing on real devices
+- **P0.3 affects all platforms**: Thread safety issue in scene mutation applies cross-platform
 
 ---
 
@@ -385,34 +398,112 @@ fun ARExperience() {
 
 ## Known Issues & Limitations
 
-### High Priority
+> **CRITICAL**: Review [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for complete assessment
 
-1. **Platform Surfaces are Stubs**
-    - Android: No GLSurfaceView/ARSceneView integration
-    - iOS: No ARView/MTKView integration
-    - Web: No Three.js canvas integration
-    - **Impact**: Visual rendering doesn't work yet, only logic/structure
+### 🚨 Critical (P0) - **PRODUCTION BLOCKERS**
 
-2. **ARKit Engine Missing**
-    - iOS uses fallback engine
-    - **Impact**: No native iOS AR support yet
+#### P0.1: Memory Leak in Android Renderer ⚠️ **BLOCKER**
 
-### Medium Priority
+**Location**: `spatial-engine-arcore/.../SimpleRenderer.kt:707-752`
 
-3. **Animation System Incomplete**
-    - `animatedSpatialVec3/Rotation` return static values
-    - **Impact**: No smooth transitions yet
+**Issue**: `drawGeometry()` allocates new `ByteBuffer` objects **every frame** without cleanup
+- Memory grows ~100KB-1MB per frame (60 FPS = 60MB/second)
+- Apps crash with OOM within **seconds to minutes**
+- Affects ALL Android AR applications
 
-4. **No Gesture Support**
-    - No tap, drag, rotate gestures
-    - **Impact**: Limited interactivity
+**Fix Required**: Implement VBO/VAO caching for geometry
+**Estimated Time**: 4-6 hours
+**Status**: ❌ **BLOCKS ANDROID PRODUCTION USE**
 
-### Low Priority
+---
 
-5. **Test Coverage Incomplete**
-    - Engine modules have no tests
-    - Compose module has no tests
-    - **Impact**: Relies on compilation checks
+#### P0.2: OpenGL Resource Leaks
+
+**Location**: Same file (`SimpleRenderer.kt:763-768`)
+
+**Issue**: `destroy()` doesn't delete OpenGL programs and shaders
+- GPU memory leak
+- Accumulates over app lifecycle
+- Eventually causes rendering failure
+
+**Fix Required**: Add `glDeleteProgram()` and `glDeleteShader()` calls
+**Estimated Time**: 2 hours
+**Status**: ❌ **BLOCKS ANDROID PRODUCTION USE**
+
+---
+
+#### P0.3: Thread Safety - Race Conditions
+
+**Location**: Multiple files (SpatialSession, SimpleRenderer)
+
+**Issue**: No synchronization between:
+- User code modifying scene in `onFrame` callback
+- Renderer reading `sceneNodes` list simultaneously
+- Results in `ConcurrentModificationException` and crashes
+
+**Fix Required**: Add synchronization (locks or copy-on-write)
+**Estimated Time**: 4-6 hours
+**Status**: ❌ **BLOCKS ALL PLATFORMS**
+
+---
+
+### 🔴 High Priority (P1) - Fix Before 1.0 Release
+
+#### P1.1: iOS ARKit Non-Functional
+- **Issue**: Kotlin/Native cinterop syntax errors for `simd_float4x4` access
+- **Impact**: iOS completely broken
+- **Fix Time**: 1-2 hours
+- **Status**: ❌ Syntax fixes needed
+
+#### P1.2: Android Example Build Failure
+- **Issue**: Gradle + KMP + Android AGP configuration mismatch
+- **Impact**: Developers can't run examples
+- **Fix Time**: 2-3 hours
+- **Status**: ⚠️ Code is correct, Gradle config issue
+
+#### P1.3: Missing Error Propagation
+- **Issue**: Some errors not invoking callbacks, silent failures
+- **Impact**: Apps don't know when things fail
+- **Fix Time**: 2-3 hours
+- **Status**: ⚠️ Needs improvement
+
+#### P1.4: No Lifecycle State Validation
+- **Issue**: Methods don't validate engine state before execution
+- **Impact**: Undefined behavior, potential crashes
+- **Fix Time**: 2 hours
+- **Status**: ⚠️ Missing validation
+
+---
+
+### 🟡 Important (P2) - Fix Soon After 1.0
+
+#### P2.1: Animation System Stubbed
+- `animatedSpatialVec3/Rotation` return static values (no interpolation)
+- **Impact**: No smooth animations
+
+#### P2.2: Zero Integration Tests
+- Only unit tests for math primitives
+- No platform-specific engine tests
+- **Impact**: Regressions easily slip through
+
+#### P2.3: API Stability Not Guaranteed
+- No semantic versioning commitment
+- No `@ExperimentalSpatialAPI` markers
+- **Impact**: Breaking changes could surprise users
+
+#### P2.4: Raycasting Returns Null
+- World-space raycasting not implemented (TODOs in code)
+- **Impact**: Can't interact with virtual objects programmatically
+
+---
+
+### 🟢 Nice to Have (P3) - Post-1.0
+
+5. Gesture support (tap, drag, pinch, rotate)
+6. Physics system integration
+7. Advanced lighting models
+8. Performance benchmarks
+9. Maven Central publishing
 
 ---
 
@@ -505,7 +596,11 @@ dependencies {
 
 ---
 
-**Project Status**: 🎉 **Core Foundation Complete**
-**Ready For**: Example applications, platform integration, community feedback
+**Project Status**: ⚠️ **Architecture Complete, Critical Bugs Present**
+**Production Status**: ❌ NOT READY - 3 P0 blockers identified
+**Ready For**: Prototypes, demos, learning (NOT production apps)
+**Timeline to Production**: 1-2 weeks with focused bug fixing
 
-All 7 core phases are complete and the full architecture stack is working across all platforms!
+All 7 core phases are architecturally complete, but runtime has critical memory leaks and thread safety issues that must be fixed before production use.
+
+**See**: [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for complete assessment and fix plan.
