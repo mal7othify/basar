@@ -11,32 +11,48 @@ import org.w3c.dom.HTMLCanvasElement
  * Only includes the subset needed for WebXR engine implementation.
  */
 
-// === Core ===
-
 external class Scene {
     val children: Array<Object3D>
+
     fun add(obj: Object3D)
+
     fun remove(obj: Object3D)
+
     fun getObjectByName(name: String): Object3D?
 }
 
-external class WebGLRenderer(params: dynamic = definedExternally) {
+external class WebGLRenderer(
+    params: dynamic = definedExternally,
+) {
     val domElement: HTMLCanvasElement
     val xr: WebXRManager
-    fun setSize(width: Int, height: Int)
+
+    fun setSize(
+        width: Int,
+        height: Int,
+    )
+
     fun setAnimationLoop(callback: ((Double, dynamic) -> Unit)?)
-    fun render(scene: Scene, camera: Camera)
+
+    fun render(
+        scene: Scene,
+        camera: Camera,
+    )
 }
 
 external class WebXRManager {
     var enabled: Boolean
+
     fun getSession(): XRSession?
+
     fun setReferenceSpaceType(type: String)
+
+    fun setSession(session: XRSession?): dynamic
 }
 
 // === Cameras ===
 
-external abstract class Camera : Object3D {
+abstract external class Camera : Object3D {
     val projectionMatrix: Matrix4
     val matrixWorldInverse: Matrix4
 }
@@ -50,7 +66,7 @@ external class PerspectiveCamera(
 
 // === Object3D Hierarchy ===
 
-external open class Object3D {
+open external class Object3D {
     var position: Vector3
     var rotation: Euler
     var quaternion: Quaternion
@@ -61,8 +77,11 @@ external open class Object3D {
     var name: String
 
     fun add(obj: Object3D)
+
     fun remove(obj: Object3D)
+
     fun updateMatrix()
+
     fun updateMatrixWorld(force: Boolean = definedExternally)
 }
 
@@ -78,9 +97,14 @@ external class Mesh(
 
 // === Geometries ===
 
-external open class BufferGeometry {
+open external class BufferGeometry {
     fun dispose()
-    fun setAttribute(name: String, attribute: BufferAttribute)
+
+    fun setAttribute(
+        name: String,
+        attribute: BufferAttribute,
+    )
+
     fun setIndex(index: BufferAttribute)
 }
 
@@ -122,13 +146,34 @@ external class BufferAttribute(
 
 // === Materials ===
 
-external abstract class Material {
+abstract external class Material {
     fun dispose()
 }
 
-external class MeshBasicMaterial(params: dynamic = definedExternally) : Material
+external class MeshBasicMaterial(
+    params: dynamic = definedExternally,
+) : Material
 
-external class MeshStandardMaterial(params: dynamic = definedExternally) : Material
+external class MeshStandardMaterial(
+    params: dynamic = definedExternally,
+) : Material
+
+// === Lights ===
+
+abstract external class Light(
+    color: Int = definedExternally,
+    intensity: Double = definedExternally,
+) : Object3D
+
+external class AmbientLight(
+    color: Int = definedExternally,
+    intensity: Double = definedExternally,
+) : Light
+
+external class DirectionalLight(
+    color: Int = definedExternally,
+    intensity: Double = definedExternally,
+) : Light
 
 // === Math ===
 
@@ -141,9 +186,16 @@ external class Vector3(
     var y: Double
     var z: Double
 
-    fun set(x: Double, y: Double, z: Double): Vector3
+    fun set(
+        x: Double,
+        y: Double,
+        z: Double,
+    ): Vector3
+
     fun copy(v: Vector3): Vector3
+
     fun length(): Double
+
     fun normalize(): Vector3
 }
 
@@ -158,7 +210,13 @@ external class Quaternion(
     var z: Double
     var w: Double
 
-    fun set(x: Double, y: Double, z: Double, w: Double): Quaternion
+    fun set(
+        x: Double,
+        y: Double,
+        z: Double,
+        w: Double,
+    ): Quaternion
+
     fun copy(q: Quaternion): Quaternion
 }
 
@@ -178,15 +236,22 @@ external class Matrix4 {
     val elements: Array<Double>
 
     fun toArray(): Array<Double>
+
     fun fromArray(array: Array<Double>): Matrix4
 }
 
-external class Color(color: dynamic = definedExternally) {
+external class Color(
+    color: dynamic = definedExternally,
+) {
     var r: Double
     var g: Double
     var b: Double
 
-    fun setRGB(r: Double, g: Double, b: Double): Color
+    fun setRGB(
+        r: Double,
+        g: Double,
+        b: Double,
+    ): Color
 }
 
 // === Raycaster ===
@@ -197,8 +262,15 @@ external class Raycaster(
 ) {
     var ray: Ray
 
-    fun set(origin: Vector3, direction: Vector3)
-    fun intersectObjects(objects: Array<Object3D>, recursive: Boolean = definedExternally): Array<Intersection>
+    fun set(
+        origin: Vector3,
+        direction: Vector3,
+    )
+
+    fun intersectObjects(
+        objects: Array<Object3D>,
+        recursive: Boolean = definedExternally,
+    ): Array<Intersection>
 }
 
 external class Ray {

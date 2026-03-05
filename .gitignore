@@ -19,3 +19,4 @@ captures
 node_modules/
 .claude
 .kotlin-js-store/yarn.lock
+*.pem
