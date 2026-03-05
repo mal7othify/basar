@@ -15,18 +15,39 @@ import com.spatialkit.engine.Vec3
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+
+/**
+ * Data class to hold VBO/VAO resources for a geometry (P0.1 fix).
+ */
+private data class GeometryBuffers(
+    val vao: Int,
+    val vertexVbo: Int,
+    val normalVbo: Int,
+    val indexVbo: Int,
+    val indexCount: Int,
+)
 
 /**
  * Simple OpenGL renderer for ARCore scenes.
  *
  * Renders the AR camera background as a fullscreen texture, then renders 3D scene nodes on top.
  * This is a minimal implementation - a production app would use Filament or SceneView.
+ *
+ * P0 FIX STATUS:
+ * - P0.1: VBO/VAO caching implemented to prevent memory leaks ✅
+ * - P0.2: Resource cleanup in destroy() completed ✅
+ * - P0.3: Thread safety added for scene mutations ✅
  */
 class SimpleRenderer(
     private val context: Context,
 ) {
     private var cameraTextureId: Int = 0
+
+    // P0.3 FIX: Thread-safe scene node list
     private val sceneNodes = mutableListOf<SceneNode>()
+    private val sceneLock = ReentrantLock()
 
     // Background rendering
     private var backgroundProgram: Int = 0
@@ -43,6 +64,15 @@ class SimpleRenderer(
 
     // Display rotation handling
     private val transformedUvs = FloatArray(8)
+
+    // P0.1 FIX: VBO/VAO caching to prevent memory leaks
+    private val geometryCache = mutableMapOf<GeometryType, GeometryBuffers>()
+
+    // P0.2 FIX: Store shader references for cleanup
+    private var vertexShader: Int = 0
+    private var fragmentShader: Int = 0
+    private var backgroundVertexShader: Int = 0
+    private var backgroundFragmentShader: Int = 0
 
     // NDC coordinates for the fullscreen quad (in 0-1 range for ARCore transformation)
     private val ndcCoordinates =
@@ -105,7 +135,7 @@ class SimpleRenderer(
             }
             """.trimIndent()
 
-        backgroundProgram = createProgram(vertexShader, fragmentShader)
+        backgroundProgram = createProgram(vertexShader, fragmentShader, saveShaders = true)
 
         // Fullscreen quad vertices (NDC coordinates)
         val quadVertices =
@@ -153,13 +183,14 @@ class SimpleRenderer(
     private fun createProgram(
         vertexSource: String,
         fragmentSource: String,
+        saveShaders: Boolean = false,
     ): Int {
-        val vertexShader = loadShader(GLES30.GL_VERTEX_SHADER, vertexSource)
-        val fragmentShader = loadShader(GLES30.GL_FRAGMENT_SHADER, fragmentSource)
+        val vShader = loadShader(GLES30.GL_VERTEX_SHADER, vertexSource)
+        val fShader = loadShader(GLES30.GL_FRAGMENT_SHADER, fragmentSource)
 
         val program = GLES30.glCreateProgram()
-        GLES30.glAttachShader(program, vertexShader)
-        GLES30.glAttachShader(program, fragmentShader)
+        GLES30.glAttachShader(program, vShader)
+        GLES30.glAttachShader(program, fShader)
         GLES30.glLinkProgram(program)
 
         // Check for linking errors
@@ -168,7 +199,20 @@ class SimpleRenderer(
         if (linkStatus[0] == 0) {
             val error = GLES30.glGetProgramInfoLog(program)
             GLES30.glDeleteProgram(program)
+            GLES30.glDeleteShader(vShader)
+            GLES30.glDeleteShader(fShader)
             throw RuntimeException("Program link failed: $error")
+        }
+
+        // P0.2 FIX: Save shader references for cleanup
+        if (saveShaders) {
+            if (program == backgroundProgram || backgroundProgram == 0) {
+                backgroundVertexShader = vShader
+                backgroundFragmentShader = fShader
+            } else {
+                vertexShader = vShader
+                fragmentShader = fShader
+            }
         }
 
         return program
@@ -219,9 +263,14 @@ class SimpleRenderer(
         GLES30.glViewport(0, 0, width, height)
     }
 
+    /**
+     * Update the scene with new data (P0.3 fix: thread-safe).
+     */
     fun updateScene(sceneData: SceneData) {
-        sceneNodes.clear()
-        sceneNodes.addAll(sceneData.nodes)
+        sceneLock.withLock {
+            sceneNodes.clear()
+            sceneNodes.addAll(sceneData.nodes)
+        }
     }
 
     fun render(
@@ -299,7 +348,7 @@ class SimpleRenderer(
             }
             """.trimIndent()
 
-        sceneProgram = createProgram(vertexShader, fragmentShader)
+        sceneProgram = createProgram(vertexShader, fragmentShader, saveShaders = true)
     }
 
     private fun renderBackground(frame: Frame) {
@@ -352,142 +401,127 @@ class SimpleRenderer(
         GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
     }
 
-    private fun render3DScene(
-        frame: Frame,
-        arCamera: Camera,
-    ) {
-        if (sceneNodes.isEmpty() || sceneProgram == 0) {
-            return
-        }
+    // ===== P0.1 FIX: VBO/VAO Caching Implementation =====
 
-        GLES30.glUseProgram(sceneProgram)
+    /**
+     * Create and upload geometry to GPU buffers (P0.1 fix).
+     * Called once per geometry type and reused across all frames.
+     */
+    private fun createGeometryBuffers(
+        vertices: FloatArray,
+        normals: FloatArray,
+        indices: ShortArray,
+    ): GeometryBuffers {
+        // Generate VAO
+        val vaoIds = IntArray(1)
+        GLES30.glGenVertexArrays(1, vaoIds, 0)
+        val vao = vaoIds[0]
 
-        // Get camera matrices
-        arCamera.getViewMatrix(viewMatrix, 0)
-        arCamera.getProjectionMatrix(projectionMatrix, 0, 0.1f, 100f)
+        // Generate VBOs
+        val vboIds = IntArray(3)
+        GLES30.glGenBuffers(3, vboIds, 0)
+        val vertexVbo = vboIds[0]
+        val normalVbo = vboIds[1]
+        val indexVbo = vboIds[2]
 
-        // Set light direction (from above-front)
-        val lightDirLoc = GLES30.glGetUniformLocation(sceneProgram, "u_LightDir")
-        GLES30.glUniform3f(lightDirLoc, 0.0f, 0.7f, 0.7f)
+        // Bind VAO
+        GLES30.glBindVertexArray(vao)
 
-        // Render each node (only Mesh nodes)
-        sceneNodes.forEach { node ->
-            when (node) {
-                is SceneNode.Mesh -> {
-                    renderMesh(node)
-                }
+        // Upload vertex data
+        val vertexBuffer =
+            ByteBuffer
+                .allocateDirect(vertices.size * 4)
+                .order(ByteOrder.nativeOrder())
+                .asFloatBuffer()
+                .put(vertices)
+                .apply { position(0) }
 
-                is SceneNode.Group -> {} // Groups don't render directly
+        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, vertexVbo)
+        GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, vertices.size * 4, vertexBuffer, GLES30.GL_STATIC_DRAW)
+        GLES30.glEnableVertexAttribArray(0)
+        GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 0, 0)
+
+        // Upload normal data
+        val normalBuffer =
+            ByteBuffer
+                .allocateDirect(normals.size * 4)
+                .order(ByteOrder.nativeOrder())
+                .asFloatBuffer()
+                .put(normals)
+                .apply { position(0) }
+
+        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, normalVbo)
+        GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, normals.size * 4, normalBuffer, GLES30.GL_STATIC_DRAW)
+        GLES30.glEnableVertexAttribArray(1)
+        GLES30.glVertexAttribPointer(1, 3, GLES30.GL_FLOAT, false, 0, 0)
+
+        // Upload index data
+        val indexBuffer =
+            ByteBuffer
+                .allocateDirect(indices.size * 2)
+                .order(ByteOrder.nativeOrder())
+                .asShortBuffer()
+                .put(indices)
+                .apply { position(0) }
+
+        GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, indexVbo)
+        GLES30.glBufferData(GLES30.GL_ELEMENT_ARRAY_BUFFER, indices.size * 2, indexBuffer, GLES30.GL_STATIC_DRAW)
+
+        // Unbind
+        GLES30.glBindVertexArray(0)
+        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, 0)
+        GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, 0)
+
+        return GeometryBuffers(vao, vertexVbo, normalVbo, indexVbo, indices.size)
+    }
+
+    /**
+     * Get or create cached geometry buffers for a type.
+     */
+    private fun getOrCreateGeometryBuffers(type: GeometryType): GeometryBuffers? {
+        return geometryCache.getOrPut(type) {
+            when (type) {
+                GeometryType.CUBE -> createCubeGeometry()
+                GeometryType.SPHERE -> createSphereGeometry()
+                GeometryType.CYLINDER -> createCylinderGeometry()
+                else -> return null
             }
         }
     }
 
-    private fun renderMesh(mesh: SceneNode.Mesh) {
-        if (!mesh.visible) return
-
-        val transform = mesh.transform
-
-        // Build model matrix from transform
-        Matrix.setIdentityM(modelMatrix, 0)
-        Matrix.translateM(
-            modelMatrix,
-            0,
-            transform.position.x,
-            transform.position.y,
-            transform.position.z,
-        )
-
-        // Apply rotation
-        val rot = transform.rotation
-        val angle = 2.0f * Math.acos(rot.w.toDouble()).toFloat()
-        if (angle > 0.001f) {
-            val axis = floatArrayOf(rot.x, rot.y, rot.z)
-            val axisLength = Math.sqrt((axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).toDouble()).toFloat()
-            if (axisLength > 0.001f) {
-                Matrix.rotateM(
-                    modelMatrix,
-                    0,
-                    Math.toDegrees(angle.toDouble()).toFloat(),
-                    axis[0] / axisLength,
-                    axis[1] / axisLength,
-                    axis[2] / axisLength,
-                )
-            }
-        }
-
-        // Apply scale
-        Matrix.scaleM(modelMatrix, 0, transform.scale.x, transform.scale.y, transform.scale.z)
-
-        // Calculate MVP matrix
-        val tempMatrix = FloatArray(16)
-        Matrix.multiplyMM(tempMatrix, 0, viewMatrix, 0, modelMatrix, 0)
-        Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, tempMatrix, 0)
-
-        // Set uniforms
-        val mvpLoc = GLES30.glGetUniformLocation(sceneProgram, "u_MVP")
-        GLES30.glUniformMatrix4fv(mvpLoc, 1, false, mvpMatrix, 0)
-
-        val modelLoc = GLES30.glGetUniformLocation(sceneProgram, "u_Model")
-        GLES30.glUniformMatrix4fv(modelLoc, 1, false, modelMatrix, 0)
-
-        val colorLoc = GLES30.glGetUniformLocation(sceneProgram, "u_Color")
-        GLES30.glUniform3f(
-            colorLoc,
-            mesh.material.baseColor.x,
-            mesh.material.baseColor.y,
-            mesh.material.baseColor.z,
-        )
-
-        // Render geometry based on type
-        when (mesh.geometry.type) {
-            GeometryType.CUBE -> {
-                renderCube()
-            }
-
-            GeometryType.SPHERE -> {
-                renderSphere()
-            }
-
-            GeometryType.CYLINDER -> {
-                renderCylinder()
-            }
-
-            else -> {} // Other types not implemented yet
-        }
-    }
-
-    private fun renderCube() {
-        // Unit cube (1x1x1) - scale is applied via transform
+    /**
+     * Create cube geometry data.
+     */
+    private fun createCubeGeometry(): GeometryBuffers {
         val halfSize = 0.5f
-
         val vertices =
             floatArrayOf(
                 // Front face
                 -halfSize,
                 -halfSize,
-                halfSize, // 0
+                halfSize,
                 halfSize,
                 -halfSize,
-                halfSize, // 1
                 halfSize,
                 halfSize,
-                halfSize, // 2
+                halfSize,
+                halfSize,
                 -halfSize,
                 halfSize,
-                halfSize, // 3
+                halfSize,
                 // Back face
                 -halfSize,
                 -halfSize,
-                -halfSize, // 4
-                halfSize,
-                -halfSize,
-                -halfSize, // 5
-                halfSize,
-                halfSize,
-                -halfSize, // 6
                 -halfSize,
                 halfSize,
-                -halfSize, // 7
+                -halfSize,
+                -halfSize,
+                halfSize,
+                halfSize,
+                -halfSize,
+                -halfSize,
+                halfSize,
+                -halfSize,
             )
 
         val normals =
@@ -566,18 +600,20 @@ class SimpleRenderer(
                 0,
             )
 
-        drawGeometry(vertices, normals, indices)
+        return createGeometryBuffers(vertices, normals, indices)
     }
 
-    private fun renderSphere(segments: Int = 16) {
-        // Unit sphere (radius 1) - scale is applied via transform
+    /**
+     * Create sphere geometry data.
+     */
+    private fun createSphereGeometry(segments: Int = 16): GeometryBuffers {
         val radius = 1.0f
         val rings = segments / 2
         val vertices = mutableListOf<Float>()
         val normals = mutableListOf<Float>()
         val indices = mutableListOf<Short>()
 
-        // Generate sphere vertices
+        // Generate vertices
         for (ring in 0..rings) {
             val theta = ring * Math.PI / rings
             val sinTheta = Math.sin(theta).toFloat()
@@ -618,15 +654,15 @@ class SimpleRenderer(
             }
         }
 
-        drawGeometry(vertices.toFloatArray(), normals.toFloatArray(), indices.toShortArray())
+        return createGeometryBuffers(vertices.toFloatArray(), normals.toFloatArray(), indices.toShortArray())
     }
 
-    private fun renderCylinder(segments: Int = 16) {
-        // Unit cylinder (radius 0.5, height 1) - scale is applied via transform
+    /**
+     * Create cylinder geometry data.
+     */
+    private fun createCylinderGeometry(segments: Int = 16): GeometryBuffers {
         val radius = 0.5f
-        val height = 1.0f
-        val halfHeight = height / 2f
-
+        val halfHeight = 0.5f
         val vertices = mutableListOf<Float>()
         val normals = mutableListOf<Float>()
         val indices = mutableListOf<Short>()
@@ -654,7 +690,7 @@ class SimpleRenderer(
             normals.add(z / radius)
         }
 
-        // Generate side indices
+        // Side indices
         for (i in 0 until segments) {
             val topFirst = (i * 2).toShort()
             val bottomFirst = (i * 2 + 1).toShort()
@@ -671,7 +707,7 @@ class SimpleRenderer(
         }
 
         // Add caps
-        val centerTop = vertices.size / 3
+        val centerTop = (vertices.size / 3).toShort()
         vertices.add(0f)
         vertices.add(halfHeight)
         vertices.add(0f)
@@ -679,7 +715,7 @@ class SimpleRenderer(
         normals.add(1f)
         normals.add(0f)
 
-        val centerBottom = vertices.size / 3
+        val centerBottom = (vertices.size / 3).toShort()
         vertices.add(0f)
         vertices.add(-halfHeight)
         vertices.add(0f)
@@ -689,67 +725,142 @@ class SimpleRenderer(
 
         // Top cap indices
         for (i in 0 until segments) {
-            indices.add(centerTop.toShort())
+            indices.add(centerTop)
             indices.add((i * 2).toShort())
             indices.add(((i + 1) * 2).toShort())
         }
 
         // Bottom cap indices
         for (i in 0 until segments) {
-            indices.add(centerBottom.toShort())
+            indices.add(centerBottom)
             indices.add(((i + 1) * 2 + 1).toShort())
             indices.add((i * 2 + 1).toShort())
         }
 
-        drawGeometry(vertices.toFloatArray(), normals.toFloatArray(), indices.toShortArray())
+        return createGeometryBuffers(vertices.toFloatArray(), normals.toFloatArray(), indices.toShortArray())
     }
 
-    private fun drawGeometry(
-        vertices: FloatArray,
-        normals: FloatArray,
-        indices: ShortArray,
+    /**
+     * Delete geometry buffers (P0.2 fix).
+     */
+    private fun deleteGeometryBuffers(buffers: GeometryBuffers) {
+        val vaoIds = intArrayOf(buffers.vao)
+        GLES30.glDeleteVertexArrays(1, vaoIds, 0)
+
+        val vboIds = intArrayOf(buffers.vertexVbo, buffers.normalVbo, buffers.indexVbo)
+        GLES30.glDeleteBuffers(3, vboIds, 0)
+    }
+
+    // ===== End P0.1 FIX =====
+
+    private fun render3DScene(
+        frame: Frame,
+        arCamera: Camera,
     ) {
-        // Create vertex buffer
-        val vertexBuffer =
-            ByteBuffer
-                .allocateDirect(vertices.size * 4)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer()
-                .put(vertices)
-                .apply { position(0) }
+        // P0.3 FIX: Copy scene nodes under lock to avoid race conditions
+        val nodesToRender =
+            sceneLock.withLock {
+                if (sceneNodes.isEmpty()) {
+                    return // Early return if empty
+                }
+                sceneNodes.toList() // Create a copy
+            }
 
-        // Create normal buffer
-        val normalBuffer =
-            ByteBuffer
-                .allocateDirect(normals.size * 4)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer()
-                .put(normals)
-                .apply { position(0) }
+        if (sceneProgram == 0) {
+            return
+        }
 
-        // Create index buffer
-        val indexBuffer =
-            ByteBuffer
-                .allocateDirect(indices.size * 2)
-                .order(ByteOrder.nativeOrder())
-                .asShortBuffer()
-                .put(indices)
-                .apply { position(0) }
+        GLES30.glUseProgram(sceneProgram)
 
-        // Set vertex attributes
-        GLES30.glEnableVertexAttribArray(0)
-        GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 0, vertexBuffer)
+        // Get camera matrices
+        arCamera.getViewMatrix(viewMatrix, 0)
+        arCamera.getProjectionMatrix(projectionMatrix, 0, 0.1f, 100f)
 
-        GLES30.glEnableVertexAttribArray(1)
-        GLES30.glVertexAttribPointer(1, 3, GLES30.GL_FLOAT, false, 0, normalBuffer)
+        // Set light direction (from above-front)
+        val lightDirLoc = GLES30.glGetUniformLocation(sceneProgram, "u_LightDir")
+        GLES30.glUniform3f(lightDirLoc, 0.0f, 0.7f, 0.7f)
 
-        // Draw
-        GLES30.glDrawElements(GLES30.GL_TRIANGLES, indices.size, GLES30.GL_UNSIGNED_SHORT, indexBuffer)
+        // Render each node (only Mesh nodes) from the snapshot
+        nodesToRender.forEach { node ->
+            when (node) {
+                is SceneNode.Mesh -> {
+                    renderMesh(node)
+                }
 
-        // Cleanup
-        GLES30.glDisableVertexAttribArray(0)
-        GLES30.glDisableVertexAttribArray(1)
+                is SceneNode.Group -> {} // Groups don't render directly
+            }
+        }
     }
+
+    private fun renderMesh(mesh: SceneNode.Mesh) {
+        if (!mesh.visible) return
+
+        val transform = mesh.transform
+
+        // Build model matrix from transform
+        Matrix.setIdentityM(modelMatrix, 0)
+        Matrix.translateM(
+            modelMatrix,
+            0,
+            transform.position.x,
+            transform.position.y,
+            transform.position.z,
+        )
+
+        // Apply rotation
+        val rot = transform.rotation
+        val angle = 2.0f * Math.acos(rot.w.toDouble()).toFloat()
+        if (angle > 0.001f) {
+            val axis = floatArrayOf(rot.x, rot.y, rot.z)
+            val axisLength = Math.sqrt((axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).toDouble()).toFloat()
+            if (axisLength > 0.001f) {
+                Matrix.rotateM(
+                    modelMatrix,
+                    0,
+                    Math.toDegrees(angle.toDouble()).toFloat(),
+                    axis[0] / axisLength,
+                    axis[1] / axisLength,
+                    axis[2] / axisLength,
+                )
+            }
+        }
+
+        // Apply scale
+        Matrix.scaleM(modelMatrix, 0, transform.scale.x, transform.scale.y, transform.scale.z)
+
+        // Calculate MVP matrix
+        val tempMatrix = FloatArray(16)
+        Matrix.multiplyMM(tempMatrix, 0, viewMatrix, 0, modelMatrix, 0)
+        Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, tempMatrix, 0)
+
+        // Set uniforms
+        val mvpLoc = GLES30.glGetUniformLocation(sceneProgram, "u_MVP")
+        GLES30.glUniformMatrix4fv(mvpLoc, 1, false, mvpMatrix, 0)
+
+        val modelLoc = GLES30.glGetUniformLocation(sceneProgram, "u_Model")
+        GLES30.glUniformMatrix4fv(modelLoc, 1, false, modelMatrix, 0)
+
+        val colorLoc = GLES30.glGetUniformLocation(sceneProgram, "u_Color")
+        GLES30.glUniform3f(
+            colorLoc,
+            mesh.material.baseColor.x,
+            mesh.material.baseColor.y,
+            mesh.material.baseColor.z,
+        )
+
+        // P0.1 FIX: Use cached geometry buffers instead of creating new ones every frame
+        val buffers = getOrCreateGeometryBuffers(mesh.geometry.type)
+        if (buffers != null) {
+            // Bind VAO and draw
+            GLES30.glBindVertexArray(buffers.vao)
+            GLES30.glDrawElements(GLES30.GL_TRIANGLES, buffers.indexCount, GLES30.GL_UNSIGNED_SHORT, 0)
+            GLES30.glBindVertexArray(0)
+        }
+    }
+
+    // P0.1 FIX: Old renderCube(), renderSphere(), renderCylinder(), and drawGeometry()
+    // functions removed. They were creating new ByteBuffers every frame causing memory leaks.
+    // Replaced with VBO/VAO caching implemented above.
 
     fun performRaycast(
         origin: Vec3,
@@ -760,9 +871,58 @@ class SimpleRenderer(
         return null
     }
 
+    /**
+     * Clean up all OpenGL resources (P0.2 fix).
+     * Must be called when the renderer is no longer needed.
+     */
     fun destroy() {
-        val textureIds = intArrayOf(cameraTextureId)
-        GLES30.glDeleteTextures(1, textureIds, 0)
-        sceneNodes.clear()
+        // P0.2 FIX: Delete all OpenGL resources to prevent GPU memory leaks
+
+        // Delete textures
+        if (cameraTextureId != 0) {
+            val textureIds = intArrayOf(cameraTextureId)
+            GLES30.glDeleteTextures(1, textureIds, 0)
+            cameraTextureId = 0
+        }
+
+        // Delete programs
+        if (backgroundProgram != 0) {
+            GLES30.glDeleteProgram(backgroundProgram)
+            backgroundProgram = 0
+        }
+        if (sceneProgram != 0) {
+            GLES30.glDeleteProgram(sceneProgram)
+            sceneProgram = 0
+        }
+
+        // Delete shaders
+        if (backgroundVertexShader != 0) {
+            GLES30.glDeleteShader(backgroundVertexShader)
+            backgroundVertexShader = 0
+        }
+        if (backgroundFragmentShader != 0) {
+            GLES30.glDeleteShader(backgroundFragmentShader)
+            backgroundFragmentShader = 0
+        }
+        if (vertexShader != 0) {
+            GLES30.glDeleteShader(vertexShader)
+            vertexShader = 0
+        }
+        if (fragmentShader != 0) {
+            GLES30.glDeleteShader(fragmentShader)
+            fragmentShader = 0
+        }
+
+        // P0.1 FIX: Delete all cached VBOs/VAOs
+        geometryCache.values.forEach { deleteGeometryBuffers(it) }
+        geometryCache.clear()
+
+        // P0.3 FIX: Clear scene data under lock
+        sceneLock.withLock {
+            sceneNodes.clear()
+        }
+
+        // Reset initialization flag
+        isInitialized = false
     }
 }

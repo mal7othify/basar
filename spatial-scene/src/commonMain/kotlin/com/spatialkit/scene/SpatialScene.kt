@@ -10,6 +10,8 @@ import com.spatialkit.engine.SceneData
  * - Spatial anchors
  * - Conversion to immutable engine SceneData
  *
+ * P0.3 FIX: Thread-safe operations for concurrent access from user code.
+ *
  * Usage:
  * ```kotlin
  * val scene = SpatialScene()
@@ -32,33 +34,39 @@ import com.spatialkit.engine.SceneData
  * ```
  */
 class SpatialScene {
+    // P0.3 FIX: Synchronized collections for thread safety
     private val rootNodes = mutableListOf<SpatialNode>()
     private val anchors = mutableMapOf<String, SpatialAnchor>()
+    private val lock = SpatialLock() // Synchronization lock
 
     /**
      * All root-level nodes in the scene.
      * Nodes with parents are not included here.
+     * P0.3 FIX: Returns a copy to prevent concurrent modification.
      */
-    val nodes: List<SpatialNode> get() = rootNodes
+    val nodes: List<SpatialNode> get() = lock.withLock { rootNodes.toList() }
 
     /**
      * All anchors in the scene.
+     * P0.3 FIX: Returns a copy to prevent concurrent modification.
      */
-    val allAnchors: List<SpatialAnchor> get() = anchors.values.toList()
+    val allAnchors: List<SpatialAnchor> get() = lock.withLock { anchors.values.toList() }
 
     /**
-     * Add a root-level node to the scene.
+     * Add a root-level node to the scene (P0.3 fix: thread-safe).
      *
      * @param node Node to add
      */
     fun add(node: SpatialNode) {
-        if (node !in rootNodes) {
-            rootNodes.add(node)
+        lock.withLock {
+            if (node !in rootNodes) {
+                rootNodes.add(node)
+            }
         }
     }
 
     /**
-     * Remove a node from the scene.
+     * Remove a node from the scene (P0.3 fix: thread-safe).
      *
      * This removes the node and all its descendants from the scene.
      * If the node is a child of another node, it's removed from parent first.
@@ -68,11 +76,13 @@ class SpatialScene {
      */
     fun remove(node: SpatialNode): Boolean {
         node.removeFromParent()
-        return rootNodes.remove(node)
+        return lock.withLock {
+            rootNodes.remove(node)
+        }
     }
 
     /**
-     * Remove a node by ID.
+     * Remove a node by ID (P0.3 fix: thread-safe).
      *
      * Searches all nodes (root and children) for matching ID.
      *
@@ -80,27 +90,31 @@ class SpatialScene {
      * @return true if node was found and removed
      */
     fun removeById(id: String): Boolean {
-        // Check root nodes
-        rootNodes.find { it.id == id }?.let {
-            return remove(it)
-        }
-
-        // Check descendants
-        rootNodes.forEach { root ->
-            root.findNodeById(id)?.let { node ->
-                node.removeFromParent()
-                return true
+        lock.withLock {
+            // Check root nodes
+            rootNodes.find { it.id == id }?.let {
+                return remove(it)
             }
-        }
 
-        return false
+            // Check descendants
+            rootNodes.forEach { root ->
+                root.findNodeById(id)?.let { node ->
+                    node.removeFromParent()
+                    return true
+                }
+            }
+
+            return false
+        }
     }
 
     /**
-     * Clear all nodes from the scene.
+     * Clear all nodes from the scene (P0.3 fix: thread-safe).
      */
     fun clear() {
-        rootNodes.clear()
+        lock.withLock {
+            rootNodes.clear()
+        }
     }
 
     /**
@@ -140,29 +154,31 @@ class SpatialScene {
         type: com.spatialkit.engine.AnchorType,
         id: String = SpatialAnchor.generateId(),
     ): SpatialAnchor {
-        val anchor = SpatialAnchor(id, type)
-        anchors[id] = anchor
-        return anchor
+        lock.withLock {
+            val anchor = SpatialAnchor(id, type)
+            anchors[id] = anchor
+            return anchor
+        }
     }
 
     /**
-     * Get an anchor by ID.
+     * Get an anchor by ID (P0.3 fix: thread-safe).
      *
      * @param id Anchor ID
      * @return Anchor or null if not found
      */
-    fun getAnchor(id: String): SpatialAnchor? = anchors[id]
+    fun getAnchor(id: String): SpatialAnchor? = lock.withLock { anchors[id] }
 
     /**
-     * Remove an anchor from the scene.
+     * Remove an anchor from the scene (P0.3 fix: thread-safe).
      *
      * @param id Anchor ID to remove
      * @return true if anchor was removed
      */
-    fun removeAnchor(id: String): Boolean = anchors.remove(id) != null
+    fun removeAnchor(id: String): Boolean = lock.withLock { anchors.remove(id) != null }
 
     /**
-     * Remove an anchor from the scene.
+     * Remove an anchor from the scene (P0.3 fix: thread-safe).
      *
      * @param anchor Anchor to remove
      * @return true if anchor was removed
@@ -170,25 +186,29 @@ class SpatialScene {
     fun removeAnchor(anchor: SpatialAnchor): Boolean = removeAnchor(anchor.id)
 
     /**
-     * Update anchor states from engine frame data.
+     * Update anchor states from engine frame data (P0.3 fix: thread-safe).
      *
      * Called internally by SpatialSession.
      */
     internal fun updateAnchors(anchorStates: List<com.spatialkit.engine.AnchorState>) {
-        anchorStates.forEach { state ->
-            anchors[state.id]?.update(state)
+        lock.withLock {
+            anchorStates.forEach { state ->
+                anchors[state.id]?.update(state)
+            }
         }
     }
 
     /**
-     * Convert this scene to engine SceneData format.
+     * Convert this scene to engine SceneData format (P0.3 fix: thread-safe).
      *
      * This creates an immutable snapshot of the current scene state.
      * Called internally by SpatialSession each frame.
      */
     internal fun toSceneData(): SceneData =
-        SceneData(
-            nodes = rootNodes.map { it.toSceneNode() },
-            anchors = anchors.values.map { it.toAnchorRequest() },
-        )
+        lock.withLock {
+            SceneData(
+                nodes = rootNodes.map { it.toSceneNode() },
+                anchors = anchors.values.map { it.toAnchorRequest() },
+            )
+        }
 }
