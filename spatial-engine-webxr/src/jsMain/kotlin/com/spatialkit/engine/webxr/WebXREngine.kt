@@ -217,7 +217,7 @@ class WebXREngine : SpatialEngine {
 
         val optionalFeatures =
             if (mode is SessionMode.AR) {
-                arrayOf("camera-access", "hit-test", "dom-overlay", "hand-tracking")
+                arrayOf("camera-access", "hit-test", "hand-tracking")
             } else {
                 arrayOf("hand-tracking", "local")
             }
@@ -368,6 +368,9 @@ class WebXREngine : SpatialEngine {
 
         // Stop the animation loop
         renderer?.setAnimationLoop(null)
+
+        // Clear the XR session from Three.js so it can accept a new one
+        renderer?.xr?.setSession(null)
 
         // Show the Compose canvas again
         composeCanvas?.style?.display = ""
@@ -802,5 +805,10 @@ class WebXREngine : SpatialEngine {
     }
 }
 
-// Extension to convert Float32Array to FloatArray
-private fun Float32Array.toFloatArray(): FloatArray = FloatArray(length) { get(it) }
+// Extension to convert JS Float32Array to Kotlin FloatArray.
+// The external `get` operator doesn't map to bracket indexing at runtime in IR,
+// so we go through asDynamic() to access the native typed array elements.
+private fun Float32Array.toFloatArray(): FloatArray {
+    val jsArray = this.asDynamic()
+    return FloatArray(length) { (jsArray[it] as Number).toFloat() }
+}
