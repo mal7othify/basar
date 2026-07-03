@@ -8,7 +8,7 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /**
- * Animation system for spatial nodes (P2 bug #8 fix).
+ * Animation system for spatial nodes.
  *
  * Provides a simple but functional animation API for animating node transforms.
  * Animations are updated each frame by calling update(deltaTime).

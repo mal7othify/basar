@@ -3,7 +3,7 @@ package com.spatialkit.scene
 /**
  * JS implementation of SpatialLock.
  *
- * P0.3 FIX: JavaScript is single-threaded, so no actual locking is needed.
+ * JavaScript is single-threaded, so no actual locking is needed.
  * This is a pass-through implementation that maintains API compatibility.
  */
 internal actual class SpatialLock {

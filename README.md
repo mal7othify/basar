@@ -29,7 +29,7 @@ fun App() {
 > **Safe for**: Prototypes, demos, learning
 > **NOT safe for**: Production apps, app store submissions
 >
-> **See**: [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for full assessment
+> **See**: [PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) for full assessment
 
 ---
 
@@ -47,8 +47,8 @@ fun App() {
 
 **Detailed Status**:
 
-- [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) - Honest production assessment
-- [PROJECT_STATUS.md](PROJECT_STATUS.md) - Detailed implementation status
+- [PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) - Honest production assessment
+- [PROJECT_STATUS.md](docs/PROJECT_STATUS.md) - Detailed implementation status
 
 ## Architecture
 
@@ -128,8 +128,8 @@ fun MyARApp() {
 
 | Document                                                 | Description                               |
 |----------------------------------------------------------|-------------------------------------------|
-| **[PROJECT_STATUS.md](PROJECT_STATUS.md)**               | Complete project status and roadmap       |
-| **[USAGE_EXAMPLES.md](USAGE_EXAMPLES.md)**               | Comprehensive examples (basic → advanced) |
+| **[PROJECT_STATUS.md](docs/PROJECT_STATUS.md)**               | Complete project status and roadmap       |
+| **[USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md)**               | Comprehensive examples (basic → advanced) |
 | **[spatial-dsl/DSL_GUIDE.md](spatial-dsl/DSL_GUIDE.md)** | Complete DSL reference                    |
 | **[.claude/CLAUDE.md](.claude/CLAUDE.md)**               | Project principles and philosophy         |
 
@@ -212,7 +212,7 @@ fun Interactive() {
 }
 ```
 
-**See [USAGE_EXAMPLES.md](USAGE_EXAMPLES.md) for 9 complete examples.**
+**See [USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md) for 9 complete examples.**
 
 ## Platform Support
 
@@ -303,14 +303,14 @@ fun Interactive() {
 8. Add gesture support
 9. Performance optimization
 
-**See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for detailed priority breakdown.**
+**See [PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) for detailed priority breakdown.**
 
 ## Contributing
 
 Contributions welcome! Please:
 
 1. Read [.claude/CLAUDE.md](.claude/CLAUDE.md) for project principles
-2. Check [PROJECT_STATUS.md](PROJECT_STATUS.md) for current status
+2. Check [PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for current status
 3. Run tests before submitting: `./gradlew test`
 4. Follow Kotlin coding conventions
 
@@ -334,4 +334,4 @@ Built with:
 **Production Status**: ❌ NOT READY (3 P0 blockers)
 **Version**: 0.1.0-alpha (development only)
 **Last Updated**: 2026-03-05
-**See**: [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for details
+**See**: [PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) for details

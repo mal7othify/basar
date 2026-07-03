@@ -10,7 +10,7 @@ import com.spatialkit.engine.SceneData
  * - Spatial anchors
  * - Conversion to immutable engine SceneData
  *
- * P0.3 FIX: Thread-safe operations for concurrent access from user code.
+ * Thread-safe operations for concurrent access from user code.
  *
  * Usage:
  * ```kotlin
@@ -34,7 +34,7 @@ import com.spatialkit.engine.SceneData
  * ```
  */
 class SpatialScene {
-    // P0.3 FIX: Synchronized collections for thread safety
+    // Synchronized collections for thread safety
     private val rootNodes = mutableListOf<SpatialNode>()
     private val anchors = mutableMapOf<String, SpatialAnchor>()
     private val lock = SpatialLock() // Synchronization lock
@@ -42,18 +42,18 @@ class SpatialScene {
     /**
      * All root-level nodes in the scene.
      * Nodes with parents are not included here.
-     * P0.3 FIX: Returns a copy to prevent concurrent modification.
+     * Returns a copy to prevent concurrent modification.
      */
     val nodes: List<SpatialNode> get() = lock.withLock { rootNodes.toList() }
 
     /**
      * All anchors in the scene.
-     * P0.3 FIX: Returns a copy to prevent concurrent modification.
+     * Returns a copy to prevent concurrent modification.
      */
     val allAnchors: List<SpatialAnchor> get() = lock.withLock { anchors.values.toList() }
 
     /**
-     * Add a root-level node to the scene (P0.3 fix: thread-safe).
+     * Add a root-level node to the scene.
      *
      * @param node Node to add
      */
@@ -66,7 +66,7 @@ class SpatialScene {
     }
 
     /**
-     * Remove a node from the scene (P0.3 fix: thread-safe).
+     * Remove a node from the scene.
      *
      * This removes the node and all its descendants from the scene.
      * If the node is a child of another node, it's removed from parent first.
@@ -82,7 +82,7 @@ class SpatialScene {
     }
 
     /**
-     * Remove a node by ID (P0.3 fix: thread-safe).
+     * Remove a node by ID.
      *
      * Searches all nodes (root and children) for matching ID.
      *
@@ -109,7 +109,7 @@ class SpatialScene {
     }
 
     /**
-     * Clear all nodes from the scene (P0.3 fix: thread-safe).
+     * Clear all nodes from the scene.
      */
     fun clear() {
         lock.withLock {
@@ -162,7 +162,7 @@ class SpatialScene {
     }
 
     /**
-     * Get an anchor by ID (P0.3 fix: thread-safe).
+     * Get an anchor by ID.
      *
      * @param id Anchor ID
      * @return Anchor or null if not found
@@ -170,7 +170,7 @@ class SpatialScene {
     fun getAnchor(id: String): SpatialAnchor? = lock.withLock { anchors[id] }
 
     /**
-     * Remove an anchor from the scene (P0.3 fix: thread-safe).
+     * Remove an anchor from the scene.
      *
      * @param id Anchor ID to remove
      * @return true if anchor was removed
@@ -178,7 +178,7 @@ class SpatialScene {
     fun removeAnchor(id: String): Boolean = lock.withLock { anchors.remove(id) != null }
 
     /**
-     * Remove an anchor from the scene (P0.3 fix: thread-safe).
+     * Remove an anchor from the scene.
      *
      * @param anchor Anchor to remove
      * @return true if anchor was removed
@@ -186,7 +186,7 @@ class SpatialScene {
     fun removeAnchor(anchor: SpatialAnchor): Boolean = removeAnchor(anchor.id)
 
     /**
-     * Update anchor states from engine frame data (P0.3 fix: thread-safe).
+     * Update anchor states from engine frame data.
      *
      * Called internally by SpatialSession.
      */
@@ -199,7 +199,7 @@ class SpatialScene {
     }
 
     /**
-     * Convert this scene to engine SceneData format (P0.3 fix: thread-safe).
+     * Convert this scene to engine SceneData format.
      *
      * This creates an immutable snapshot of the current scene state.
      * Called internally by SpatialSession each frame.

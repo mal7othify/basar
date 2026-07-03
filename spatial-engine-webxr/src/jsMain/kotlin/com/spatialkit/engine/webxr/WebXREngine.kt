@@ -284,7 +284,7 @@ class WebXREngine : SpatialEngine {
                 console.error("WebXR: Failed to get reference space: $error")
             }
 
-        // === KEY FIX: Let Three.js manage the XR session ===
+        // === Let Three.js manage the XR session ===
         // This tells Three.js to handle framebuffer binding, camera matrices,
         // viewport setup, and all the WebGL/XR plumbing internally.
         renderer?.xr?.setSession(session)
@@ -574,7 +574,7 @@ class WebXREngine : SpatialEngine {
     /**
      * Creates a Three.js material from MaterialData.
      *
-     * FIX: Three.js expects color as a hex integer (e.g. 0xFF0000 for red),
+     * Three.js expects color as a hex integer (e.g. 0xFF0000 for red),
      * not as an {r, g, b} object. We convert the float RGB components (0.0-1.0)
      * to a single packed integer.
      */

@@ -1,5 +1,3 @@
-import kotlin.jvm.java
-
 rootProject.name = "Basar"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -55,4 +53,3 @@ include(":spatial-engine-arkit")
 include(":spatial-scene")
 include(":spatial-dsl")
 include(":spatial-compose")
-include(":spatial-renderer-canvas")

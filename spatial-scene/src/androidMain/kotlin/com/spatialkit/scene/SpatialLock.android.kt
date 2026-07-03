@@ -6,7 +6,7 @@ import kotlin.concurrent.withLock as ktWithLock
 /**
  * Android implementation of SpatialLock using ReentrantLock.
  *
- * P0.3 FIX: Thread-safe synchronization for Android platform.
+ * Thread-safe synchronization for Android platform.
  */
 internal actual class SpatialLock {
     private val lock = ReentrantLock()

@@ -21,7 +21,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Data class to hold VBO/VAO resources for a geometry (P0.1 fix).
+ * Data class to hold VBO/VAO resources for a geometry.
  */
 private data class GeometryBuffers(
     val vao: Int,
@@ -36,18 +36,13 @@ private data class GeometryBuffers(
  *
  * Renders the AR camera background as a fullscreen texture, then renders 3D scene nodes on top.
  * This is a minimal implementation - a production app would use Filament or SceneView.
- *
- * P0 FIX STATUS:
- * - P0.1: VBO/VAO caching implemented to prevent memory leaks ✅
- * - P0.2: Resource cleanup in destroy() completed ✅
- * - P0.3: Thread safety added for scene mutations ✅
  */
 class SimpleRenderer(
     private val context: Context,
 ) {
     private var cameraTextureId: Int = 0
 
-    // P0.3 FIX: Thread-safe scene node list
+    // Thread-safe scene node list
     private val sceneNodes = mutableListOf<SceneNode>()
     private val sceneLock = ReentrantLock()
 
@@ -67,13 +62,13 @@ class SimpleRenderer(
     // Display rotation handling
     private val transformedUvs = FloatArray(8)
 
-    // P0.1 FIX: VBO/VAO caching to prevent memory leaks
+    // VBO/VAO caching to prevent memory leaks
     private val geometryCache = mutableMapOf<GeometryType, GeometryBuffers>()
 
     // Custom mesh cache keyed by node ID (each custom mesh has unique geometry)
     private val customMeshCache = mutableMapOf<String, GeometryBuffers>()
 
-    // P0.2 FIX: Store shader references for cleanup
+    // Store shader references for cleanup
     private var vertexShader: Int = 0
     private var fragmentShader: Int = 0
     private var backgroundVertexShader: Int = 0
@@ -209,7 +204,7 @@ class SimpleRenderer(
             throw RuntimeException("Program link failed: $error")
         }
 
-        // P0.2 FIX: Save shader references for cleanup
+        // Save shader references for cleanup
         if (saveShaders) {
             if (program == backgroundProgram || backgroundProgram == 0) {
                 backgroundVertexShader = vShader
@@ -269,7 +264,7 @@ class SimpleRenderer(
     }
 
     /**
-     * Update the scene with new data (P0.3 fix: thread-safe).
+     * Update the scene with new data.
      */
     fun updateScene(sceneData: SceneData) {
         sceneLock.withLock {
@@ -433,10 +428,10 @@ class SimpleRenderer(
         GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
     }
 
-    // ===== P0.1 FIX: VBO/VAO Caching Implementation =====
+    // ===== VBO/VAO Caching Implementation =====
 
     /**
-     * Create and upload geometry to GPU buffers (P0.1 fix).
+     * Create and upload geometry to GPU buffers.
      * Called once per geometry type and reused across all frames.
      */
     private fun createGeometryBuffers(
@@ -787,7 +782,7 @@ class SimpleRenderer(
     }
 
     /**
-     * Delete geometry buffers (P0.2 fix).
+     * Delete geometry buffers.
      */
     private fun deleteGeometryBuffers(buffers: GeometryBuffers) {
         val vaoIds = intArrayOf(buffers.vao)
@@ -797,13 +792,12 @@ class SimpleRenderer(
         GLES30.glDeleteBuffers(3, vboIds, 0)
     }
 
-    // ===== End P0.1 FIX =====
 
     private fun render3DScene(
         frame: Frame,
         arCamera: Camera,
     ) {
-        // P0.3 FIX: Copy scene nodes under lock to avoid race conditions
+        // Copy scene nodes under lock to avoid race conditions
         val nodesToRender =
             sceneLock.withLock {
                 if (sceneNodes.isEmpty()) {
@@ -894,7 +888,7 @@ class SimpleRenderer(
             mesh.material.baseColor.z,
         )
 
-        // P0.1 FIX: Use cached geometry buffers instead of creating new ones every frame
+        // Use cached geometry buffers instead of creating new ones every frame
         val buffers = if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
             getOrCreateCustomMeshBuffers(mesh.id, mesh.geometry)
         } else {
@@ -908,12 +902,8 @@ class SimpleRenderer(
         }
     }
 
-    // P0.1 FIX: Old renderCube(), renderSphere(), renderCylinder(), and drawGeometry()
-    // functions removed. They were creating new ByteBuffers every frame causing memory leaks.
-    // Replaced with VBO/VAO caching implemented above.
-
     /**
-     * Perform world-space raycasting against scene meshes (P2 bug #11 fix).
+     * Perform world-space raycasting against scene meshes.
      *
      * Tests a ray against all visible mesh nodes in the scene and returns
      * the closest intersection point.
@@ -1122,11 +1112,11 @@ class SimpleRenderer(
         }
 
     /**
-     * Clean up all OpenGL resources (P0.2 fix).
+     * Clean up all OpenGL resources.
      * Must be called when the renderer is no longer needed.
      */
     fun destroy() {
-        // P0.2 FIX: Delete all OpenGL resources to prevent GPU memory leaks
+        // Delete all OpenGL resources to prevent GPU memory leaks
 
         // Delete textures
         if (cameraTextureId != 0) {
@@ -1163,13 +1153,13 @@ class SimpleRenderer(
             fragmentShader = 0
         }
 
-        // P0.1 FIX: Delete all cached VBOs/VAOs
+        // Delete all cached VBOs/VAOs
         geometryCache.values.forEach { deleteGeometryBuffers(it) }
         geometryCache.clear()
         customMeshCache.values.forEach { deleteGeometryBuffers(it) }
         customMeshCache.clear()
 
-        // P0.3 FIX: Clear scene data under lock
+        // Clear scene data under lock
         sceneLock.withLock {
             sceneNodes.clear()
         }

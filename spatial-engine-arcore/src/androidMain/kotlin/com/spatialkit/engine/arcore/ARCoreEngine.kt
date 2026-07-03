@@ -42,7 +42,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.nio.FloatBuffer
 import java.util.EnumSet
-import kotlin.jvm.java
 import com.google.ar.core.LightEstimate as ArLightEstimate
 import com.spatialkit.engine.Pose as EnginePose
 
