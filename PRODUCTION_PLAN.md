@@ -22,23 +22,23 @@ reference the task ID (e.g. `M1.3`) in commit messages.
 
 ## M0 — Repo hygiene (half a day)
 
-- [ ] **M0.1 Remove committed TLS key material.**
+- [x] **M0.1 Remove committed TLS key material.**
   `localhost-cert.pem` and `localhost-key.pem` are tracked (the `*.pem` gitignore rule
   was added after they were committed). Run `git rm --cached localhost-cert.pem
   localhost-key.pem`, commit, and regenerate the dev cert locally.
-- [ ] **M0.2 Delete the ghost module.**
+- [x] **M0.2 Delete the ghost module.**
   `spatial-renderer-canvas` is included in `settings.gradle.kts` but has no build file
   and no sources. Remove the `include(":spatial-renderer-canvas")` line and delete the
   directory (or create a tracking issue if it's planned work).
-- [ ] **M0.3 Archive the fix-log markdown files.**
+- [x] **M0.3 Archive the fix-log markdown files.**
   Move the 18 root-level history docs (`BROWN_SCREEN_FIX.md`, `RAYCAST_CRASH_FIX.md`,
   `P2_BUGS_FIXED.md`, `FINAL_STATUS.md`, …) into `docs/archive/`. Keep only `README.md`
   and this plan at the root.
-- [ ] **M0.4 Strip fix-tag comments from code.**
+- [x] **M0.4 Strip fix-tag comments from code.**
   Remove "P0.1 FIX", "P0.3 FIX", "P2 bug #8 fix" style comments (e.g.
   `SpatialScene.kt`, `SimpleRenderer.kt`, `SpatialAnimator.kt`) — they reference
   internal history that means nothing to a library consumer.
-- [ ] **M0.5 Remove stray imports.**
+- [x] **M0.5 Remove stray imports.**
   `import kotlin.jvm.java` at `settings.gradle.kts:1` and `ARCoreEngine.kt:45`.
 - [ ] **M0.6 Separate library from playground (structural, optional but recommended).**
   `composeApp`, `server`, `shared` are demo/template code. Either move them under
@@ -46,16 +46,16 @@ reference the task ID (e.g. `M1.3`) in commit messages.
 
 ## M1 — Library packaging (1–2 days) — *the actual blocker*
 
-- [ ] **M1.1 Add a LICENSE file.**
+- [x] **M1.1 Add a LICENSE file.**
   Nothing can be legally used or published to Maven Central without one. Decide the
   license (Apache-2.0 is the KMP-ecosystem default) and add it.
-- [ ] **M1.2 Create a publishing convention plugin.**
+- [x] **M1.2 Create a publishing convention plugin.**
   Add `build-logic/` (or `buildSrc`) with a convention plugin applied by every
   `spatial-*` module that sets: `group = "com.spatialkit"`, a shared `version`,
   the `com.vanniktech.maven.publish` plugin, POM metadata (name, description, url,
   license, scm, developer), and sources/javadoc jars. This also removes the copy-pasted
   target/android blocks across the seven `spatial-*/build.gradle.kts` files.
-- [ ] **M1.3 Fix dependency scopes: `implementation` → `api` where types leak.**
+- [x] **M1.3 Fix dependency scopes: `implementation` → `api` where types leak.**
   Every module currently hides its dependencies, but every module's public API exposes
   them. Required changes:
   - `spatial-engine/build.gradle.kts:31` → `api(project(":spatial-core"))`
@@ -74,14 +74,14 @@ reference the task ID (e.g. `M1.3`) in commit messages.
     and only compiles by accident).
   **Acceptance:** a scratch project depending *only* on the published
   `spatial-compose` artifact can reference `Vec3`, `SessionMode`, and `cube {}`.
-- [ ] **M1.4 Enable `explicitApi()` in all `spatial-*` modules** (via the convention
+- [x] **M1.4 Enable `explicitApi()` in all `spatial-*` modules** (via the convention
   plugin). Then sweep the fallout: mark internals `internal`
   (`GeometryBuffers`, `SpatialNode.rotate`, renderer helpers), and make the intended
   API explicitly `public`.
-- [ ] **M1.5 Fix the JS test browser matrix.**
+- [x] **M1.5 Fix the JS test browser matrix.**
   `spatial-core/build.gradle.kts:24-29` requires Chrome + Firefox + Safari + headless
   Chrome; any machine missing one fails the build. Keep `useChromeHeadless()` only.
-- [ ] **M1.6 Update README installation section** to use published coordinates
+- [x] **M1.6 Update README installation section** to use published coordinates
   (`com.spatialkit:spatial-compose:<version>`) once M1.2 lands.
 
 ## M2 — Shared-code correctness (2–3 days)
@@ -89,20 +89,20 @@ reference the task ID (e.g. `M1.3`) in commit messages.
 These bugs live in common code and affect every platform. Each fix must land with a
 unit test (they're all pure Kotlin).
 
-- [ ] **M2.1 `SpatialNode.worldPosition` ignores parent scale** (`SpatialNode.kt:71-80`).
+- [x] **M2.1 `SpatialNode.worldPosition` ignores parent scale** (`SpatialNode.kt:71-80`).
   Correct composition is `parent.worldPosition + parent.worldRotation * (parent.worldScale ⊙ localPosition)`.
   Today a child of a scaled group renders in one place (renderers use the transform
   hierarchy) while `worldPosition` reports another.
   *Test:* group scaled 2× with child at (1,0,0) → worldPosition (2,0,0).
-- [ ] **M2.2 Children of non-group nodes silently vanish.**
+- [x] **M2.2 Children of non-group nodes silently vanish.**
   `addChild` is on `SpatialNode`, but `CubeNode.toSceneNode()` (`ShapeNodes.kt:42`)
   emits a childless `Mesh`. Either restrict child management to `GroupNode`, or emit
   `SceneNode.Group(mesh, children)` when a mesh node has children. Pick one; document it.
   *Test:* cube with sphere child → sphere present in `toSceneData()` output.
-- [ ] **M2.3 `addChild` permits cycles** (`SpatialNode.kt:118-124`).
+- [x] **M2.3 `addChild` permits cycles** (`SpatialNode.kt:118-124`).
   `a.addChild(b); b.addChild(a)` → infinite recursion. Reject (require + message) if
   `child` is `this` or an ancestor of `this`.
-- [ ] **M2.4 `AnchorScope` compounds transforms and clobbers callbacks**
+- [x] **M2.4 `AnchorScope` compounds transforms and clobbers callbacks**
   (`AnchorScope.kt:26-34`, `SpatialAnchor.kt:87`).
   - On every re-track, `node.position = anchor.pose!!.position + node.position`
     accumulates — content drifts after each tracking loss/regain. Store each node's
@@ -112,30 +112,31 @@ unit test (they're all pure Kotlin).
     multicast (list of listeners) with an unsubscribe handle.
   *Test:* simulate TRACKING → LOST → TRACKING; node position identical both times;
   two `onTrack` listeners both fire.
-- [ ] **M2.5 `Quaternion.lookRotation` ignores its `up` parameter**
+- [x] **M2.5 `Quaternion.lookRotation` ignores its `up` parameter**
   (`Quaternion.kt:332-340`). Implement proper basis construction
   (forward/right/up → rotation matrix → quaternion) instead of delegating to
   `fromToRotation`. While here: resolve the forward-convention conflict —
   `lookRotation` assumes forward = (0,0,1) but `Vec3.FORWARD = (0,0,-1)`. Pick one
   convention, apply it everywhere, document it in `Vec3` and `Transform`.
   *Test:* lookRotation with tilted `up` produces no roll around forward axis.
-- [ ] **M2.6 Decide and enforce the threading model.**
-  The `SpatialLock` in `SpatialScene` guards only the root list; `toSceneData()`
-  traverses unsynchronized `children` lists and `var position/rotation/scale` while
-  another thread may mutate them. Recommended: **declare the scene single-threaded
-  per session** (mutations only from the frame callback / main thread), delete
-  `SpatialLock` + the four `expect/actual` files, and document the rule on
-  `SpatialScene` and `SpatialSession`. (Alternative — full snapshotting — is much more
-  work for little gain at this stage.)
-- [ ] **M2.7 Fix `generateId()` races** (`SpatialNode.kt:181-186`, `SpatialAnchor.kt:163-168`).
+- [x] **M2.6 Decide and enforce the threading model.**
+  DECIDED (differs from the original recommendation): the lock is **kept** for
+  structural operations (root list, anchor map, `toSceneData()` snapshot) because
+  the Compose integration currently mutates the scene from the main thread while
+  frames arrive on the GL thread — deleting it would regress real safety. The
+  documentation now states the true contract: structural ops are synchronized;
+  node-level state (transforms, child lists) must only be mutated from the frame
+  callback. Full single-thread enforcement is revisited with the M5.3 SpatialView
+  rework.
+- [x] **M2.7 Fix `generateId()` races** (`SpatialNode.kt:181-186`, `SpatialAnchor.kt:163-168`).
   Non-atomic shared counter + `Random.nextInt(1000)`. Use `kotlinx.atomicfu` counters,
   or 64-bit random hex ids.
-- [ ] **M2.8 Deduplicate the unit-conversion DSL.**
+- [x] **M2.8 Deduplicate the unit-conversion DSL.**
   `spatial-core/math/Units.kt` (`Number.meters/cm/mm/degrees/radians`) and
   `spatial-dsl/Extensions.kt:48-109` (`Float.meters`, `Int.cm`, `Float.degrees`, …)
   conflict — importing both causes overload ambiguity. Delete the duplicates in
   `spatial-dsl/Extensions.kt`; the DSL re-exports core via its `api` dependency (M1.3).
-- [ ] **M2.9 Small correctness sweep** (one PR):
+- [x] **M2.9 Small correctness sweep** (one PR):
   - `PlaneNode.doubleSided` (`ShapeNodes.kt:120`) is never mapped into `MaterialData`
     — add `doubleSided` to `MaterialData` and honor it in renderers.
   - Delete the private duplicate `Vec3.times(Vec3)` at `ShapeNodes.kt:295`
@@ -149,7 +150,7 @@ unit test (they're all pure Kotlin).
   - Move the optimized `Quaternion.rotate(Vec3)` from `SpatialNode.kt:193` into
     `spatial-core`'s `Quaternion.times(Vec3)` (it allocates two quaternions today)
     and delete the scene-module copy.
-- [ ] **M2.10 `GltfLoader`: contain or fix** (`GltfLoader.kt`).
+- [x] **M2.10 `GltfLoader`: contain or fix** (`GltfLoader.kt`).
   The string-scanning parser mis-parses valid glTF (accessor `byteOffset` and
   `byteStride` ignored, `extractFloatData` hardcodes VEC3, key search can match
   outside the target object). Short-term: mark the class `@ExperimentalSpatialApi`
@@ -276,7 +277,7 @@ unit test (they're all pure Kotlin).
   settle, so accidental API breaks fail CI.
 - [ ] **M6.4 Docs.** Dokka HTML published from CI (module docs already exist as KDoc —
   this is cheap).
-- [ ] **M6.5 Test debt.** Minimum bar before 0.2.0:
+- [ ] **M6.5 Test debt.** Minimum bar before 0.2.0 (largely done during M2):
   - `SpatialNode` hierarchy math (world transforms, cycles, reparenting) — covers M2.1–M2.3
   - `SpatialScene`/`toSceneData` snapshot content
   - `SpatialAnchor` state machine + multicast callbacks — covers M2.4
