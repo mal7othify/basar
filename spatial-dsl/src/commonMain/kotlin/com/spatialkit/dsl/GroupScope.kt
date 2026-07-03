@@ -2,6 +2,7 @@ package com.spatialkit.dsl
 
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
+import com.spatialkit.engine.GeometryData
 import com.spatialkit.scene.*
 
 /**
@@ -75,6 +76,18 @@ class GroupScope(
         configure: CapsuleNode.() -> Unit = {},
     ): CapsuleNode {
         return CapsuleNode(radius, height, color, id).apply(configure).also { group.addChild(it) }
+    }
+
+    /**
+     * Creates a custom mesh node and adds it as a child of this group.
+     */
+    fun customMesh(
+        geometry: GeometryData,
+        color: Color = Color.White,
+        id: String = SpatialNode.generateId(),
+        configure: CustomMeshNode.() -> Unit = {},
+    ): CustomMeshNode {
+        return CustomMeshNode(geometry, color, id).apply(configure).also { group.addChild(it) }
     }
 
     /**

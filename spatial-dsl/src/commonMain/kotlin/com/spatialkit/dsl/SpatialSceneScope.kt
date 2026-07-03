@@ -3,8 +3,10 @@ package com.spatialkit.dsl
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
 import com.spatialkit.engine.AnchorType
+import com.spatialkit.engine.GeometryData
 import com.spatialkit.scene.CapsuleNode
 import com.spatialkit.scene.CubeNode
+import com.spatialkit.scene.CustomMeshNode
 import com.spatialkit.scene.CylinderNode
 import com.spatialkit.scene.GroupNode
 import com.spatialkit.scene.PlaneNode
@@ -125,6 +127,24 @@ class SpatialSceneScope(
         id: String = SpatialNode.generateId(),
         configure: CapsuleNode.() -> Unit = {},
     ): CapsuleNode = CapsuleNode(radius, height, color, id).apply(configure).also { scene.add(it) }
+
+    /**
+     * Creates a custom mesh node with explicit geometry data.
+     *
+     * This allows creating arbitrary shapes by specifying vertices, indices, and normals.
+     *
+     * @param geometry The geometry data (vertices, indices, normals, uvs)
+     * @param color Color of the mesh
+     * @param id Optional unique identifier
+     * @param configure Lambda to configure the mesh
+     * @return The created custom mesh node
+     */
+    fun customMesh(
+        geometry: GeometryData,
+        color: Color = Color.White,
+        id: String = SpatialNode.generateId(),
+        configure: CustomMeshNode.() -> Unit = {},
+    ): CustomMeshNode = CustomMeshNode(geometry, color, id).apply(configure).also { scene.add(it) }
 
     /**
      * Creates a group node with nested content.

@@ -7,6 +7,7 @@ import android.opengl.Matrix
 import com.google.ar.core.Camera
 import com.google.ar.core.Coordinates2d
 import com.google.ar.core.Frame
+import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.RaycastResult
@@ -68,6 +69,9 @@ class SimpleRenderer(
 
     // P0.1 FIX: VBO/VAO caching to prevent memory leaks
     private val geometryCache = mutableMapOf<GeometryType, GeometryBuffers>()
+
+    // Custom mesh cache keyed by node ID (each custom mesh has unique geometry)
+    private val customMeshCache = mutableMapOf<String, GeometryBuffers>()
 
     // P0.2 FIX: Store shader references for cleanup
     private var vertexShader: Int = 0
@@ -518,6 +522,20 @@ class SimpleRenderer(
     }
 
     /**
+     * Get or create cached geometry buffers for a custom mesh, keyed by node ID.
+     */
+    private fun getOrCreateCustomMeshBuffers(nodeId: String, geometry: GeometryData): GeometryBuffers? {
+        return customMeshCache.getOrPut(nodeId) {
+            val vertices = geometry.vertices ?: return null
+            val indices = geometry.indices ?: return null
+            val normals = geometry.normals ?: FloatArray(vertices.size) // default zero normals
+
+            val shortIndices = ShortArray(indices.size) { indices[it].toShort() }
+            return@getOrPut createGeometryBuffers(vertices, normals, shortIndices)
+        }
+    }
+
+    /**
      * Create cube geometry data.
      */
     private fun createCubeGeometry(): GeometryBuffers {
@@ -808,16 +826,16 @@ class SimpleRenderer(
         val lightDirLoc = GLES30.glGetUniformLocation(sceneProgram, "u_LightDir")
         GLES30.glUniform3f(lightDirLoc, 0.0f, 0.7f, 0.7f)
 
-        // Render each node (only Mesh nodes) from the snapshot
-        nodesToRender.forEach { node ->
-            when (node) {
-                is SceneNode.Mesh -> {
-                    renderMesh(node)
+        // Render each node recursively (groups contain children)
+        fun renderNodes(nodes: List<SceneNode>) {
+            nodes.forEach { node ->
+                when (node) {
+                    is SceneNode.Mesh -> renderMesh(node)
+                    is SceneNode.Group -> if (node.visible) renderNodes(node.children)
                 }
-
-                is SceneNode.Group -> {} // Groups don't render directly
             }
         }
+        renderNodes(nodesToRender)
     }
 
     private fun renderMesh(mesh: SceneNode.Mesh) {
@@ -877,7 +895,11 @@ class SimpleRenderer(
         )
 
         // P0.1 FIX: Use cached geometry buffers instead of creating new ones every frame
-        val buffers = getOrCreateGeometryBuffers(mesh.geometry.type)
+        val buffers = if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+            getOrCreateCustomMeshBuffers(mesh.id, mesh.geometry)
+        } else {
+            getOrCreateGeometryBuffers(mesh.geometry.type)
+        }
         if (buffers != null) {
             // Bind VAO and draw
             GLES30.glBindVertexArray(buffers.vao)
@@ -912,20 +934,23 @@ class SimpleRenderer(
         var closestHit: RaycastResult? = null
         var closestDistance = Float.MAX_VALUE
 
-        nodesToTest.forEach { node ->
-            when (node) {
-                is SceneNode.Mesh -> {
-                    if (!node.visible) return@forEach
+        fun testNodes(nodes: List<SceneNode>) {
+            nodes.forEach { node ->
+                when (node) {
+                    is SceneNode.Mesh -> {
+                        if (!node.visible) return@forEach
 
-                    val hit = raycastMesh(origin, direction, node)
-                    if (hit != null && hit.distance < closestDistance) {
-                        closestDistance = hit.distance
-                        closestHit = hit
+                        val hit = raycastMesh(origin, direction, node)
+                        if (hit != null && hit.distance < closestDistance) {
+                            closestDistance = hit.distance
+                            closestHit = hit
+                        }
                     }
+                    is SceneNode.Group -> if (node.visible) testNodes(node.children)
                 }
-                is SceneNode.Group -> {} // Groups don't have geometry
             }
         }
+        testNodes(nodesToTest)
 
         return closestHit
     }
@@ -1141,6 +1166,8 @@ class SimpleRenderer(
         // P0.1 FIX: Delete all cached VBOs/VAOs
         geometryCache.values.forEach { deleteGeometryBuffers(it) }
         geometryCache.clear()
+        customMeshCache.values.forEach { deleteGeometryBuffers(it) }
+        customMeshCache.clear()
 
         // P0.3 FIX: Clear scene data under lock
         sceneLock.withLock {
