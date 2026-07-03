@@ -1,5 +1,7 @@
 package com.spatialkit.engine.arcore
 
+import com.spatialkit.core.log.SpatialLog
+
 import android.content.Context
 import android.view.Surface
 import com.google.ar.core.Anchor
@@ -96,36 +98,36 @@ public class ARCoreEngine(
 
     override suspend fun initialize(config: EngineConfig) {
         withContext(Dispatchers.Main) {
-            android.util.Log.d("ARCoreEngine", "=== INITIALIZE CALLED ===")
-            android.util.Log.d("ARCoreEngine", "Current state: $_state")
+            SpatialLog.debug(TAG) { "=== INITIALIZE CALLED ===" }
+            SpatialLog.debug(TAG) { "Current state: $_state" }
 
             if (_state != EngineState.Uninitialized) {
-                android.util.Log.e("ARCoreEngine", "Engine already initialized!")
+                SpatialLog.error(TAG) { "Engine already initialized!" }
                 throw IllegalStateException("Engine already initialized")
             }
 
             _state = EngineState.Initializing
             currentConfig = config
-            android.util.Log.d("ARCoreEngine", "State set to Initializing")
+            SpatialLog.debug(TAG) { "State set to Initializing" }
 
             try {
                 // Check ARCore availability
-                android.util.Log.d("ARCoreEngine", "Checking ARCore availability...")
+                SpatialLog.debug(TAG) { "Checking ARCore availability..." }
                 val availability = ArCoreApk.getInstance().checkAvailability(context)
-                android.util.Log.d("ARCoreEngine", "ARCore availability: $availability")
+                SpatialLog.debug(TAG) { "ARCore availability: $availability" }
 
                 if (availability != ArCoreApk.Availability.SUPPORTED_INSTALLED) {
-                    android.util.Log.e("ARCoreEngine", "ARCore not available!")
+                    SpatialLog.error(TAG) { "ARCore not available!" }
                     throw EngineError.NotSupported.toException()
                 }
 
                 // Create ARCore session
-                android.util.Log.d("ARCoreEngine", "Creating ARCore session...")
+                SpatialLog.debug(TAG) { "Creating ARCore session..." }
                 val arSession =
                     Session(context, EnumSet.noneOf(Session.Feature::class.java)).also {
                         session = it
                     }
-                android.util.Log.d("ARCoreEngine", "ARCore session created successfully")
+                SpatialLog.debug(TAG) { "ARCore session created successfully" }
 
                 // Configure session
                 val arConfig =
@@ -156,18 +158,18 @@ public class ARCoreEngine(
                 this@ARCoreEngine.config = arConfig
 
                 // Initialize OpenGL renderer
-                android.util.Log.d("ARCoreEngine", "Creating renderer...")
+                SpatialLog.debug(TAG) { "Creating renderer..." }
                 renderer = SimpleRenderer(context)
-                android.util.Log.d("ARCoreEngine", "Renderer created")
+                SpatialLog.debug(TAG) { "Renderer created" }
 
                 // Check capabilities
-                android.util.Log.d("ARCoreEngine", "Checking capabilities...")
+                SpatialLog.debug(TAG) { "Checking capabilities..." }
                 _capabilities = checkCapabilities(arSession)
-                android.util.Log.d("ARCoreEngine", "Capabilities: $_capabilities")
+                SpatialLog.debug(TAG) { "Capabilities: $_capabilities" }
 
                 _state = EngineState.Ready
-                android.util.Log.d("ARCoreEngine", "=== INITIALIZATION COMPLETE ===")
-                android.util.Log.d("ARCoreEngine", "State: $_state")
+                SpatialLog.debug(TAG) { "=== INITIALIZATION COMPLETE ===" }
+                SpatialLog.debug(TAG) { "State: $_state" }
             } catch (e: UnavailableArcoreNotInstalledException) {
                 _state =
                     EngineState.Error(
@@ -209,19 +211,19 @@ public class ARCoreEngine(
     }
 
     override fun startSession(mode: SessionMode) {
-        android.util.Log.d("ARCoreEngine", "=== START SESSION CALLED ===")
-        android.util.Log.d("ARCoreEngine", "Mode: $mode, State: $_state")
+        SpatialLog.debug(TAG) { "=== START SESSION CALLED ===" }
+        SpatialLog.debug(TAG) { "Mode: $mode, State: $_state" }
 
         if (_state != EngineState.Ready) {
-            android.util.Log.e("ARCoreEngine", "Engine not ready! Current state: $_state")
+            SpatialLog.error(TAG) { "Engine not ready! Current state: $_state" }
             throw IllegalStateException("Engine not ready. Current state: $_state")
         }
 
         val arSession = session ?: run {
-            android.util.Log.e("ARCoreEngine", "ARCore session not initialized!")
+            SpatialLog.error(TAG) { "ARCore session not initialized!" }
             throw IllegalStateException("ARCore session not initialized")
         }
-        android.util.Log.d("ARCoreEngine", "Session exists, starting...")
+        SpatialLog.debug(TAG) { "Session exists, starting..." }
 
         // ARCore only supports AR mode
         if (mode !is SessionMode.AR) {
@@ -333,17 +335,10 @@ public class ARCoreEngine(
      * to update the AR frame and invoke callbacks.
      */
     public fun onDrawFrame(surface: Surface? = null) {
-        val arSession = session ?: run {
-            println("ARCore: onDrawFrame - session is null")
-            return
-        }
-        val arRenderer = renderer ?: run {
-            println("ARCore: onDrawFrame - renderer is null")
-            return
-        }
+        val arSession = session ?: return
+        val arRenderer = renderer ?: return
 
         if (_state !is EngineState.Running) {
-            println("ARCore: onDrawFrame - state is $_state (not Running)")
             return
         }
 
@@ -423,7 +418,7 @@ public class ARCoreEngine(
 
         // Get actual display rotation and pass it to ARCore
         val displayRotation = getDisplayRotation()
-        android.util.Log.d("ARCoreEngine", "Display rotation: $displayRotation, size: ${width}x${height}")
+        SpatialLog.debug(TAG) { "Display rotation: $displayRotation, size: ${width}x${height}" }
         session?.setDisplayGeometry(displayRotation, width, height)
     }
 
@@ -696,4 +691,8 @@ public class ARCoreEngine(
             is EngineError.SessionFailed -> IllegalStateException(this.reason)
             else -> Exception("ARCore error: $this")
         }
+
+    private companion object {
+        const val TAG = "ARCoreEngine"
+    }
 }

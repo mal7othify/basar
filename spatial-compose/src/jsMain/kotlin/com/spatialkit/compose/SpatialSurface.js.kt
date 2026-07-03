@@ -1,5 +1,7 @@
 package com.spatialkit.compose
 
+import com.spatialkit.core.log.SpatialLog
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -69,15 +71,15 @@ public actual fun SpatialSurface(
         button.onclick = {
             if (!hasStarted) {
                 hasStarted = true
-                console.log("Button clicked - starting WebXR session with user gesture...")
+                SpatialLog.debug("SpatialSurface") { "start button clicked, starting WebXR session" }
                 try {
                     // Engine is already initialized, just start the session
                     // This call now has user gesture context
                     webxrEngine.startSession(SessionMode.AR)
                     overlay.style.display = "none"
-                    console.log("WebXR session start requested")
+                    SpatialLog.debug("SpatialSurface") { "WebXR session start requested" }
                 } catch (e: Throwable) {
-                    console.error("Failed to start AR:", e)
+                    SpatialLog.error("SpatialSurface", e) { "failed to start AR" }
                     button.textContent = "Failed to start AR. Tap to retry."
                     hasStarted = false
                 }

@@ -1,5 +1,7 @@
 package com.spatialkit.engine
 
+import com.spatialkit.core.log.SpatialLog
+
 /**
  * JavaScript implementation of SpatialEngineFactory.
  *
@@ -34,7 +36,9 @@ public actual object SpatialEngineFactory {
     }
 
     public actual fun create(): SpatialEngine {
-        console.warn("Use createWebXREngine() from spatial-engine-webxr for WebXR support")
+        SpatialLog.warn("SpatialEngineFactory") {
+            "Use createWebXREngine() from spatial-engine-webxr for WebXR support"
+        }
         return FallbackEngine()
     }
 

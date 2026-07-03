@@ -1,5 +1,7 @@
 package com.spatialkit.engine.arcore
 
+import com.spatialkit.core.log.SpatialLog
+
 import android.content.Context
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
@@ -246,14 +248,14 @@ public class SimpleRenderer(
     public fun initialize() {
         if (isInitialized) return
 
-        println("SimpleRenderer: Initializing OpenGL resources")
+        SpatialLog.debug(TAG) { "initializing OpenGL resources" }
         initializeCameraTexture()
         initializeBackgroundShader()
         initialize3DShader()
         isInitialized = true
-        println("SimpleRenderer: backgroundProgram = $backgroundProgram, cameraTextureId = $cameraTextureId")
-        println("SimpleRenderer: sceneProgram = $sceneProgram")
-        println("SimpleRenderer: Initialization complete")
+        SpatialLog.debug(TAG) { "backgroundProgram=$backgroundProgram cameraTextureId=$cameraTextureId" }
+        SpatialLog.debug(TAG) { "sceneProgram=$sceneProgram" }
+        SpatialLog.debug(TAG) { "initialization complete" }
     }
 
     public fun resize(
@@ -279,7 +281,7 @@ public class SimpleRenderer(
     ) {
         // Ensure initialization happened (should be done in onSurfaceCreated)
         if (!isInitialized) {
-            println("SimpleRenderer: WARNING - render() called before initialize()!")
+            SpatialLog.warn(TAG) { "render() called before initialize()" }
             initialize()
         }
 
@@ -380,7 +382,7 @@ public class SimpleRenderer(
 
     private fun renderBackground(frame: Frame) {
         if (backgroundProgram == 0) {
-            println("SimpleRenderer: ERROR - backgroundProgram is 0!")
+            SpatialLog.error(TAG) { "backgroundProgram is 0" }
             return
         }
 
@@ -1166,5 +1168,9 @@ public class SimpleRenderer(
 
         // Reset initialization flag
         isInitialized = false
+    }
+
+    private companion object {
+        const val TAG = "SimpleRenderer"
     }
 }

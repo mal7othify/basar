@@ -159,20 +159,20 @@ unit test (they're all pure Kotlin).
 
 ## M3 — Logging & error handling (1 day)
 
-- [ ] **M3.1 Introduce a logging facade.**
+- [x] **M3.1 Introduce a logging facade.**
   Tiny `SpatialLog` object in `spatial-core` (or an expect/actual) with
   `debug/info/warn/error` and a pluggable sink defaulting to no-op for debug and
   platform-native for warn/error. Replace all 31 `println`/`console.log` sites and the
   `Log.d` spam. Hard rule: **nothing logs on the per-frame path** (`SpatialRuntime.kt:102-121`,
   `ARCoreEngine.onDrawFrame`, `WebXREngine.onFrame` frame counters,
   `SpatialSurface.android.kt` SideEffect logs, `FallbackEngine`'s emoji warnings).
-- [ ] **M3.2 Fix the error taxonomy.**
+- [x] **M3.2 Fix the error taxonomy.**
   Frame-callback exceptions are currently reported as
   `EngineError.InitializationFailed("Frame callback error…")` — and wrapped **twice**
   (`SpatialRuntime.kt:145-155` and `SpatialSession.kt:171-176`), discarding the stack.
   Add `EngineError.RuntimeError(message: String, cause: Throwable?)`, wrap once
   (in `SpatialRuntime`), and delete the inner wrap in `SpatialSession.handleFrame`.
-- [ ] **M3.3 `FallbackEngine.stopSession()` must not report `Ready`**
+- [x] **M3.3 `FallbackEngine.stopSession()` must not report `Ready`**
   (`FallbackEngine.kt:53-56`). A never-supported engine transitioning to Ready defeats
   `SpatialRuntime`'s state checks. Keep it in `Error(NotSupported)`.
 

@@ -36,23 +36,14 @@ public actual fun SpatialSurface(
 
     // Create the ARCoreEngine early (during composition)
     // This ensures it exists before session.start() is called
-    val arcoreEngine = remember(context) {
-        android.util.Log.d("SpatialSurface", "Creating ARCoreEngine")
-        ARCoreEngine(context).also {
-            android.util.Log.d("SpatialSurface", "ARCoreEngine created")
-        }
-    }
+    val arcoreEngine = remember(context) { ARCoreEngine(context) }
 
     // Set the engine on the runtime SYNCHRONOUSLY during composition
     // This ensures the engine is available BEFORE session.start() is called in SpatialView
     SideEffect {
-        android.util.Log.d("SpatialSurface", "SideEffect: Setting engine on runtime")
         if (session.runtime.getEngine() == null) {
-            android.util.Log.d("SpatialSurface", "Setting engine (was null)")
             session.runtime.setEngine(arcoreEngine)
-            android.util.Log.d("SpatialSurface", "Engine set successfully")
         } else {
-            android.util.Log.d("SpatialSurface", "Engine already set")
         }
     }
 
@@ -103,11 +94,9 @@ private class ARCoreSurfaceRenderer(
 ) : GLSurfaceView.Renderer {
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        android.util.Log.d("ARCoreSurfaceRenderer", "onSurfaceCreated called")
         // OpenGL context is ready - initialize the renderer NOW
         // This ensures the camera texture is created before ARCore needs it
         engine.onSurfaceCreated()
-        android.util.Log.d("ARCoreSurfaceRenderer", "onSurfaceCreated complete")
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {

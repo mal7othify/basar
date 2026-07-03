@@ -1,5 +1,7 @@
 package com.spatialkit.engine
 
+import com.spatialkit.core.log.SpatialLog
+
 /**
  * Fallback engine implementation for unsupported platforms.
  *
@@ -35,7 +37,7 @@ public class FallbackEngine : SpatialEngine {
         get() = _state
 
     override suspend fun initialize(config: EngineConfig) {
-        logWarning("FallbackEngine: initialize() called on unsupported platform")
+        SpatialLog.warn(TAG) { "initialize() called on unsupported platform" }
         _state =
             EngineState.Error(
                 EngineError.NotSupported,
@@ -43,7 +45,7 @@ public class FallbackEngine : SpatialEngine {
     }
 
     override fun startSession(mode: SessionMode) {
-        logWarning("FallbackEngine: startSession() called on unsupported platform")
+        SpatialLog.warn(TAG) { "startSession() called on unsupported platform" }
         _state =
             EngineState.Error(
                 EngineError.NotSupported,
@@ -51,31 +53,33 @@ public class FallbackEngine : SpatialEngine {
     }
 
     override fun stopSession() {
-        logWarning("FallbackEngine: stopSession() called")
-        _state = EngineState.Ready
+        SpatialLog.debug(TAG) { "stopSession() called" }
+        // Deliberately stays in Error(NotSupported): this engine can never
+        // reach a usable Ready state.
     }
 
     override fun dispose() {
-        logWarning("FallbackEngine: dispose() called")
+        SpatialLog.debug(TAG) { "dispose() called" }
         _state = EngineState.Disposed
         frameCallback = null
     }
 
     override fun onFrame(callback: (FrameData) -> Unit) {
-        logWarning("FallbackEngine: onFrame() registered but will never be called")
+        SpatialLog.warn(TAG) { "onFrame() registered but will never be called" }
         frameCallback = callback
     }
 
     override fun submitScene(scene: SceneData) {
-        logWarning("FallbackEngine: submitScene() called but nothing will render")
-        // Silently ignore - no rendering to do
+        // No-op: nothing renders on an unsupported platform. Logged at debug
+        // because this can be called every frame.
+        SpatialLog.debug(TAG) { "submitScene() ignored (unsupported platform)" }
     }
 
     override fun performHitTest(
         screenX: Float,
         screenY: Float,
     ): HitTestResult? {
-        logWarning("FallbackEngine: performHitTest() called - returning null")
+        SpatialLog.debug(TAG) { "performHitTest() -> null (unsupported platform)" }
         return null
     }
 
@@ -83,13 +87,11 @@ public class FallbackEngine : SpatialEngine {
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? {
-        logWarning("FallbackEngine: performRaycast() called - returning null")
+        SpatialLog.debug(TAG) { "performRaycast() -> null (unsupported platform)" }
         return null
     }
 
-    private fun logWarning(message: String) {
-        // Platform-specific logging would go here
-        // For now, just print
-        println("⚠️ $message")
+    private companion object {
+        const val TAG = "FallbackEngine"
     }
 }

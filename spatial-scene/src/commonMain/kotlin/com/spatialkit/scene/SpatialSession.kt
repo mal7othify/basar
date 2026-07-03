@@ -158,21 +158,18 @@ public class SpatialSession(
      * 3. Submit updated scene to engine
      */
     private fun handleFrame(frameData: FrameData) {
-        try {
-            // Update anchors
-            scene.updateAnchors(frameData.anchors)
+        // Exceptions (including from the user callback) propagate to
+        // SpatialRuntime's frame wrapper, which reports them once as
+        // EngineError.RuntimeError with the original cause attached.
 
-            // User frame logic
-            userFrameCallback?.invoke(frameData)
+        // Update anchors
+        scene.updateAnchors(frameData.anchors)
 
-            // Submit scene to engine
-            val sceneData = scene.toSceneData()
-            runtime.submitScene(sceneData)
-        } catch (e: Exception) {
-            // Catch errors in user code
-            errorCallback?.invoke(
-                EngineError.InitializationFailed("Frame callback error: ${e.message}"),
-            )
-        }
+        // User frame logic
+        userFrameCallback?.invoke(frameData)
+
+        // Submit scene to engine
+        val sceneData = scene.toSceneData()
+        runtime.submitScene(sceneData)
     }
 }

@@ -43,4 +43,16 @@ public sealed interface EngineError {
     public data class TrackingFailed(
         val reason: String,
     ) : EngineError
+
+    /**
+     * An error occurred while the session was running — typically an exception
+     * thrown by an application frame callback.
+     *
+     * @property reason Human-readable description of the failure
+     * @property cause The original exception, if one was caught
+     */
+    public data class RuntimeError(
+        val reason: String,
+        val cause: Throwable? = null,
+    ) : EngineError
 }

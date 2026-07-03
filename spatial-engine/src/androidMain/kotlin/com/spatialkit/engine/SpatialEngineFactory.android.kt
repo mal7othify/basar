@@ -1,5 +1,7 @@
 package com.spatialkit.engine
 
+import com.spatialkit.core.log.SpatialLog
+
 /**
  * Android implementation of SpatialEngineFactory.
  *
@@ -29,10 +31,9 @@ public actual object SpatialEngineFactory {
     public actual fun getSupportedModes(): List<SessionMode> = emptyList()
 
     public actual fun create(): SpatialEngine {
-        android.util.Log.w(
-            "SpatialEngineFactory",
-            "ARCore requires Context. Use createARCoreEngine(context) from spatial-engine-arcore module.",
-        )
+        SpatialLog.warn("SpatialEngineFactory") {
+            "ARCore requires Context. Use createARCoreEngine(context) from spatial-engine-arcore module."
+        }
         return FallbackEngine()
     }
 

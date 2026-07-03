@@ -1,5 +1,7 @@
 package com.spatialkit.engine
 
+import com.spatialkit.core.log.SpatialLog
+
 /**
  * High-level convenience wrapper for SpatialEngine.
  *
@@ -99,26 +101,24 @@ public class SpatialRuntime {
         onFrame: (FrameData) -> Unit,
         onError: (EngineError) -> Unit = {},
     ) {
-        println("SpatialRuntime: === START CALLED ===")
+        SpatialLog.debug(TAG) { "start() called" }
         errorCallback = onError
 
         // Skip isSupported check if an engine was already set (e.g., via setEngine())
         if (engine == null && !isSupported) {
-            println("SpatialRuntime: ERROR - Platform not supported!")
+            SpatialLog.warn(TAG) { "start() failed: platform not supported" }
             onError(EngineError.NotSupported)
             return
         }
 
         try {
             // Create and initialize engine (use existing if already set)
-            println("SpatialRuntime: Creating/getting engine...")
             val spatialEngine = engine ?: SpatialEngineFactory.create()
             engine = spatialEngine
-            println("SpatialRuntime: Engine acquired: ${spatialEngine::class.simpleName}")
+            SpatialLog.debug(TAG) { "engine acquired: ${spatialEngine::class.simpleName}" }
 
-            println("SpatialRuntime: Calling engine.initialize()...")
             spatialEngine.initialize(config)
-            println("SpatialRuntime: Engine initialized")
+            SpatialLog.debug(TAG) { "engine initialized" }
 
             // Check if initialization succeeded
             when (val engineState = spatialEngine.state) {
@@ -146,11 +146,8 @@ public class SpatialRuntime {
                 try {
                     onFrame(frameData)
                 } catch (e: Exception) {
-                    onError(
-                        EngineError.InitializationFailed(
-                            "Frame callback error: ${e.message}",
-                        ),
-                    )
+                    SpatialLog.error(TAG, e) { "frame callback threw" }
+                    onError(EngineError.RuntimeError("Frame callback error: ${e.message}", e))
                 }
             }
 
@@ -176,8 +173,7 @@ public class SpatialRuntime {
                 }
             }
         } catch (e: Exception) {
-            println("SpatialRuntime: EXCEPTION during start: ${e.message}")
-            e.printStackTrace()
+            SpatialLog.error(TAG, e) { "exception during start" }
             onError(
                 EngineError.InitializationFailed(
                     "Failed to start runtime: ${e.message}",
@@ -196,7 +192,7 @@ public class SpatialRuntime {
     public fun submitScene(scene: SceneData) {
         engine?.submitScene(scene) ?: run {
             errorCallback?.invoke(
-                EngineError.InitializationFailed("Engine not started"),
+                EngineError.RuntimeError("submitScene() called before the engine was started"),
             )
         }
     }
@@ -252,4 +248,8 @@ public class SpatialRuntime {
      */
     public val isRunning: Boolean
         get() = engine?.state is EngineState.Running
+
+    private companion object {
+        const val TAG = "SpatialRuntime"
+    }
 }
