@@ -12,7 +12,7 @@ import com.spatialkit.core.math.Transform
  * @property nodes All nodes to render (flat list, hierarchy via Group nodes)
  * @property anchors Anchor requests for this frame
  */
-data class SceneData(
+public data class SceneData(
     val nodes: List<SceneNode>,
     val anchors: List<AnchorRequest>,
 )
@@ -23,15 +23,15 @@ data class SceneData(
  * Nodes are the fundamental unit of content. Each node has a transform
  * and visibility flag. The sealed interface ensures type safety.
  */
-sealed interface SceneNode {
-    val id: String
-    val transform: Transform
-    val visible: Boolean
+public sealed interface SceneNode {
+    public val id: String
+    public val transform: Transform
+    public val visible: Boolean
 
     /**
      * A renderable mesh with geometry and material.
      */
-    data class Mesh(
+    public data class Mesh(
         override val id: String,
         override val transform: Transform,
         override val visible: Boolean = true,
@@ -44,7 +44,7 @@ sealed interface SceneNode {
      *
      * Transform is applied to all children. Useful for hierarchies.
      */
-    data class Group(
+    public data class Group(
         override val id: String,
         override val transform: Transform,
         override val visible: Boolean = true,
@@ -64,7 +64,7 @@ sealed interface SceneNode {
  * @property normals Normal vectors (x,y,z triplets), null for primitives
  * @property uvs Texture coordinates (u,v pairs), null if no texture
  */
-data class GeometryData(
+public data class GeometryData(
     val type: GeometryType,
     val vertices: FloatArray? = null,
     val indices: IntArray? = null,
@@ -119,7 +119,7 @@ data class GeometryData(
 /**
  * Supported geometry types.
  */
-enum class GeometryType {
+public enum class GeometryType {
     /** Unit cube (1x1x1), centered at origin */
     CUBE,
 
@@ -151,7 +151,7 @@ enum class GeometryType {
  * @property roughness Roughness factor for PBR (0=smooth, 1=rough)
  * @property textureId Optional texture identifier (platform-specific)
  */
-data class MaterialData(
+public data class MaterialData(
     val type: MaterialType,
     val baseColor: Vec4,
     val metallic: Float = 0f,
@@ -162,7 +162,7 @@ data class MaterialData(
 /**
  * Material shading types.
  */
-enum class MaterialType {
+public enum class MaterialType {
     /** Unlit/emissive material (no lighting calculations) */
     UNLIT,
 

@@ -10,38 +10,38 @@ import kotlin.js.Promise
 
 // === Navigator XR ===
 
-external interface Navigator {
-    val xr: XRSystem?
+public external interface Navigator {
+    public val xr: XRSystem?
 }
 
-external interface XRSystem {
-    fun isSessionSupported(mode: String): Promise<Boolean>
-    fun requestSession(mode: String, options: dynamic = definedExternally): Promise<XRSession>
+public external interface XRSystem {
+    public fun isSessionSupported(mode: String): Promise<Boolean>
+    public fun requestSession(mode: String, options: dynamic = definedExternally): Promise<XRSession>
 }
 
 // === XR Session ===
 
-external interface XRSession {
-    val inputSources: Array<XRInputSource>
-    val renderState: XRRenderState
+public external interface XRSession {
+    public val inputSources: Array<XRInputSource>
+    public val renderState: XRRenderState
 
-    fun requestReferenceSpace(type: String): Promise<XRReferenceSpace>
-    fun requestAnimationFrame(callback: (Double, XRFrame) -> Unit): Int
-    fun cancelAnimationFrame(handle: Int)
-    fun requestHitTestSource(options: dynamic): Promise<XRHitTestSource>
-    fun end(): Promise<Unit>
-    fun updateRenderState(state: dynamic)
+    public fun requestReferenceSpace(type: String): Promise<XRReferenceSpace>
+    public fun requestAnimationFrame(callback: (Double, XRFrame) -> Unit): Int
+    public fun cancelAnimationFrame(handle: Int)
+    public fun requestHitTestSource(options: dynamic): Promise<XRHitTestSource>
+    public fun end(): Promise<Unit>
+    public fun updateRenderState(state: dynamic)
 
     // Event handlers
-    var onend: ((dynamic) -> Unit)?
-    var oninputsourceschange: ((dynamic) -> Unit)?
+    public var onend: ((dynamic) -> Unit)?
+    public var oninputsourceschange: ((dynamic) -> Unit)?
 }
 
-external interface XRRenderState {
-    val baseLayer: XRWebGLLayer?
+public external interface XRRenderState {
+    public val baseLayer: XRWebGLLayer?
 }
 
-external class XRWebGLLayer(
+public external class XRWebGLLayer(
     session: XRSession,
     context: dynamic,
     options: dynamic = definedExternally,
@@ -49,92 +49,92 @@ external class XRWebGLLayer(
 
 // === XR Frame ===
 
-external interface XRFrame {
-    val session: XRSession
+public external interface XRFrame {
+    public val session: XRSession
 
-    fun getViewerPose(referenceSpace: XRReferenceSpace): XRViewerPose?
-    fun getPose(space: XRSpace, referenceSpace: XRReferenceSpace): XRPose?
-    fun getHitTestResults(source: XRHitTestSource): Array<XRHitTestResult>
+    public fun getViewerPose(referenceSpace: XRReferenceSpace): XRViewerPose?
+    public fun getPose(space: XRSpace, referenceSpace: XRReferenceSpace): XRPose?
+    public fun getHitTestResults(source: XRHitTestSource): Array<XRHitTestResult>
 }
 
 // === XR Pose ===
 
-external interface XRViewerPose {
-    val transform: XRRigidTransform
-    val views: Array<XRView>
+public external interface XRViewerPose {
+    public val transform: XRRigidTransform
+    public val views: Array<XRView>
 }
 
-external interface XRPose {
-    val transform: XRRigidTransform
+public external interface XRPose {
+    public val transform: XRRigidTransform
 }
 
-external interface XRRigidTransform {
-    val position: DOMPointReadOnly
-    val orientation: DOMPointReadOnly
-    val matrix: Float32Array
+public external interface XRRigidTransform {
+    public val position: DOMPointReadOnly
+    public val orientation: DOMPointReadOnly
+    public val matrix: Float32Array
 }
 
-external interface DOMPointReadOnly {
-    val x: Double
-    val y: Double
-    val z: Double
-    val w: Double
+public external interface DOMPointReadOnly {
+    public val x: Double
+    public val y: Double
+    public val z: Double
+    public val w: Double
 }
 
-external class Float32Array(length: Int) {
-    operator fun get(index: Int): Float
-    operator fun set(index: Int, value: Float)
-    val length: Int
+public external class Float32Array(length: Int) {
+    public operator fun get(index: Int): Float
+    public operator fun set(index: Int, value: Float)
+    public val length: Int
 }
 
 // === XR View ===
 
-external interface XRView {
-    val eye: String
-    val projectionMatrix: Float32Array
-    val transform: XRRigidTransform
+public external interface XRView {
+    public val eye: String
+    public val projectionMatrix: Float32Array
+    public val transform: XRRigidTransform
 }
 
 // === XR Spaces ===
 
-external interface XRSpace
+public external interface XRSpace
 
-external interface XRReferenceSpace : XRSpace
+public external interface XRReferenceSpace : XRSpace
 
 // === XR Input ===
 
-external interface XRInputSource {
-    val handedness: String
-    val targetRayMode: String
-    val targetRaySpace: XRSpace
-    val gripSpace: XRSpace?
-    val gamepad: Gamepad?
-    val hand: XRHand?
+public external interface XRInputSource {
+    public val handedness: String
+    public val targetRayMode: String
+    public val targetRaySpace: XRSpace
+    public val gripSpace: XRSpace?
+    public val gamepad: Gamepad?
+    public val hand: XRHand?
 }
 
-external interface Gamepad {
-    val id: String
-    val buttons: Array<GamepadButton>
-    val axes: Array<Double>
+public external interface Gamepad {
+    public val id: String
+    public val buttons: Array<GamepadButton>
+    public val axes: Array<Double>
 }
 
-external interface GamepadButton {
-    val pressed: Boolean
-    val touched: Boolean
-    val value: Double
+public external interface GamepadButton {
+    public val pressed: Boolean
+    public val touched: Boolean
+    public val value: Double
 }
 
-external interface XRHand {
-    fun get(joint: String): XRJointSpace?
-    val size: Int
+public external interface XRHand {
+    public fun get(joint: String): XRJointSpace?
+    public val size: Int
 }
 
-external interface XRJointSpace : XRSpace
+public external interface XRJointSpace : XRSpace
 
 // === XR Hit Testing ===
 
-external interface XRHitTestSource
+public external interface XRHitTestSource
 
-external interface XRHitTestResult {
-    fun getPose(referenceSpace: XRReferenceSpace): XRPose?
+public external interface XRHitTestResult {
+    public fun getPose(referenceSpace: XRReferenceSpace): XRPose?
 }

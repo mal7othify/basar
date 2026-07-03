@@ -11,7 +11,7 @@ package com.spatialkit.core.math
  * @property rotation The rotation as a quaternion
  * @property scale The scale in each axis
  */
-data class Transform(
+public data class Transform(
     val position: Vec3 = Vec3.ZERO,
     val rotation: Quaternion = Quaternion.IDENTITY,
     val scale: Vec3 = Vec3.ONE,
@@ -22,7 +22,7 @@ data class Transform(
      *
      * @return A new transformation matrix
      */
-    fun toMatrix(): Matrix4 = Matrix4.trs(position, rotation, scale)
+    public fun toMatrix(): Matrix4 = Matrix4.trs(position, rotation, scale)
 
     /**
      * Transforms a point from local space to world space.
@@ -31,7 +31,7 @@ data class Transform(
      * @param point The point in local space
      * @return The point in world space
      */
-    fun localToWorld(point: Vec3): Vec3 {
+    public fun localToWorld(point: Vec3): Vec3 {
         // Scale
         val scaled = Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z)
         // Rotate
@@ -47,7 +47,7 @@ data class Transform(
      * @param point The point in world space
      * @return The point in local space
      */
-    fun worldToLocal(point: Vec3): Vec3 {
+    public fun worldToLocal(point: Vec3): Vec3 {
         // Inverse translate
         val translated = point - position
         // Inverse rotate
@@ -67,7 +67,7 @@ data class Transform(
      * @param direction The direction in local space
      * @return The direction in world space
      */
-    fun localToWorldDirection(direction: Vec3): Vec3 = rotation * direction
+    public fun localToWorldDirection(direction: Vec3): Vec3 = rotation * direction
 
     /**
      * Transforms a direction from world space to local space.
@@ -76,7 +76,7 @@ data class Transform(
      * @param direction The direction in world space
      * @return The direction in local space
      */
-    fun worldToLocalDirection(direction: Vec3): Vec3 = rotation.inverse() * direction
+    public fun worldToLocalDirection(direction: Vec3): Vec3 = rotation.inverse() * direction
 
     /**
      * Returns the forward direction of this transform in world space.
@@ -84,7 +84,7 @@ data class Transform(
      *
      * @return The forward direction
      */
-    fun forward(): Vec3 = rotation * Vec3(0f, 0f, 1f)
+    public fun forward(): Vec3 = rotation * Vec3(0f, 0f, 1f)
 
     /**
      * Returns the right direction of this transform in world space.
@@ -92,7 +92,7 @@ data class Transform(
      *
      * @return The right direction
      */
-    fun right(): Vec3 = rotation * Vec3(1f, 0f, 0f)
+    public fun right(): Vec3 = rotation * Vec3(1f, 0f, 0f)
 
     /**
      * Returns the up direction of this transform in world space.
@@ -100,7 +100,7 @@ data class Transform(
      *
      * @return The up direction
      */
-    fun up(): Vec3 = rotation * Vec3(0f, 1f, 0f)
+    public fun up(): Vec3 = rotation * Vec3(0f, 1f, 0f)
 
     /**
      * Combines this transform with another transform.
@@ -109,7 +109,7 @@ data class Transform(
      * @param other The child transform to combine
      * @return A new combined transform
      */
-    fun combine(other: Transform): Transform {
+    public fun combine(other: Transform): Transform {
         val newPosition = localToWorld(other.position)
         val newRotation = rotation * other.rotation
         val newScale =
@@ -126,7 +126,7 @@ data class Transform(
      *
      * @return A new inverted transform
      */
-    fun inverse(): Transform {
+    public fun inverse(): Transform {
         val invRotation = rotation.inverse()
         val invScale =
             Vec3(
@@ -154,7 +154,7 @@ data class Transform(
      * @param position The new position
      * @return A new transform
      */
-    fun withPosition(position: Vec3): Transform = copy(position = position)
+    public fun withPosition(position: Vec3): Transform = copy(position = position)
 
     /**
      * Creates a copy of this transform with a new rotation.
@@ -162,7 +162,7 @@ data class Transform(
      * @param rotation The new rotation
      * @return A new transform
      */
-    fun withRotation(rotation: Quaternion): Transform = copy(rotation = rotation)
+    public fun withRotation(rotation: Quaternion): Transform = copy(rotation = rotation)
 
     /**
      * Creates a copy of this transform with a new scale.
@@ -170,7 +170,7 @@ data class Transform(
      * @param scale The new scale
      * @return A new transform
      */
-    fun withScale(scale: Vec3): Transform = copy(scale = scale)
+    public fun withScale(scale: Vec3): Transform = copy(scale = scale)
 
     /**
      * Creates a copy of this transform with a uniform scale.
@@ -178,7 +178,7 @@ data class Transform(
      * @param scale The uniform scale value
      * @return A new transform
      */
-    fun withScale(scale: Float): Transform = copy(scale = Vec3(scale, scale, scale))
+    public fun withScale(scale: Float): Transform = copy(scale = Vec3(scale, scale, scale))
 
     /**
      * Translates this transform by a given offset.
@@ -186,7 +186,7 @@ data class Transform(
      * @param offset The translation offset
      * @return A new translated transform
      */
-    fun translate(offset: Vec3): Transform = copy(position = position + offset)
+    public fun translate(offset: Vec3): Transform = copy(position = position + offset)
 
     /**
      * Rotates this transform by a quaternion.
@@ -194,7 +194,7 @@ data class Transform(
      * @param quaternion The rotation to apply
      * @return A new rotated transform
      */
-    fun rotate(quaternion: Quaternion): Transform = copy(rotation = rotation * quaternion)
+    public fun rotate(quaternion: Quaternion): Transform = copy(rotation = rotation * quaternion)
 
     /**
      * Rotates this transform around an axis by an angle.
@@ -203,7 +203,7 @@ data class Transform(
      * @param angle The angle in radians
      * @return A new rotated transform
      */
-    fun rotateAround(
+    public fun rotateAround(
         axis: Vec3,
         angle: Float,
     ): Transform {
@@ -217,7 +217,7 @@ data class Transform(
      * @param scaleFactor The scale factor
      * @return A new scaled transform
      */
-    fun scaleBy(scaleFactor: Vec3): Transform =
+    public fun scaleBy(scaleFactor: Vec3): Transform =
         copy(
             scale =
                 Vec3(
@@ -233,7 +233,7 @@ data class Transform(
      * @param scaleFactor The uniform scale factor
      * @return A new scaled transform
      */
-    fun scaleBy(scaleFactor: Float): Transform = scaleBy(Vec3(scaleFactor, scaleFactor, scaleFactor))
+    public fun scaleBy(scaleFactor: Float): Transform = scaleBy(Vec3(scaleFactor, scaleFactor, scaleFactor))
 
     /**
      * Makes this transform look at a target position.
@@ -242,7 +242,7 @@ data class Transform(
      * @param up The up direction (defaults to Vec3.UP)
      * @return A new transform looking at the target
      */
-    fun lookAt(
+    public fun lookAt(
         target: Vec3,
         up: Vec3 = Vec3.UP,
     ): Transform {
@@ -261,7 +261,7 @@ data class Transform(
      * @param t The interpolation factor (0.0 returns this, 1.0 returns other)
      * @return A new interpolated transform
      */
-    fun lerp(
+    public fun lerp(
         other: Transform,
         t: Float,
     ): Transform =
@@ -271,11 +271,11 @@ data class Transform(
             scale = scale.lerp(other.scale, t),
         )
 
-    companion object {
+    public companion object {
         /**
          * The identity transform (position at origin, no rotation, scale of 1).
          */
-        val IDENTITY = Transform()
+        public val IDENTITY: Transform = Transform()
 
         /**
          * Creates a transform from a position only.
@@ -283,7 +283,7 @@ data class Transform(
          * @param position The position
          * @return A new transform
          */
-        fun fromPosition(position: Vec3): Transform = Transform(position = position)
+        public fun fromPosition(position: Vec3): Transform = Transform(position = position)
 
         /**
          * Creates a transform from a rotation only.
@@ -291,7 +291,7 @@ data class Transform(
          * @param rotation The rotation
          * @return A new transform
          */
-        fun fromRotation(rotation: Quaternion): Transform = Transform(rotation = rotation)
+        public fun fromRotation(rotation: Quaternion): Transform = Transform(rotation = rotation)
 
         /**
          * Creates a transform from Euler angles.
@@ -299,7 +299,7 @@ data class Transform(
          * @param euler The Euler angles (pitch, yaw, roll) in radians
          * @return A new transform
          */
-        fun fromEuler(euler: Vec3): Transform = Transform(rotation = Quaternion.fromEuler(euler))
+        public fun fromEuler(euler: Vec3): Transform = Transform(rotation = Quaternion.fromEuler(euler))
 
         /**
          * Creates a transform from Euler angles.
@@ -309,7 +309,7 @@ data class Transform(
          * @param roll Rotation around Z-axis in radians
          * @return A new transform
          */
-        fun fromEuler(
+        public fun fromEuler(
             pitch: Float,
             yaw: Float,
             roll: Float,
@@ -323,7 +323,7 @@ data class Transform(
          * @param up The up direction (defaults to Vec3.UP)
          * @return A new transform
          */
-        fun lookingAt(
+        public fun lookingAt(
             position: Vec3,
             target: Vec3,
             up: Vec3 = Vec3.UP,

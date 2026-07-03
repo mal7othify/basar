@@ -23,7 +23,7 @@ import kotlin.math.tan
  *
  * @property m The 16 matrix elements in column-major order
  */
-data class Matrix4(
+public data class Matrix4(
     val m: FloatArray,
 ) {
     init {
@@ -36,7 +36,7 @@ data class Matrix4(
      * @param other The matrix to multiply with
      * @return A new matrix representing the product
      */
-    operator fun times(other: Matrix4): Matrix4 {
+    public operator fun times(other: Matrix4): Matrix4 {
         val result = FloatArray(16)
         for (col in 0..3) {
             for (row in 0..3) {
@@ -56,7 +56,7 @@ data class Matrix4(
      * @param vec The vector to transform
      * @return The transformed vector
      */
-    operator fun times(vec: Vec3): Vec3 {
+    public operator fun times(vec: Vec3): Vec3 {
         val x = m[0] * vec.x + m[4] * vec.y + m[8] * vec.z + m[12]
         val y = m[1] * vec.x + m[5] * vec.y + m[9] * vec.z + m[13]
         val z = m[2] * vec.x + m[6] * vec.y + m[10] * vec.z + m[14]
@@ -75,7 +75,7 @@ data class Matrix4(
      * @param vec The vector to transform
      * @return The transformed vector
      */
-    operator fun times(vec: Vec4): Vec4 =
+    public operator fun times(vec: Vec4): Vec4 =
         Vec4(
             m[0] * vec.x + m[4] * vec.y + m[8] * vec.z + m[12] * vec.w,
             m[1] * vec.x + m[5] * vec.y + m[9] * vec.z + m[13] * vec.w,
@@ -88,7 +88,7 @@ data class Matrix4(
      *
      * @return A new transposed matrix
      */
-    fun transpose(): Matrix4 =
+    public fun transpose(): Matrix4 =
         Matrix4(
             floatArrayOf(
                 m[0],
@@ -115,7 +115,7 @@ data class Matrix4(
      *
      * @return A new inverted matrix, or identity if matrix is not invertible
      */
-    fun inverse(): Matrix4 {
+    public fun inverse(): Matrix4 {
         val inv = FloatArray(16)
 
         inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] +
@@ -173,14 +173,14 @@ data class Matrix4(
      *
      * @return The translation as a Vec3
      */
-    fun getTranslation(): Vec3 = Vec3(m[12], m[13], m[14])
+    public fun getTranslation(): Vec3 = Vec3(m[12], m[13], m[14])
 
     /**
      * Extracts the scale component from this matrix.
      *
      * @return The scale as a Vec3
      */
-    fun getScale(): Vec3 =
+    public fun getScale(): Vec3 =
         Vec3(
             sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]),
             sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6]),
@@ -196,11 +196,11 @@ data class Matrix4(
 
     override fun hashCode(): Int = m.contentHashCode()
 
-    companion object {
+    public companion object {
         /**
          * Creates an identity matrix.
          */
-        fun identity(): Matrix4 =
+        public fun identity(): Matrix4 =
             Matrix4(
                 floatArrayOf(
                     1f,
@@ -230,7 +230,7 @@ data class Matrix4(
          * @param z The z translation
          * @return A new translation matrix
          */
-        fun translation(
+        public fun translation(
             x: Float,
             y: Float,
             z: Float,
@@ -262,7 +262,7 @@ data class Matrix4(
          * @param translation The translation vector
          * @return A new translation matrix
          */
-        fun translation(translation: Vec3): Matrix4 = translation(translation.x, translation.y, translation.z)
+        public fun translation(translation: Vec3): Matrix4 = translation(translation.x, translation.y, translation.z)
 
         /**
          * Creates a rotation matrix from a quaternion.
@@ -270,7 +270,7 @@ data class Matrix4(
          * @param quaternion The rotation quaternion
          * @return A new rotation matrix
          */
-        fun rotation(quaternion: Quaternion): Matrix4 {
+        public fun rotation(quaternion: Quaternion): Matrix4 {
             val q = quaternion.normalized()
 
             val xx = q.x * q.x
@@ -313,7 +313,7 @@ data class Matrix4(
          * @param z The z scale
          * @return A new scale matrix
          */
-        fun scale(
+        public fun scale(
             x: Float,
             y: Float,
             z: Float,
@@ -345,7 +345,7 @@ data class Matrix4(
          * @param scale The scale vector
          * @return A new scale matrix
          */
-        fun scale(scale: Vec3): Matrix4 = scale(scale.x, scale.y, scale.z)
+        public fun scale(scale: Vec3): Matrix4 = scale(scale.x, scale.y, scale.z)
 
         /**
          * Creates a uniform scale matrix.
@@ -353,7 +353,7 @@ data class Matrix4(
          * @param scale The uniform scale factor
          * @return A new scale matrix
          */
-        fun scale(scale: Float): Matrix4 = scale(scale, scale, scale)
+        public fun scale(scale: Float): Matrix4 = scale(scale, scale, scale)
 
         /**
          * Creates a perspective projection matrix.
@@ -364,7 +364,7 @@ data class Matrix4(
          * @param far Far clipping plane
          * @return A new perspective projection matrix
          */
-        fun perspective(
+        public fun perspective(
             fov: Float,
             aspectRatio: Float,
             near: Float,
@@ -406,7 +406,7 @@ data class Matrix4(
          * @param far Far clipping plane
          * @return A new orthographic projection matrix
          */
-        fun orthographic(
+        public fun orthographic(
             left: Float,
             right: Float,
             bottom: Float,
@@ -448,7 +448,7 @@ data class Matrix4(
          * @param up The up direction (typically Vec3.UP)
          * @return A new look-at view matrix
          */
-        fun lookAt(
+        public fun lookAt(
             eye: Vec3,
             target: Vec3,
             up: Vec3,
@@ -487,7 +487,7 @@ data class Matrix4(
          * @param scale The scale vector
          * @return A new transformation matrix
          */
-        fun trs(
+        public fun trs(
             translation: Vec3,
             rotation: Quaternion,
             scale: Vec3,

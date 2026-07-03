@@ -16,28 +16,28 @@ import com.spatialkit.engine.Vec4
  * @param size Size of the cube on all axes (default 0.1m = 10cm)
  * @param color Color of the cube
  */
-class CubeNode(
-    var size: Float = 0.1f,
-    var color: Color = Color.White,
+public class CubeNode(
+    public var size: Float = 0.1f,
+    public var color: Color = Color.White,
     id: String = generateId(),
 ) : SpatialNode(id) {
     /**
      * Material type for rendering.
      * Defaults to PBR for realistic lighting.
      */
-    var materialType: MaterialType = MaterialType.PBR
+    public var materialType: MaterialType = MaterialType.PBR
 
     /**
      * Metallic factor (0 = dielectric, 1 = metal).
      * Only used with PBR material.
      */
-    var metallic: Float = 0f
+    public var metallic: Float = 0f
 
     /**
      * Roughness factor (0 = smooth, 1 = rough).
      * Only used with PBR material.
      */
-    var roughness: Float = 0.5f
+    public var roughness: Float = 0.5f
 
     override fun toSceneNode(): SceneNode.Mesh =
         SceneNode.Mesh(
@@ -66,14 +66,14 @@ class CubeNode(
  * @param radius Radius of the sphere (default 0.05m = 5cm)
  * @param color Color of the sphere
  */
-class SphereNode(
-    var radius: Float = 0.05f,
-    var color: Color = Color.White,
+public class SphereNode(
+    public var radius: Float = 0.05f,
+    public var color: Color = Color.White,
     id: String = generateId(),
 ) : SpatialNode(id) {
-    var materialType: MaterialType = MaterialType.PBR
-    var metallic: Float = 0f
-    var roughness: Float = 0.5f
+    public var materialType: MaterialType = MaterialType.PBR
+    public var metallic: Float = 0f
+    public var roughness: Float = 0.5f
 
     override fun toSceneNode(): SceneNode.Mesh =
         SceneNode.Mesh(
@@ -103,21 +103,21 @@ class SphereNode(
  * @param height Height along Z axis (default 0.2m = 20cm)
  * @param color Color of the plane
  */
-class PlaneNode(
-    var width: Float = 0.2f,
-    var height: Float = 0.2f,
-    var color: Color = Color.White,
+public class PlaneNode(
+    public var width: Float = 0.2f,
+    public var height: Float = 0.2f,
+    public var color: Color = Color.White,
     id: String = generateId(),
 ) : SpatialNode(id) {
-    var materialType: MaterialType = MaterialType.LIT
-    var metallic: Float = 0f
-    var roughness: Float = 0.5f
+    public var materialType: MaterialType = MaterialType.LIT
+    public var metallic: Float = 0f
+    public var roughness: Float = 0.5f
 
     /**
      * Whether the plane is double-sided.
      * If false, back-face culling applies.
      */
-    var doubleSided: Boolean = true
+    public var doubleSided: Boolean = true
 
     override fun toSceneNode(): SceneNode.Mesh =
         SceneNode.Mesh(
@@ -147,15 +147,15 @@ class PlaneNode(
  * @param height Height of the cylinder (default 0.2m = 20cm)
  * @param color Color of the cylinder
  */
-class CylinderNode(
-    var radius: Float = 0.05f,
-    var height: Float = 0.2f,
-    var color: Color = Color.White,
+public class CylinderNode(
+    public var radius: Float = 0.05f,
+    public var height: Float = 0.2f,
+    public var color: Color = Color.White,
     id: String = generateId(),
 ) : SpatialNode(id) {
-    var materialType: MaterialType = MaterialType.PBR
-    var metallic: Float = 0f
-    var roughness: Float = 0.5f
+    public var materialType: MaterialType = MaterialType.PBR
+    public var metallic: Float = 0f
+    public var roughness: Float = 0.5f
 
     override fun toSceneNode(): SceneNode.Mesh =
         SceneNode.Mesh(
@@ -185,15 +185,15 @@ class CylinderNode(
  * @param height Total height including hemispheres (default 0.2m = 20cm)
  * @param color Color of the capsule
  */
-class CapsuleNode(
-    var radius: Float = 0.05f,
-    var height: Float = 0.2f,
-    var color: Color = Color.White,
+public class CapsuleNode(
+    public var radius: Float = 0.05f,
+    public var height: Float = 0.2f,
+    public var color: Color = Color.White,
     id: String = generateId(),
 ) : SpatialNode(id) {
-    var materialType: MaterialType = MaterialType.PBR
-    var metallic: Float = 0f
-    var roughness: Float = 0.5f
+    public var materialType: MaterialType = MaterialType.PBR
+    public var metallic: Float = 0f
+    public var roughness: Float = 0.5f
 
     override fun toSceneNode(): SceneNode.Mesh =
         SceneNode.Mesh(
@@ -224,7 +224,7 @@ class CapsuleNode(
  * - Applying transforms to multiple nodes
  * - Toggling visibility of multiple nodes
  */
-class GroupNode(
+public class GroupNode(
     id: String = generateId(),
 ) : SpatialNode(id) {
     override fun toSceneNode(): SceneNode.Group =
@@ -247,14 +247,14 @@ class GroupNode(
  * @param geometry Custom geometry data
  * @param color Color of the mesh
  */
-class CustomMeshNode(
-    var geometry: GeometryData,
-    var color: Color = Color.White,
+public class CustomMeshNode(
+    public var geometry: GeometryData,
+    public var color: Color = Color.White,
     id: String = generateId(),
 ) : SpatialNode(id) {
-    var materialType: MaterialType = MaterialType.PBR
-    var metallic: Float = 0f
-    var roughness: Float = 0.5f
+    public var materialType: MaterialType = MaterialType.PBR
+    public var metallic: Float = 0f
+    public var roughness: Float = 0.5f
 
     override fun toSceneNode(): SceneNode.Mesh =
         SceneNode.Mesh(

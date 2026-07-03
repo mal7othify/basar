@@ -7,7 +7,7 @@ import com.spatialkit.engine.SpatialEngine
 /**
  * Check if ARCore is installed and ready to use.
  */
-fun isARCoreAvailable(context: Context): Boolean {
+public fun isARCoreAvailable(context: Context): Boolean {
     val availability = ArCoreApk.getInstance().checkAvailability(context)
     return availability == ArCoreApk.Availability.SUPPORTED_INSTALLED
 }
@@ -15,7 +15,7 @@ fun isARCoreAvailable(context: Context): Boolean {
 /**
  * Check if ARCore is supported on this device (may require installation).
  */
-fun isARCoreSupported(context: Context): Boolean {
+public fun isARCoreSupported(context: Context): Boolean {
     val availability = ArCoreApk.getInstance().checkAvailability(context)
     return when (availability) {
         ArCoreApk.Availability.SUPPORTED_INSTALLED,
@@ -34,7 +34,7 @@ fun isARCoreSupported(context: Context): Boolean {
  * @param userRequestedInstall true if user explicitly requested AR feature
  * @return Installation status
  */
-fun requestARCoreInstallation(
+public fun requestARCoreInstallation(
     activity: android.app.Activity,
     userRequestedInstall: Boolean = true,
 ): ArCoreApk.InstallStatus = ArCoreApk.getInstance().requestInstall(activity, userRequestedInstall)
@@ -45,4 +45,4 @@ fun requestARCoreInstallation(
  * @param context Android context (preferably Activity context for permissions)
  * @return SpatialEngine implementation using ARCore
  */
-fun createARCoreEngine(context: Context): SpatialEngine = ARCoreEngine(context)
+public fun createARCoreEngine(context: Context): SpatialEngine = ARCoreEngine(context)

@@ -18,7 +18,7 @@ package com.spatialkit.engine
  * @property inputSources All active input sources this frame
  * @property anchors Current state of all tracked anchors
  */
-data class FrameData(
+public data class FrameData(
     val timestamp: Long,
     val deltaTime: Float,
     val cameraPose: Pose,
@@ -73,7 +73,7 @@ data class FrameData(
  * @property position 3D position
  * @property rotation Rotation as quaternion
  */
-data class Pose(
+public data class Pose(
     val position: Vec3,
     val rotation: Quaternion,
 )
@@ -81,7 +81,7 @@ data class Pose(
 /**
  * Quality of positional tracking.
  */
-enum class TrackingState {
+public enum class TrackingState {
     /** Tracking is not available (no camera, etc.) */
     NOT_AVAILABLE,
 
@@ -105,7 +105,7 @@ enum class TrackingState {
  * @property extentZ Depth of the plane (Z axis)
  * @property vertices Boundary polygon vertices (null if not available)
  */
-data class DetectedPlane(
+public data class DetectedPlane(
     val id: String,
     val type: PlaneType,
     val centerPose: Pose,
@@ -117,7 +117,7 @@ data class DetectedPlane(
 /**
  * Classification of detected planes.
  */
-enum class PlaneType {
+public enum class PlaneType {
     /** Horizontal plane facing up (floor, table) */
     HORIZONTAL_UP,
 
@@ -141,7 +141,7 @@ enum class PlaneType {
  * @property directionalIntensity Intensity of primary directional light
  * @property directionalDirection Direction vector of primary light
  */
-data class LightEstimate(
+public data class LightEstimate(
     val ambientIntensity: Float,
     val ambientColor: Vec3,
     val directionalIntensity: Float,

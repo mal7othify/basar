@@ -50,7 +50,7 @@ import com.spatialkit.engine.Vec3
  * }
  * ```
  */
-class SpatialRuntimeAndroid(
+public class SpatialRuntimeAndroid(
     private val context: Context,
 ) {
     private var engine: SpatialEngine? = null
@@ -59,25 +59,25 @@ class SpatialRuntimeAndroid(
     /**
      * Check if ARCore is supported on this device.
      */
-    val isSupported: Boolean
+    public val isSupported: Boolean
         get() = SpatialEngineFactory.isSupported() // TODO: Context might be needed here to check!
 
     /**
      * Get supported session modes (ARCore only supports AR).
      */
-    val supportedModes: List<SessionMode>
+    public val supportedModes: List<SessionMode>
         get() = if (isSupported) listOf(SessionMode.AR) else emptyList()
 
     /**
      * Get current engine state.
      */
-    val state: EngineState?
+    public val state: EngineState?
         get() = engine?.state
 
     /**
      * Get engine capabilities.
      */
-    val capabilities: EngineCapabilities?
+    public val capabilities: EngineCapabilities?
         get() = engine?.capabilities
 
     /**
@@ -87,7 +87,7 @@ class SpatialRuntimeAndroid(
      * @param onFrame Callback invoked each frame
      * @param onError Callback for errors
      */
-    suspend fun start(
+    public suspend fun start(
         config: EngineConfig = EngineConfig(preferredMode = SessionMode.AR),
         onFrame: (FrameData) -> Unit,
         onError: (EngineError) -> Unit = {},
@@ -172,7 +172,7 @@ class SpatialRuntimeAndroid(
     /**
      * Submit scene to render.
      */
-    fun submitScene(scene: SceneData) {
+    public fun submitScene(scene: SceneData) {
         engine?.submitScene(scene) ?: errorCallback?.invoke(
             EngineError.InitializationFailed("Engine not started"),
         )
@@ -181,7 +181,7 @@ class SpatialRuntimeAndroid(
     /**
      * Perform hit test.
      */
-    fun performHitTest(
+    public fun performHitTest(
         screenX: Float,
         screenY: Float,
     ): HitTestResult? = engine?.performHitTest(screenX, screenY)
@@ -189,7 +189,7 @@ class SpatialRuntimeAndroid(
     /**
      * Perform raycast.
      */
-    fun performRaycast(
+    public fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? = engine?.performRaycast(origin, direction)
@@ -197,14 +197,14 @@ class SpatialRuntimeAndroid(
     /**
      * Stop the session.
      */
-    fun stop() {
+    public fun stop() {
         engine?.stopSession()
     }
 
     /**
      * Dispose and clean up.
      */
-    fun dispose() {
+    public fun dispose() {
         engine?.dispose()
         engine = null
         errorCallback = null
@@ -213,7 +213,7 @@ class SpatialRuntimeAndroid(
     /**
      * Check if running.
      */
-    val isRunning: Boolean
+    public val isRunning: Boolean
         get() = engine?.state is EngineState.Running
 
     /**
@@ -225,8 +225,8 @@ class SpatialRuntimeAndroid(
      * @param userRequested If user explicitly requested AR
      * @return Installation status
      */
-    fun requestInstallation(
+    public fun requestInstallation(
         activity: android.app.Activity,
         userRequested: Boolean = true,
-    ) = requestARCoreInstallation(activity, userRequested)
+    ): com.google.ar.core.ArCoreApk.InstallStatus = requestARCoreInstallation(activity, userRequested)
 }

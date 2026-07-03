@@ -19,16 +19,16 @@ package com.spatialkit.engine
  * This factory returns [FallbackEngine] for compatibility with cross-platform code
  * that doesn't have access to platform-specific context.
  */
-actual object SpatialEngineFactory {
-    actual fun isSupported(): Boolean {
+public actual object SpatialEngineFactory {
+    public actual fun isSupported(): Boolean {
         // Returns false because ARCore requires Context for proper detection
         // Use isARCoreAvailable(context) from spatial-engine-arcore for accurate check
         return false
     }
 
-    actual fun getSupportedModes(): List<SessionMode> = emptyList()
+    public actual fun getSupportedModes(): List<SessionMode> = emptyList()
 
-    actual fun create(): SpatialEngine {
+    public actual fun create(): SpatialEngine {
         android.util.Log.w(
             "SpatialEngineFactory",
             "ARCore requires Context. Use createARCoreEngine(context) from spatial-engine-arcore module.",
@@ -36,5 +36,5 @@ actual object SpatialEngineFactory {
         return FallbackEngine()
     }
 
-    actual fun getEngineName(): String = "Fallback (Android - use spatial-engine-arcore)"
+    public actual fun getEngineName(): String = "Fallback (Android - use spatial-engine-arcore)"
 }

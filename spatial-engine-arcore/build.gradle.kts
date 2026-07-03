@@ -1,10 +1,14 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
+    explicitApi()
+
     androidTarget {
+        publishLibraryVariants("release")
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
@@ -12,14 +16,16 @@ kotlin {
 
     sourceSets {
         androidMain.dependencies {
-            implementation(project(":spatial-engine"))
-            implementation(project(":spatial-core"))
+            // api: createARCoreEngine() returns SpatialEngine; ARCoreEngine
+            // signatures expose engine + core types
+            api(project(":spatial-engine"))
+            api(project(":spatial-core"))
 
             // ARCore SDK
             implementation(libs.arcore)
 
-            // Kotlin coroutines
-            implementation(libs.kotlinx.coroutines.swing)
+            // Kotlin coroutines (Android Main dispatcher)
+            implementation(libs.kotlinx.coroutines.android)
 
             // AndroidX
             implementation(libs.androidx.core.ktx)

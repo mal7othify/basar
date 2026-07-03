@@ -34,7 +34,7 @@ import com.spatialkit.scene.SpatialNode
  * ```
  */
 @Composable
-fun <T> rememberSpatialState(initial: () -> T): MutableState<T> = remember { mutableStateOf(initial()) }
+public fun <T> rememberSpatialState(initial: () -> T): MutableState<T> = remember { mutableStateOf(initial()) }
 
 /**
  * Remembers a spatial node by ID.
@@ -51,7 +51,7 @@ fun <T> rememberSpatialState(initial: () -> T): MutableState<T> = remember { mut
  * ```
  */
 @Composable
-fun rememberSpatialNode(
+public fun rememberSpatialNode(
     key: Any? = Unit,
     finder: () -> SpatialNode?,
 ): SpatialNode? = remember(key) { finder() }
@@ -74,7 +74,7 @@ fun rememberSpatialNode(
  * ```
  */
 @Composable
-fun animatedSpatialVec3(
+public fun animatedSpatialVec3(
     targetValue: Vec3,
     initialValue: Vec3 = Vec3.ZERO,
 ): State<Vec3> {
@@ -101,7 +101,7 @@ fun animatedSpatialVec3(
  * ```
  */
 @Composable
-fun animatedSpatialRotation(
+public fun animatedSpatialRotation(
     targetValue: Quaternion,
     initialValue: Quaternion = Quaternion.IDENTITY,
 ): State<Quaternion> {

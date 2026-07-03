@@ -50,7 +50,7 @@ import com.spatialkit.engine.Pose as EnginePose
  *
  * Uses Google ARCore for AR capabilities and Filament for rendering.
  */
-class ARCoreEngine(
+public class ARCoreEngine(
     private val context: Context,
 ) : SpatialEngine {
     // ARCore components
@@ -332,7 +332,7 @@ class ARCoreEngine(
      * Call this from the rendering surface (GLSurfaceView or SurfaceView)
      * to update the AR frame and invoke callbacks.
      */
-    fun onDrawFrame(surface: Surface? = null) {
+    public fun onDrawFrame(surface: Surface? = null) {
         val arSession = session ?: run {
             println("ARCore: onDrawFrame - session is null")
             return
@@ -400,7 +400,7 @@ class ARCoreEngine(
      * Call this when the OpenGL surface is created.
      * This initializes the renderer with a valid GL context.
      */
-    fun onSurfaceCreated() {
+    public fun onSurfaceCreated() {
         renderer?.initialize()
     }
 
@@ -415,7 +415,7 @@ class ARCoreEngine(
     /**
      * Call this when the surface is created or changed.
      */
-    fun onSurfaceChanged(
+    public fun onSurfaceChanged(
         width: Int,
         height: Int,
     ) {

@@ -24,38 +24,38 @@ import kotlin.random.Random
  * group.addChild(cube)
  * ```
  */
-abstract class SpatialNode(
-    val id: String = generateId(),
+public abstract class SpatialNode(
+    public val id: String = generateId(),
 ) {
     /**
      * Local position relative to parent.
      * If no parent, this is world position.
      */
-    var position: Vec3 = Vec3.ZERO
+    public var position: Vec3 = Vec3.ZERO
 
     /**
      * Local rotation relative to parent.
      * If no parent, this is world rotation.
      */
-    var rotation: Quaternion = Quaternion.IDENTITY
+    public var rotation: Quaternion = Quaternion.IDENTITY
 
     /**
      * Local scale relative to parent.
      * If no parent, this is world scale.
      */
-    var scale: Vec3 = Vec3.ONE
+    public var scale: Vec3 = Vec3.ONE
 
     /**
      * Whether this node is visible.
      * Invisible nodes are not rendered but still track.
      */
-    var visible: Boolean = true
+    public var visible: Boolean = true
 
     /**
      * Parent node in the scene graph.
      * null if this is a root node.
      */
-    var parent: SpatialNode? = null
+    public var parent: SpatialNode? = null
         private set
 
     /**
@@ -63,12 +63,12 @@ abstract class SpatialNode(
      * Children inherit this node's transform.
      */
     private val _children = mutableListOf<SpatialNode>()
-    val children: List<SpatialNode> get() = _children
+    public val children: List<SpatialNode> get() = _children
 
     /**
      * World-space position (accumulated from parent chain).
      */
-    val worldPosition: Vec3
+    public val worldPosition: Vec3
         get() {
             val p = parent
             return if (p != null) {
@@ -82,7 +82,7 @@ abstract class SpatialNode(
     /**
      * World-space rotation (accumulated from parent chain).
      */
-    val worldRotation: Quaternion
+    public val worldRotation: Quaternion
         get() {
             val p = parent
             return if (p != null) {
@@ -95,7 +95,7 @@ abstract class SpatialNode(
     /**
      * World-space scale (accumulated from parent chain).
      */
-    val worldScale: Vec3
+    public val worldScale: Vec3
         get() {
             val p = parent
             return if (p != null) {
@@ -115,7 +115,7 @@ abstract class SpatialNode(
      *
      * @param child Node to add as child
      */
-    fun addChild(child: SpatialNode) {
+    public fun addChild(child: SpatialNode) {
         // Remove from previous parent if any
         child.parent?.removeChild(child)
 
@@ -129,7 +129,7 @@ abstract class SpatialNode(
      * @param child Node to remove
      * @return true if child was removed
      */
-    fun removeChild(child: SpatialNode): Boolean {
+    public fun removeChild(child: SpatialNode): Boolean {
         if (_children.remove(child)) {
             child.parent = null
             return true
@@ -140,14 +140,14 @@ abstract class SpatialNode(
     /**
      * Remove this node from its parent.
      */
-    fun removeFromParent() {
+    public fun removeFromParent() {
         parent?.removeChild(this)
     }
 
     /**
      * Get all descendant nodes (recursive).
      */
-    fun getAllDescendants(): List<SpatialNode> =
+    public fun getAllDescendants(): List<SpatialNode> =
         buildList {
             _children.forEach { child ->
                 add(child)
@@ -161,7 +161,7 @@ abstract class SpatialNode(
      * @param id Node ID to find
      * @return Node with matching ID or null
      */
-    fun findNodeById(id: String): SpatialNode? {
+    public fun findNodeById(id: String): SpatialNode? {
         if (this.id == id) return this
         _children.forEach { child ->
             child.findNodeById(id)?.let { return it }
@@ -177,20 +177,20 @@ abstract class SpatialNode(
      */
     internal abstract fun toSceneNode(): SceneNode
 
-    companion object {
+    public companion object {
         private var nodeCounter = 0
 
         /**
          * Generate a unique node ID.
          */
-        fun generateId(): String = "node-${nodeCounter++}-${Random.nextInt(1000)}"
+        public fun generateId(): String = "node-${nodeCounter++}-${Random.nextInt(1000)}"
     }
 }
 
 /**
  * Extension to rotate a Vec3 by a Quaternion.
  */
-fun Quaternion.rotate(v: Vec3): Vec3 {
+public fun Quaternion.rotate(v: Vec3): Vec3 {
     // Quaternion rotation: v' = q * v * q^-1
     // Optimized version without creating intermediate quaternions
 

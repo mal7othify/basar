@@ -20,7 +20,7 @@ import org.w3c.dom.HTMLDivElement
  * The button triggers the WebXR session request.
  */
 @Composable
-actual fun SpatialSurface(
+public actual fun SpatialSurface(
     modifier: Modifier,
     session: SpatialSession,
     scene: SpatialScene,

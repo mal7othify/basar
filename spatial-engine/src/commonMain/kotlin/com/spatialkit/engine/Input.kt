@@ -8,13 +8,13 @@ package com.spatialkit.engine
  * - VR headsets: Controllers, Hand tracking, Gaze
  * - AR glasses: Gaze, Hand tracking, Controllers
  */
-sealed interface InputSource {
-    val id: String
+public sealed interface InputSource {
+    public val id: String
 
     /**
      * VR/AR controller input (e.g., Quest controllers, Vive wands).
      */
-    data class Controller(
+    public data class Controller(
         override val id: String,
         val hand: com.spatialkit.engine.Hand,
         val pose: Pose,
@@ -25,7 +25,7 @@ sealed interface InputSource {
     /**
      * Hand tracking input (finger/hand pose detection).
      */
-    data class Hand(
+    public data class Hand(
         override val id: String,
         val handedness: Handedness,
         val joints: Map<HandJoint, Pose>,
@@ -35,7 +35,7 @@ sealed interface InputSource {
     /**
      * Touch screen input (for AR on phones/tablets).
      */
-    data class Screen(
+    public data class Screen(
         override val id: String,
         val touches: List<Touch>,
     ) : InputSource
@@ -43,7 +43,7 @@ sealed interface InputSource {
     /**
      * Gaze/head tracking input (for devices without controllers).
      */
-    data class Gaze(
+    public data class Gaze(
         override val id: String,
         val origin: Vec3,
         val direction: Vec3,
@@ -53,17 +53,17 @@ sealed interface InputSource {
 /**
  * Which hand a controller or hand tracking is for.
  */
-enum class Handedness { LEFT, RIGHT }
+public enum class Handedness { LEFT, RIGHT }
 
 /**
  * Which hand a controller is held in.
  */
-enum class Hand { LEFT, RIGHT }
+public enum class Hand { LEFT, RIGHT }
 
 /**
  * Controller buttons that may be available.
  */
-enum class Button {
+public enum class Button {
     TRIGGER,
     GRIP,
     PRIMARY,
@@ -74,7 +74,7 @@ enum class Button {
 /**
  * State of a controller button.
  */
-enum class ButtonState {
+public enum class ButtonState {
     RELEASED,
     PRESSED,
     TOUCHED,
@@ -83,7 +83,7 @@ enum class ButtonState {
 /**
  * Controller axes (analog inputs).
  */
-enum class Axis {
+public enum class Axis {
     THUMBSTICK_X,
     THUMBSTICK_Y,
     TRIGGER,
@@ -92,7 +92,7 @@ enum class Axis {
 /**
  * Hand joint positions for hand tracking.
  */
-enum class HandJoint {
+public enum class HandJoint {
     WRIST,
     THUMB_TIP,
     THUMB_IP,
@@ -119,7 +119,7 @@ enum class HandJoint {
 /**
  * Recognized hand gestures (platform-specific).
  */
-enum class HandGesture {
+public enum class HandGesture {
     PINCH,
     GRAB,
     POINT,
@@ -129,7 +129,7 @@ enum class HandGesture {
 /**
  * Touch input on screen (for AR).
  */
-data class Touch(
+public data class Touch(
     val id: Int,
     val screenX: Float,
     val screenY: Float,
@@ -139,7 +139,7 @@ data class Touch(
 /**
  * Touch lifecycle phase.
  */
-enum class TouchPhase {
+public enum class TouchPhase {
     BEGAN,
     MOVED,
     ENDED,

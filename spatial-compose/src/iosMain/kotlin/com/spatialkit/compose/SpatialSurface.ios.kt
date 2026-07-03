@@ -22,7 +22,7 @@ import platform.CoreGraphics.CGRectMake
  */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
-actual fun SpatialSurface(
+public actual fun SpatialSurface(
     modifier: Modifier,
     session: SpatialSession,
     scene: SpatialScene,

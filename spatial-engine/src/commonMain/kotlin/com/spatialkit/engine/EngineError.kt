@@ -6,23 +6,23 @@ package com.spatialkit.engine
  * This sealed interface defines all possible error states that the engine
  * can report. Platform implementations should map native errors to these types.
  */
-sealed interface EngineError {
+public sealed interface EngineError {
     /**
      * The requested feature or session mode is not supported on this platform.
      */
-    data object NotSupported : EngineError
+    public data object NotSupported : EngineError
 
     /**
      * Required permissions (camera, location, etc.) were denied by the user.
      */
-    data object PermissionDenied : EngineError
+    public data object PermissionDenied : EngineError
 
     /**
      * Engine initialization failed.
      *
      * @property reason Human-readable description of the failure
      */
-    data class InitializationFailed(
+    public data class InitializationFailed(
         val reason: String,
     ) : EngineError
 
@@ -31,7 +31,7 @@ sealed interface EngineError {
      *
      * @property reason Human-readable description of the failure
      */
-    data class SessionFailed(
+    public data class SessionFailed(
         val reason: String,
     ) : EngineError
 
@@ -40,7 +40,7 @@ sealed interface EngineError {
      *
      * @property reason Human-readable description of the failure
      */
-    data class TrackingFailed(
+    public data class TrackingFailed(
         val reason: String,
     ) : EngineError
 }

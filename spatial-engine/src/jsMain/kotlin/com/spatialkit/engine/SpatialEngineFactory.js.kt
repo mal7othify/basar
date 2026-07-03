@@ -15,8 +15,8 @@ package com.spatialkit.engine
  * This factory returns [FallbackEngine] for compatibility with cross-platform code.
  * The platform-specific module provides the real implementation.
  */
-actual object SpatialEngineFactory {
-    actual fun isSupported(): Boolean {
+public actual object SpatialEngineFactory {
+    public actual fun isSupported(): Boolean {
         // Check if WebXR API is available
         val navigator = js("typeof navigator !== 'undefined' ? navigator : undefined")
         if (navigator === undefined) return false
@@ -25,7 +25,7 @@ actual object SpatialEngineFactory {
         return xr !== undefined && xr !== null
     }
 
-    actual fun getSupportedModes(): List<SessionMode> {
+    public actual fun getSupportedModes(): List<SessionMode> {
         return if (isSupported()) {
             listOf(SessionMode.AR, SessionMode.VR)
         } else {
@@ -33,10 +33,10 @@ actual object SpatialEngineFactory {
         }
     }
 
-    actual fun create(): SpatialEngine {
+    public actual fun create(): SpatialEngine {
         console.warn("Use createWebXREngine() from spatial-engine-webxr for WebXR support")
         return FallbackEngine()
     }
 
-    actual fun getEngineName(): String = "Fallback (JS - use spatial-engine-webxr)"
+    public actual fun getEngineName(): String = "Fallback (JS - use spatial-engine-webxr)"
 }

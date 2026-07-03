@@ -70,15 +70,22 @@ Platform Renderers (ARCore/WebXR/ARKit)
 
 ### Installation
 
+Artifacts are published under the `com.spatialkit` group (currently to Maven Local
+via `./gradlew publishToMavenLocal`; Maven Central publication is planned).
+
 ```kotlin
 // build.gradle.kts
-commonMain.dependencies {
-    implementation(project(":spatial-compose"))
-
-    // Choose your platform engine:
-    implementation(project(":spatial-engine-arcore"))  // Android ARCore
-    implementation(project(":spatial-engine-webxr"))   // Web WebXR
-    // iOS ARKit engine: TODO
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            // Pulls in spatial-dsl, spatial-scene, spatial-engine, spatial-core transitively
+            implementation("com.spatialkit:spatial-compose:0.1.0-SNAPSHOT")
+        }
+        // Platform engines (spatial-compose already wires these per platform):
+        // androidMain: com.spatialkit:spatial-engine-arcore
+        // jsMain:      com.spatialkit:spatial-engine-webxr
+        // iosMain:     com.spatialkit:spatial-engine-arkit (work in progress)
+    }
 }
 ```
 

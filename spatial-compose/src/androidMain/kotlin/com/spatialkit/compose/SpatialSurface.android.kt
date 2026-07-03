@@ -26,7 +26,7 @@ import javax.microedition.khronos.opengles.GL10
  * - Scene updates are submitted automatically each frame
  */
 @Composable
-actual fun SpatialSurface(
+public actual fun SpatialSurface(
     modifier: Modifier,
     session: SpatialSession,
     scene: SpatialScene,

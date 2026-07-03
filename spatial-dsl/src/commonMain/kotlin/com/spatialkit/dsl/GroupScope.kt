@@ -12,13 +12,13 @@ import com.spatialkit.scene.*
  * Child transforms are relative to the parent group's transform.
  */
 @SpatialDsl
-class GroupScope(
+public class GroupScope(
     private val group: GroupNode,
 ) {
     /**
      * Creates a cube node and adds it as a child of this group.
      */
-    fun cube(
+    public fun cube(
         size: Float = 0.1f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
@@ -30,7 +30,7 @@ class GroupScope(
     /**
      * Creates a sphere node and adds it as a child of this group.
      */
-    fun sphere(
+    public fun sphere(
         radius: Float = 0.05f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
@@ -42,7 +42,7 @@ class GroupScope(
     /**
      * Creates a plane node and adds it as a child of this group.
      */
-    fun plane(
+    public fun plane(
         width: Float = 1f,
         height: Float = 1f,
         color: Color = Color.White,
@@ -55,7 +55,7 @@ class GroupScope(
     /**
      * Creates a cylinder node and adds it as a child of this group.
      */
-    fun cylinder(
+    public fun cylinder(
         radius: Float = 0.05f,
         height: Float = 0.2f,
         color: Color = Color.White,
@@ -68,7 +68,7 @@ class GroupScope(
     /**
      * Creates a capsule node and adds it as a child of this group.
      */
-    fun capsule(
+    public fun capsule(
         radius: Float = 0.05f,
         height: Float = 0.2f,
         color: Color = Color.White,
@@ -81,7 +81,7 @@ class GroupScope(
     /**
      * Creates a custom mesh node and adds it as a child of this group.
      */
-    fun customMesh(
+    public fun customMesh(
         geometry: GeometryData,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
@@ -93,7 +93,7 @@ class GroupScope(
     /**
      * Creates a nested group node.
      */
-    fun group(
+    public fun group(
         id: String = SpatialNode.generateId(),
         configure: GroupScope.() -> Unit,
     ): GroupNode {

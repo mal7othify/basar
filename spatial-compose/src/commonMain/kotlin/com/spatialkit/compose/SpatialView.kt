@@ -42,7 +42,7 @@ import com.spatialkit.scene.SpatialSession
  * @param content DSL block for building the scene
  */
 @Composable
-fun SpatialView(
+public fun SpatialView(
     modifier: Modifier = Modifier,
     mode: SessionMode = SessionMode.AR,
     config: EngineConfig = EngineConfig(preferredMode = mode),
@@ -110,7 +110,7 @@ fun SpatialView(
  * - JS: Canvas element for Three.js
  */
 @Composable
-expect fun SpatialSurface(
+public expect fun SpatialSurface(
     modifier: Modifier,
     session: SpatialSession,
     scene: SpatialScene,

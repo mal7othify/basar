@@ -14,7 +14,7 @@ import kotlin.math.min
  * @property min The minimum corner (smallest x, y, z values)
  * @property max The maximum corner (largest x, y, z values)
  */
-data class BoundingBox(
+public data class BoundingBox(
     val min: Vec3,
     val max: Vec3,
 ) {
@@ -80,14 +80,14 @@ data class BoundingBox(
      *
      * @return The volume
      */
-    fun volume(): Float = size.volume()
+    public fun volume(): Float = size.volume()
 
     /**
      * Calculates the surface area of the bounding box.
      *
      * @return The surface area
      */
-    fun surfaceArea(): Float = size.surfaceArea()
+    public fun surfaceArea(): Float = size.surfaceArea()
 
     /**
      * Checks if a point is contained within this bounding box.
@@ -95,7 +95,7 @@ data class BoundingBox(
      * @param point The point to test
      * @return True if the point is inside or on the boundary
      */
-    fun contains(point: Vec3): Boolean =
+    public fun contains(point: Vec3): Boolean =
         point.x >= min.x && point.x <= max.x &&
             point.y >= min.y && point.y <= max.y &&
             point.z >= min.z && point.z <= max.z
@@ -106,7 +106,7 @@ data class BoundingBox(
      * @param other The other bounding box
      * @return True if the boxes overlap
      */
-    fun intersects(other: BoundingBox): Boolean =
+    public fun intersects(other: BoundingBox): Boolean =
         min.x <= other.max.x && max.x >= other.min.x &&
             min.y <= other.max.y && max.y >= other.min.y &&
             min.z <= other.max.z && max.z >= other.min.z
@@ -117,7 +117,7 @@ data class BoundingBox(
      * @param other The other bounding box
      * @return True if other is completely inside this box
      */
-    fun contains(other: BoundingBox): Boolean =
+    public fun contains(other: BoundingBox): Boolean =
         other.min.x >= min.x && other.max.x <= max.x &&
             other.min.y >= min.y && other.max.y <= max.y &&
             other.min.z >= min.z && other.max.z <= max.z
@@ -128,7 +128,7 @@ data class BoundingBox(
      * @param point The point to include
      * @return A new bounding box that includes the point
      */
-    fun expand(point: Vec3): BoundingBox =
+    public fun expand(point: Vec3): BoundingBox =
         BoundingBox(
             min =
                 Vec3(
@@ -150,7 +150,7 @@ data class BoundingBox(
      * @param other The bounding box to include
      * @return A new bounding box that includes both boxes
      */
-    fun expand(other: BoundingBox): BoundingBox =
+    public fun expand(other: BoundingBox): BoundingBox =
         BoundingBox(
             min =
                 Vec3(
@@ -172,7 +172,7 @@ data class BoundingBox(
      * @param amount The amount to expand (can be negative to shrink)
      * @return A new expanded bounding box
      */
-    fun expand(amount: Float): BoundingBox =
+    public fun expand(amount: Float): BoundingBox =
         BoundingBox(
             min = min - Vec3(amount, amount, amount),
             max = max + Vec3(amount, amount, amount),
@@ -186,7 +186,7 @@ data class BoundingBox(
      * @param z The amount to expand along the Z axis
      * @return A new expanded bounding box
      */
-    fun expand(
+    public fun expand(
         x: Float,
         y: Float,
         z: Float,
@@ -202,7 +202,7 @@ data class BoundingBox(
      * @param point The reference point
      * @return The closest point on or inside the bounding box
      */
-    fun closestPoint(point: Vec3): Vec3 =
+    public fun closestPoint(point: Vec3): Vec3 =
         Vec3(
             point.x.coerceIn(min.x, max.x),
             point.y.coerceIn(min.y, max.y),
@@ -216,7 +216,7 @@ data class BoundingBox(
      * @param point The reference point
      * @return The squared distance
      */
-    fun distanceSquared(point: Vec3): Float {
+    public fun distanceSquared(point: Vec3): Float {
         val closest = closestPoint(point)
         return (point - closest).lengthSquared()
     }
@@ -228,7 +228,7 @@ data class BoundingBox(
      * @param point The reference point
      * @return The distance
      */
-    fun distance(point: Vec3): Float {
+    public fun distance(point: Vec3): Float {
         val closest = closestPoint(point)
         return (point - closest).length()
     }
@@ -239,7 +239,7 @@ data class BoundingBox(
      * @param other The other bounding box
      * @return The intersection bounding box, or null if they don't intersect
      */
-    fun intersection(other: BoundingBox): BoundingBox? {
+    public fun intersection(other: BoundingBox): BoundingBox? {
         if (!intersects(other)) return null
 
         return BoundingBox(
@@ -264,7 +264,7 @@ data class BoundingBox(
      * @param offset The translation offset
      * @return A new translated bounding box
      */
-    fun translate(offset: Vec3): BoundingBox =
+    public fun translate(offset: Vec3): BoundingBox =
         BoundingBox(
             min = min + offset,
             max = max + offset,
@@ -276,7 +276,7 @@ data class BoundingBox(
      * @param scale The scale factor
      * @return A new scaled bounding box
      */
-    fun scale(scale: Float): BoundingBox {
+    public fun scale(scale: Float): BoundingBox {
         val center = center
         val halfSize = extents * scale
         return BoundingBox(
@@ -293,7 +293,7 @@ data class BoundingBox(
      * @param scaleZ The Z-axis scale factor
      * @return A new scaled bounding box
      */
-    fun scale(
+    public fun scale(
         scaleX: Float,
         scaleY: Float,
         scaleZ: Float,
@@ -307,16 +307,16 @@ data class BoundingBox(
         )
     }
 
-    companion object {
+    public companion object {
         /**
          * An empty bounding box at the origin with zero size.
          */
-        val ZERO = BoundingBox(Vec3.ZERO, Vec3.ZERO)
+        public val ZERO: BoundingBox = BoundingBox(Vec3.ZERO, Vec3.ZERO)
 
         /**
          * A unit bounding box centered at the origin with size 1x1x1.
          */
-        val UNIT = BoundingBox(Vec3(-0.5f, -0.5f, -0.5f), Vec3(0.5f, 0.5f, 0.5f))
+        public val UNIT: BoundingBox = BoundingBox(Vec3(-0.5f, -0.5f, -0.5f), Vec3(0.5f, 0.5f, 0.5f))
 
         /**
          * Creates a bounding box from a center point and extents (half-size).
@@ -325,7 +325,7 @@ data class BoundingBox(
          * @param extents The half-size in each axis
          * @return A new bounding box
          */
-        fun fromCenterAndExtents(
+        public fun fromCenterAndExtents(
             center: Vec3,
             extents: Vec3,
         ): BoundingBox =
@@ -341,7 +341,7 @@ data class BoundingBox(
          * @param size The size in each axis
          * @return A new bounding box
          */
-        fun fromCenterAndSize(
+        public fun fromCenterAndSize(
             center: Vec3,
             size: Size3D,
         ): BoundingBox {
@@ -358,7 +358,7 @@ data class BoundingBox(
          * @param points The points to encompass
          * @return A new bounding box, or ZERO if no points are provided
          */
-        fun fromPoints(points: List<Vec3>): BoundingBox {
+        public fun fromPoints(points: List<Vec3>): BoundingBox {
             if (points.isEmpty()) return ZERO
 
             var minX = points[0].x
@@ -389,6 +389,6 @@ data class BoundingBox(
          * @param points The points to encompass (vararg)
          * @return A new bounding box
          */
-        fun fromPoints(vararg points: Vec3): BoundingBox = fromPoints(points.toList())
+        public fun fromPoints(vararg points: Vec3): BoundingBox = fromPoints(points.toList())
     }
 }

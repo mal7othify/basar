@@ -19,22 +19,22 @@ import kotlin.math.PI
  *
  * Usage: `position = vec3(0f, 1.5f, -1f)`
  */
-fun vec3(
+public fun vec3(
     x: Float,
     y: Float,
     z: Float,
-) = Vec3(x, y, z)
+): Vec3 = Vec3(x, y, z)
 
 /**
  * Alias for vec3, more semantic for positions.
  *
  * Usage: `position = position(0f, 1.5f, -1f)`
  */
-fun position(
+public fun position(
     x: Float,
     y: Float,
     z: Float,
-) = Vec3(x, y, z)
+): Vec3 = Vec3(x, y, z)
 
 // ============================================================================
 // Unit Conversions
@@ -45,13 +45,13 @@ fun position(
  *
  * Usage: `size = 1.5.meters`
  */
-val Float.meters: Float
+public val Float.meters: Float
     get() = this
 
 /**
  * Converts meters to meters (identity, for readability).
  */
-val Int.meters: Float
+public val Int.meters: Float
     get() = this.toFloat()
 
 /**
@@ -59,13 +59,13 @@ val Int.meters: Float
  *
  * Usage: `size = 10.cm`
  */
-val Float.cm: Float
+public val Float.cm: Float
     get() = this / 100f
 
 /**
  * Converts centimeters to meters.
  */
-val Int.cm: Float
+public val Int.cm: Float
     get() = this.toFloat() / 100f
 
 /**
@@ -73,13 +73,13 @@ val Int.cm: Float
  *
  * Usage: `size = 100.mm`
  */
-val Float.mm: Float
+public val Float.mm: Float
     get() = this / 1000f
 
 /**
  * Converts millimeters to meters.
  */
-val Int.mm: Float
+public val Int.mm: Float
     get() = this.toFloat() / 1000f
 
 // ============================================================================
@@ -91,13 +91,13 @@ val Int.mm: Float
  *
  * Usage: `rotation = Quaternion.fromEuler(0f, 45.degrees, 0f)`
  */
-val Float.degrees: Float
+public val Float.degrees: Float
     get() = this * PI.toFloat() / 180f
 
 /**
  * Converts degrees to radians.
  */
-val Int.degrees: Float
+public val Int.degrees: Float
     get() = this.toFloat() * PI.toFloat() / 180f
 
 /**
@@ -105,7 +105,7 @@ val Int.degrees: Float
  *
  * Usage: `rotation = Quaternion.fromEuler(0f, 1.57.radians, 0f)`
  */
-val Float.radians: Float
+public val Float.radians: Float
     get() = this
 
 // ============================================================================
@@ -117,31 +117,31 @@ val Float.radians: Float
  *
  * Usage: `rotation = eulerDegrees(0f, 45f, 0f)`
  */
-fun eulerDegrees(
+public fun eulerDegrees(
     pitch: Float,
     yaw: Float,
     roll: Float,
-) = Quaternion.fromEuler(pitch.degrees, yaw.degrees, roll.degrees)
+): Quaternion = Quaternion.fromEuler(pitch.degrees, yaw.degrees, roll.degrees)
 
 /**
  * Creates a rotation from Euler angles in degrees (with Int support).
  */
-fun eulerDegrees(
+public fun eulerDegrees(
     pitch: Int,
     yaw: Int,
     roll: Int,
-) = Quaternion.fromEuler(pitch.degrees, yaw.degrees, roll.degrees)
+): Quaternion = Quaternion.fromEuler(pitch.degrees, yaw.degrees, roll.degrees)
 
 /**
  * Creates a rotation from Euler angles in radians.
  *
  * Usage: `rotation = eulerRadians(0f, 1.57f, 0f)`
  */
-fun eulerRadians(
+public fun eulerRadians(
     pitch: Float,
     yaw: Float,
     roll: Float,
-) = Quaternion.fromEuler(pitch, yaw, roll)
+): Quaternion = Quaternion.fromEuler(pitch, yaw, roll)
 
 // ============================================================================
 // Color Helpers
@@ -152,7 +152,7 @@ fun eulerRadians(
  *
  * Usage: `color = rgb(0xFF0000)` for red
  */
-fun rgb(hex: Int): com.spatialkit.core.types.Color {
+public fun rgb(hex: Int): com.spatialkit.core.types.Color {
     val r = ((hex shr 16) and 0xFF) / 255f
     val g = ((hex shr 8) and 0xFF) / 255f
     val b = (hex and 0xFF) / 255f
@@ -164,7 +164,7 @@ fun rgb(hex: Int): com.spatialkit.core.types.Color {
  *
  * Usage: `color = rgba(0xFF0000FF)` for red with full opacity
  */
-fun rgba(hex: Int): com.spatialkit.core.types.Color {
+public fun rgba(hex: Int): com.spatialkit.core.types.Color {
     val r = ((hex shr 24) and 0xFF) / 255f
     val g = ((hex shr 16) and 0xFF) / 255f
     val b = ((hex shr 8) and 0xFF) / 255f

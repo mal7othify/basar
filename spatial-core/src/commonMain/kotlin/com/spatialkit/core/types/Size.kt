@@ -9,7 +9,7 @@ import com.spatialkit.core.math.Vec3
  * @property height The height (Y dimension)
  * @property depth The depth (Z dimension)
  */
-data class Size3D(
+public data class Size3D(
     val width: Float,
     val height: Float,
     val depth: Float,
@@ -25,35 +25,35 @@ data class Size3D(
      *
      * @return The volume (width × height × depth)
      */
-    fun volume(): Float = width * height * depth
+    public fun volume(): Float = width * height * depth
 
     /**
      * Calculates the surface area of a box with this size.
      *
      * @return The surface area
      */
-    fun surfaceArea(): Float = 2f * (width * height + width * depth + height * depth)
+    public fun surfaceArea(): Float = 2f * (width * height + width * depth + height * depth)
 
     /**
      * Returns the longest dimension of this size.
      *
      * @return The maximum of width, height, and depth
      */
-    fun maxDimension(): Float = maxOf(width, height, depth)
+    public fun maxDimension(): Float = maxOf(width, height, depth)
 
     /**
      * Returns the shortest dimension of this size.
      *
      * @return The minimum of width, height, and depth
      */
-    fun minDimension(): Float = minOf(width, height, depth)
+    public fun minDimension(): Float = minOf(width, height, depth)
 
     /**
      * Converts this size to a Vec3.
      *
      * @return A new Vec3 with (width, height, depth)
      */
-    fun toVec3(): Vec3 = Vec3(width, height, depth)
+    public fun toVec3(): Vec3 = Vec3(width, height, depth)
 
     /**
      * Multiplies this size by a scalar value.
@@ -61,7 +61,7 @@ data class Size3D(
      * @param scalar The scalar multiplier
      * @return A new scaled size
      */
-    operator fun times(scalar: Float): Size3D =
+    public operator fun times(scalar: Float): Size3D =
         Size3D(
             width = width * scalar,
             height = height * scalar,
@@ -74,7 +74,7 @@ data class Size3D(
      * @param scalar The scalar divisor
      * @return A new scaled size
      */
-    operator fun div(scalar: Float): Size3D =
+    public operator fun div(scalar: Float): Size3D =
         Size3D(
             width = width / scalar,
             height = height / scalar,
@@ -87,7 +87,7 @@ data class Size3D(
      * @param other The size to add
      * @return A new size with summed components
      */
-    operator fun plus(other: Size3D): Size3D =
+    public operator fun plus(other: Size3D): Size3D =
         Size3D(
             width = width + other.width,
             height = height + other.height,
@@ -100,7 +100,7 @@ data class Size3D(
      * @param other The size to subtract
      * @return A new size with subtracted components
      */
-    operator fun minus(other: Size3D): Size3D =
+    public operator fun minus(other: Size3D): Size3D =
         Size3D(
             width = (width - other.width).coerceAtLeast(0f),
             height = (height - other.height).coerceAtLeast(0f),
@@ -114,7 +114,7 @@ data class Size3D(
      * @param fraction The interpolation factor (0.0 returns this, 1.0 returns other)
      * @return A new interpolated size
      */
-    fun lerp(
+    public fun lerp(
         other: Size3D,
         fraction: Float,
     ): Size3D {
@@ -132,7 +132,7 @@ data class Size3D(
      * @param epsilon The tolerance for comparison
      * @return True if all dimensions are less than epsilon
      */
-    fun isZero(epsilon: Float = 0.0001f): Boolean = width < epsilon && height < epsilon && depth < epsilon
+    public fun isZero(epsilon: Float = 0.0001f): Boolean = width < epsilon && height < epsilon && depth < epsilon
 
     /**
      * Returns a new size with the specified width.
@@ -140,7 +140,7 @@ data class Size3D(
      * @param width The new width
      * @return A new size with updated width
      */
-    fun withWidth(width: Float): Size3D = copy(width = width.coerceAtLeast(0f))
+    public fun withWidth(width: Float): Size3D = copy(width = width.coerceAtLeast(0f))
 
     /**
      * Returns a new size with the specified height.
@@ -148,7 +148,7 @@ data class Size3D(
      * @param height The new height
      * @return A new size with updated height
      */
-    fun withHeight(height: Float): Size3D = copy(height = height.coerceAtLeast(0f))
+    public fun withHeight(height: Float): Size3D = copy(height = height.coerceAtLeast(0f))
 
     /**
      * Returns a new size with the specified depth.
@@ -156,18 +156,18 @@ data class Size3D(
      * @param depth The new depth
      * @return A new size with updated depth
      */
-    fun withDepth(depth: Float): Size3D = copy(depth = depth.coerceAtLeast(0f))
+    public fun withDepth(depth: Float): Size3D = copy(depth = depth.coerceAtLeast(0f))
 
-    companion object {
+    public companion object {
         /**
          * A size with all dimensions set to zero.
          */
-        val ZERO = Size3D(0f, 0f, 0f)
+        public val ZERO: Size3D = Size3D(0f, 0f, 0f)
 
         /**
          * A size with all dimensions set to one (unit cube).
          */
-        val ONE = Size3D(1f, 1f, 1f)
+        public val ONE: Size3D = Size3D(1f, 1f, 1f)
 
         /**
          * Creates a uniform size where all dimensions are equal.
@@ -175,7 +175,7 @@ data class Size3D(
          * @param size The size value for all dimensions
          * @return A new Size3D with all dimensions set to size
          */
-        fun uniform(size: Float): Size3D = Size3D(size, size, size)
+        public fun uniform(size: Float): Size3D = Size3D(size, size, size)
 
         /**
          * Creates a size from a Vec3.
@@ -183,7 +183,7 @@ data class Size3D(
          * @param vec The vector containing size dimensions
          * @return A new Size3D
          */
-        fun from(vec: Vec3): Size3D =
+        public fun from(vec: Vec3): Size3D =
             Size3D(
                 width = vec.x.coerceAtLeast(0f),
                 height = vec.y.coerceAtLeast(0f),
@@ -198,7 +198,7 @@ data class Size3D(
          * @param depth The depth
          * @return A new Size3D
          */
-        fun of(
+        public fun of(
             width: Int,
             height: Int,
             depth: Int,
@@ -216,7 +216,7 @@ data class Size3D(
  *
  * Example: `5f.size3D` creates Size3D(5, 5, 5)
  */
-val Number.size3D: Size3D
+public val Number.size3D: Size3D
     get() = Size3D.uniform(this.toFloat())
 
 /**
@@ -224,7 +224,7 @@ val Number.size3D: Size3D
  *
  * Example: `(10f to 20f).size3D` creates Size3D(10, 20, 0)
  */
-val Pair<Number, Number>.size3D: Size3D
+public val Pair<Number, Number>.size3D: Size3D
     get() = Size3D(first.toFloat(), second.toFloat(), 0f)
 
 /**
@@ -232,5 +232,5 @@ val Pair<Number, Number>.size3D: Size3D
  *
  * Example: `Triple(10f, 20f, 30f).size3D` creates Size3D(10, 20, 30)
  */
-val Triple<Number, Number, Number>.size3D: Size3D
+public val Triple<Number, Number, Number>.size3D: Size3D
     get() = Size3D(first.toFloat(), second.toFloat(), third.toFloat())

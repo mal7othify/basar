@@ -31,9 +31,9 @@ import kotlin.random.Random
  * }
  * ```
  */
-class SpatialAnchor(
-    val id: String,
-    val type: AnchorType,
+public class SpatialAnchor(
+    public val id: String,
+    public val type: AnchorType,
 ) {
     /**
      * Current tracking status of the anchor.
@@ -44,7 +44,7 @@ class SpatialAnchor(
      * - LOST: Tracking permanently lost
      * - ERROR: Anchor creation failed
      */
-    var status: AnchorStatus = AnchorStatus.PENDING
+    public var status: AnchorStatus = AnchorStatus.PENDING
         private set
 
     /**
@@ -52,25 +52,25 @@ class SpatialAnchor(
      *
      * null if anchor is not tracking (PENDING or FAILED state).
      */
-    var pose: Pose? = null
+    public var pose: Pose? = null
         private set
 
     /**
      * Whether the anchor is currently tracking.
      */
-    val isTracking: Boolean
+    public val isTracking: Boolean
         get() = status == AnchorStatus.TRACKING
 
     /**
      * Whether the anchor has failed.
      */
-    val hasFailed: Boolean
+    public val hasFailed: Boolean
         get() = status == AnchorStatus.ERROR
 
     /**
      * Whether the anchor is pending creation.
      */
-    val isPending: Boolean
+    public val isPending: Boolean
         get() = status == AnchorStatus.PENDING
 
     private var onTrackingCallback: ((SpatialAnchor) -> Unit)? = null
@@ -84,7 +84,7 @@ class SpatialAnchor(
      *
      * @param callback Function to call when tracking starts
      */
-    fun onTrack(callback: (SpatialAnchor) -> Unit) {
+    public fun onTrack(callback: (SpatialAnchor) -> Unit) {
         onTrackingCallback = callback
         // If already tracking, call immediately
         if (isTracking) {
@@ -99,7 +99,7 @@ class SpatialAnchor(
      *
      * @param callback Function to call when tracking is lost
      */
-    fun onLost(callback: (SpatialAnchor) -> Unit) {
+    public fun onLost(callback: (SpatialAnchor) -> Unit) {
         onLostCallback = callback
     }
 
@@ -110,7 +110,7 @@ class SpatialAnchor(
      *
      * @param callback Function to call on failure
      */
-    fun onFailed(callback: (SpatialAnchor) -> Unit) {
+    public fun onFailed(callback: (SpatialAnchor) -> Unit) {
         onFailedCallback = callback
         // If already failed, call immediately
         if (hasFailed) {
@@ -159,12 +159,12 @@ class SpatialAnchor(
 
     override fun toString(): String = "SpatialAnchor(id=$id, type=$type, status=$status, tracking=$isTracking)"
 
-    companion object {
+    public companion object {
         private var anchorCounter = 0
 
         /**
          * Generate a unique anchor ID.
          */
-        fun generateId(): String = "anchor-${anchorCounter++}-${Random.nextInt(1000)}"
+        public fun generateId(): String = "anchor-${anchorCounter++}-${Random.nextInt(1000)}"
     }
 }

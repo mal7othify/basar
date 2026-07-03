@@ -17,7 +17,7 @@ import com.spatialkit.scene.SpatialSession
  * For testing/development, you can use a web browser with WebXR support.
  */
 @Composable
-actual fun SpatialSurface(
+public actual fun SpatialSurface(
     modifier: Modifier,
     session: SpatialSession,
     scene: SpatialScene,

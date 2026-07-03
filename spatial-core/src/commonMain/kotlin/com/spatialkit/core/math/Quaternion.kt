@@ -22,7 +22,7 @@ import kotlin.math.sqrt
  * @property z The z component of the quaternion
  * @property w The w (scalar) component of the quaternion
  */
-data class Quaternion(
+public data class Quaternion(
     val x: Float,
     val y: Float,
     val z: Float,
@@ -35,7 +35,7 @@ data class Quaternion(
      * @param other The quaternion to multiply with
      * @return A new quaternion representing the combined rotation
      */
-    operator fun times(other: Quaternion): Quaternion =
+    public operator fun times(other: Quaternion): Quaternion =
         Quaternion(
             w * other.x + x * other.w + y * other.z - z * other.y,
             w * other.y - x * other.z + y * other.w + z * other.x,
@@ -49,7 +49,7 @@ data class Quaternion(
      * @param vec The vector to rotate
      * @return The rotated vector
      */
-    operator fun times(vec: Vec3): Vec3 {
+    public operator fun times(vec: Vec3): Vec3 {
         // Convert to quaternion multiplication: q * v * q^-1
         val qVec = Quaternion(vec.x, vec.y, vec.z, 0f)
         val result = this * qVec * conjugate()
@@ -62,14 +62,14 @@ data class Quaternion(
      *
      * @return The conjugate quaternion
      */
-    fun conjugate(): Quaternion = Quaternion(-x, -y, -z, w)
+    public fun conjugate(): Quaternion = Quaternion(-x, -y, -z, w)
 
     /**
      * Calculates the length (magnitude) of this quaternion.
      *
      * @return The length of the quaternion
      */
-    fun length(): Float = sqrt(x * x + y * y + z * z + w * w)
+    public fun length(): Float = sqrt(x * x + y * y + z * z + w * w)
 
     /**
      * Calculates the squared length of this quaternion.
@@ -77,7 +77,7 @@ data class Quaternion(
      *
      * @return The squared length of the quaternion
      */
-    fun lengthSquared(): Float = x * x + y * y + z * z + w * w
+    public fun lengthSquared(): Float = x * x + y * y + z * z + w * w
 
     /**
      * Returns a normalized (unit length) version of this quaternion.
@@ -85,7 +85,7 @@ data class Quaternion(
      *
      * @return A new normalized quaternion
      */
-    fun normalized(): Quaternion {
+    public fun normalized(): Quaternion {
         val len = length()
         return if (len > 0f) {
             Quaternion(x / len, y / len, z / len, w / len)
@@ -100,7 +100,7 @@ data class Quaternion(
      * @param other The other quaternion
      * @return The dot product
      */
-    fun dot(other: Quaternion): Float = x * other.x + y * other.y + z * other.z + w * other.w
+    public fun dot(other: Quaternion): Float = x * other.x + y * other.y + z * other.z + w * other.w
 
     /**
      * Performs spherical linear interpolation (slerp) between this quaternion and another.
@@ -110,7 +110,7 @@ data class Quaternion(
      * @param t The interpolation factor (0.0 returns this, 1.0 returns other)
      * @return A new interpolated quaternion
      */
-    fun slerp(
+    public fun slerp(
         other: Quaternion,
         t: Float,
     ): Quaternion {
@@ -166,7 +166,7 @@ data class Quaternion(
      *
      * @return The inverse quaternion
      */
-    fun inverse(): Quaternion {
+    public fun inverse(): Quaternion {
         val lenSq = lengthSquared()
         return if (lenSq > 0f) {
             conjugate() / lenSq
@@ -181,7 +181,7 @@ data class Quaternion(
      * @param scalar The scalar to divide by
      * @return A new scaled quaternion
      */
-    operator fun div(scalar: Float): Quaternion = Quaternion(x / scalar, y / scalar, z / scalar, w / scalar)
+    public operator fun div(scalar: Float): Quaternion = Quaternion(x / scalar, y / scalar, z / scalar, w / scalar)
 
     /**
      * Converts this quaternion to Euler angles (in radians).
@@ -189,7 +189,7 @@ data class Quaternion(
      *
      * @return Euler angles in radians
      */
-    fun toEulerAngles(): Vec3 {
+    public fun toEulerAngles(): Vec3 {
         // Roll (x-axis rotation)
         val sinRCosP = 2 * (w * x + y * z)
         val cosRCosP = 1 - 2 * (x * x + y * y)
@@ -212,11 +212,11 @@ data class Quaternion(
         return Vec3(pitch, yaw, roll)
     }
 
-    companion object {
+    public companion object {
         /**
          * The identity quaternion representing no rotation (0, 0, 0, 1).
          */
-        val IDENTITY = Quaternion(0f, 0f, 0f, 1f)
+        public val IDENTITY: Quaternion = Quaternion(0f, 0f, 0f, 1f)
 
         /**
          * Creates a quaternion from Euler angles (in radians).
@@ -226,7 +226,7 @@ data class Quaternion(
          * @param roll Rotation around Z-axis (in radians)
          * @return A new quaternion representing the rotation
          */
-        fun fromEuler(
+        public fun fromEuler(
             pitch: Float,
             yaw: Float,
             roll: Float,
@@ -252,7 +252,7 @@ data class Quaternion(
          * @param euler A Vec3 where x = pitch, y = yaw, z = roll (in radians)
          * @return A new quaternion representing the rotation
          */
-        fun fromEuler(euler: Vec3): Quaternion = fromEuler(euler.x, euler.y, euler.z)
+        public fun fromEuler(euler: Vec3): Quaternion = fromEuler(euler.x, euler.y, euler.z)
 
         /**
          * Creates a quaternion from an axis and angle.
@@ -261,7 +261,7 @@ data class Quaternion(
          * @param angle The angle of rotation in radians
          * @return A new quaternion representing the rotation
          */
-        fun fromAxisAngle(
+        public fun fromAxisAngle(
             axis: Vec3,
             angle: Float,
         ): Quaternion {
@@ -284,7 +284,7 @@ data class Quaternion(
          * @param to The target direction (should be normalized)
          * @return A new quaternion representing the rotation
          */
-        fun fromToRotation(
+        public fun fromToRotation(
             from: Vec3,
             to: Vec3,
         ): Quaternion {
@@ -329,7 +329,7 @@ data class Quaternion(
          * @param up The up direction (defaults to Vec3.UP)
          * @return A new quaternion representing the rotation
          */
-        fun lookRotation(
+        public fun lookRotation(
             forward: Vec3,
             up: Vec3 = Vec3.UP,
         ): Quaternion {

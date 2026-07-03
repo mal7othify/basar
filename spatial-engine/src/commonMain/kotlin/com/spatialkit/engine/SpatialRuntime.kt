@@ -27,7 +27,7 @@ package com.spatialkit.engine
  * runtime.stop()
  * ```
  */
-class SpatialRuntime {
+public class SpatialRuntime {
     private var engine: SpatialEngine? = null
     private var errorCallback: ((EngineError) -> Unit)? = null
 
@@ -37,7 +37,7 @@ class SpatialRuntime {
      * Use this to configure platform-specific features like setting an ARView on iOS.
      * Returns null if the engine hasn't been created yet.
      */
-    fun getEngine(): SpatialEngine? = engine
+    public fun getEngine(): SpatialEngine? = engine
 
     /**
      * Set a custom engine instance.
@@ -47,7 +47,7 @@ class SpatialRuntime {
      *
      * Must be called before start() if you want to use a custom engine.
      */
-    fun setEngine(customEngine: SpatialEngine) {
+    public fun setEngine(customEngine: SpatialEngine) {
         engine = customEngine
     }
 
@@ -57,31 +57,31 @@ class SpatialRuntime {
      * NOTE: On Android, this may return false until you call
      * start() with a Context. Use the Android-specific check instead.
      */
-    val isSupported: Boolean
+    public val isSupported: Boolean
         get() = SpatialEngineFactory.isSupported()
 
     /**
      * Get the list of session modes supported on this platform.
      */
-    val supportedModes: List<SessionMode>
+    public val supportedModes: List<SessionMode>
         get() = SpatialEngineFactory.getSupportedModes()
 
     /**
      * Get the current engine state.
      */
-    val state: EngineState?
+    public val state: EngineState?
         get() = engine?.state
 
     /**
      * Get the engine capabilities (available after start()).
      */
-    val capabilities: EngineCapabilities?
+    public val capabilities: EngineCapabilities?
         get() = engine?.capabilities
 
     /**
      * Get the name of the engine implementation.
      */
-    val engineName: String
+    public val engineName: String
         get() = SpatialEngineFactory.getEngineName()
 
     /**
@@ -94,7 +94,7 @@ class SpatialRuntime {
      * @param onError Callback invoked when errors occur
      * @throws IllegalStateException if platform doesn't support spatial
      */
-    suspend fun start(
+    public suspend fun start(
         config: EngineConfig = EngineConfig(),
         onFrame: (FrameData) -> Unit,
         onError: (EngineError) -> Unit = {},
@@ -193,7 +193,7 @@ class SpatialRuntime {
      *
      * @param scene Scene description
      */
-    fun submitScene(scene: SceneData) {
+    public fun submitScene(scene: SceneData) {
         engine?.submitScene(scene) ?: run {
             errorCallback?.invoke(
                 EngineError.InitializationFailed("Engine not started"),
@@ -208,7 +208,7 @@ class SpatialRuntime {
      * @param screenY Y coordinate in pixels
      * @return Hit test result or null if no hit
      */
-    fun performHitTest(
+    public fun performHitTest(
         screenX: Float,
         screenY: Float,
     ): HitTestResult? = engine?.performHitTest(screenX, screenY)
@@ -220,7 +220,7 @@ class SpatialRuntime {
      * @param direction Ray direction (normalized)
      * @return Raycast result or null if no hit
      */
-    fun performRaycast(
+    public fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? = engine?.performRaycast(origin, direction)
@@ -231,7 +231,7 @@ class SpatialRuntime {
      * Stops rendering and tracking. The engine remains initialized.
      * Call start() again to resume, or dispose() to fully clean up.
      */
-    fun stop() {
+    public fun stop() {
         engine?.stopSession()
     }
 
@@ -241,7 +241,7 @@ class SpatialRuntime {
      * After calling this, you must create a new SpatialRuntime
      * instance to start again.
      */
-    fun dispose() {
+    public fun dispose() {
         engine?.dispose()
         engine = null
         errorCallback = null
@@ -250,6 +250,6 @@ class SpatialRuntime {
     /**
      * Check if the runtime is currently running.
      */
-    val isRunning: Boolean
+    public val isRunning: Boolean
         get() = engine?.state is EngineState.Running
 }

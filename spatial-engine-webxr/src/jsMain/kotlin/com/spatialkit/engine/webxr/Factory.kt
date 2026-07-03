@@ -8,7 +8,7 @@ import com.spatialkit.engine.SpatialEngine
  * This is the primary entry point for creating a WebXR-based spatial engine.
  */
 @JsExport
-fun createWebXREngine(): SpatialEngine {
+public fun createWebXREngine(): SpatialEngine {
     return WebXREngine()
 }
 
@@ -16,7 +16,7 @@ fun createWebXREngine(): SpatialEngine {
  * Check if WebXR is available in the current browser.
  */
 @JsExport
-fun isWebXRAvailable(): Boolean {
+public fun isWebXRAvailable(): Boolean {
     val navigator = kotlinx.browser.window.asDynamic().navigator
     return navigator.xr != null && navigator.xr != undefined
 }

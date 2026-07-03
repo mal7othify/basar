@@ -37,7 +37,7 @@ import com.spatialkit.engine.Hand as ControllerHand
  * Delegates all XR rendering to Three.js's built-in WebXR manager, which
  * handles framebuffer binding, camera matrix updates, and viewport management.
  */
-class WebXREngine : SpatialEngine {
+public class WebXREngine : SpatialEngine {
     // Three.js components
     private var scene: Scene? = null
     private var camera: PerspectiveCamera? = null

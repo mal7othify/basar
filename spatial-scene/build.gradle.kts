@@ -1,10 +1,14 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
+    explicitApi()
+
     androidTarget {
+        publishLibraryVariants("release")
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
@@ -22,8 +26,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":spatial-engine"))
-            implementation(project(":spatial-core"))
+            // api: SpatialNode/SpatialSession expose engine + core types
+            // (Vec3, Quaternion, FrameData, SpatialRuntime, ...)
+            api(project(":spatial-engine"))
+            api(project(":spatial-core"))
         }
 
         commonTest.dependencies {

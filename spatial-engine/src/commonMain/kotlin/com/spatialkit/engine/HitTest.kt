@@ -11,7 +11,7 @@ package com.spatialkit.engine
  * @property distance Distance from camera to hit point
  * @property planeId ID of the plane that was hit (null if hit estimation-based surface)
  */
-data class HitTestResult(
+public data class HitTestResult(
     val position: Vec3,
     val normal: Vec3?,
     val distance: Float,
@@ -29,7 +29,7 @@ data class HitTestResult(
  * @property distance Distance from ray origin to hit point
  * @property nodeId ID of the scene node that was hit (null if environment geometry)
  */
-data class RaycastResult(
+public data class RaycastResult(
     val position: Vec3,
     val normal: Vec3,
     val distance: Float,

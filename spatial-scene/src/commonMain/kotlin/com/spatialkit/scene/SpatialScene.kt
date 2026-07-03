@@ -33,7 +33,7 @@ import com.spatialkit.engine.SceneData
  * val sceneData = scene.toSceneData()
  * ```
  */
-class SpatialScene {
+public class SpatialScene {
     // Synchronized collections for thread safety
     private val rootNodes = mutableListOf<SpatialNode>()
     private val anchors = mutableMapOf<String, SpatialAnchor>()
@@ -44,20 +44,20 @@ class SpatialScene {
      * Nodes with parents are not included here.
      * Returns a copy to prevent concurrent modification.
      */
-    val nodes: List<SpatialNode> get() = lock.withLock { rootNodes.toList() }
+    public val nodes: List<SpatialNode> get() = lock.withLock { rootNodes.toList() }
 
     /**
      * All anchors in the scene.
      * Returns a copy to prevent concurrent modification.
      */
-    val allAnchors: List<SpatialAnchor> get() = lock.withLock { anchors.values.toList() }
+    public val allAnchors: List<SpatialAnchor> get() = lock.withLock { anchors.values.toList() }
 
     /**
      * Add a root-level node to the scene.
      *
      * @param node Node to add
      */
-    fun add(node: SpatialNode) {
+    public fun add(node: SpatialNode) {
         lock.withLock {
             if (node !in rootNodes) {
                 rootNodes.add(node)
@@ -74,7 +74,7 @@ class SpatialScene {
      * @param node Node to remove
      * @return true if node was removed
      */
-    fun remove(node: SpatialNode): Boolean {
+    public fun remove(node: SpatialNode): Boolean {
         node.removeFromParent()
         return lock.withLock {
             rootNodes.remove(node)
@@ -89,7 +89,7 @@ class SpatialScene {
      * @param id Node ID to remove
      * @return true if node was found and removed
      */
-    fun removeById(id: String): Boolean {
+    public fun removeById(id: String): Boolean {
         lock.withLock {
             // Check root nodes
             rootNodes.find { it.id == id }?.let {
@@ -111,7 +111,7 @@ class SpatialScene {
     /**
      * Clear all nodes from the scene.
      */
-    fun clear() {
+    public fun clear() {
         lock.withLock {
             rootNodes.clear()
         }
@@ -123,7 +123,7 @@ class SpatialScene {
      * @param id Node ID to find
      * @return Node with matching ID or null
      */
-    fun findNodeById(id: String): SpatialNode? {
+    public fun findNodeById(id: String): SpatialNode? {
         rootNodes.forEach { root ->
             root.findNodeById(id)?.let { return it }
         }
@@ -133,7 +133,7 @@ class SpatialScene {
     /**
      * Get all nodes in the scene (root + all descendants).
      */
-    fun getAllNodes(): List<SpatialNode> =
+    public fun getAllNodes(): List<SpatialNode> =
         buildList {
             rootNodes.forEach { root ->
                 add(root)
@@ -150,7 +150,7 @@ class SpatialScene {
      * @param id Optional custom ID (auto-generated if not provided)
      * @return Created anchor
      */
-    fun createAnchor(
+    public fun createAnchor(
         type: com.spatialkit.engine.AnchorType,
         id: String = SpatialAnchor.generateId(),
     ): SpatialAnchor {
@@ -167,7 +167,7 @@ class SpatialScene {
      * @param id Anchor ID
      * @return Anchor or null if not found
      */
-    fun getAnchor(id: String): SpatialAnchor? = lock.withLock { anchors[id] }
+    public fun getAnchor(id: String): SpatialAnchor? = lock.withLock { anchors[id] }
 
     /**
      * Remove an anchor from the scene.
@@ -175,7 +175,7 @@ class SpatialScene {
      * @param id Anchor ID to remove
      * @return true if anchor was removed
      */
-    fun removeAnchor(id: String): Boolean = lock.withLock { anchors.remove(id) != null }
+    public fun removeAnchor(id: String): Boolean = lock.withLock { anchors.remove(id) != null }
 
     /**
      * Remove an anchor from the scene.
@@ -183,7 +183,7 @@ class SpatialScene {
      * @param anchor Anchor to remove
      * @return true if anchor was removed
      */
-    fun removeAnchor(anchor: SpatialAnchor): Boolean = removeAnchor(anchor.id)
+    public fun removeAnchor(anchor: SpatialAnchor): Boolean = removeAnchor(anchor.id)
 
     /**
      * Update anchor states from engine frame data.

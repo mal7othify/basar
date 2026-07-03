@@ -109,7 +109,7 @@ private class ARViewDelegate(
 }
 
 @OptIn(ExperimentalForeignApi::class)
-class ARKitEngine : SpatialEngine {
+public class ARKitEngine : SpatialEngine {
     private var arSession: ARSession? = null
     private var arView: ARSCNView? = null
     private var currentConfig: EngineConfig? = null
@@ -190,7 +190,7 @@ class ARKitEngine : SpatialEngine {
      * }
      * ```
      */
-    fun setARView(view: ARSCNView) {
+    public fun setARView(view: ARSCNView) {
         arView = view
         arSession = view.session
         viewportSize =
@@ -216,7 +216,7 @@ class ARKitEngine : SpatialEngine {
         view.delegate = viewDelegate
     }
 
-    fun updateViewportSize(
+    public fun updateViewportSize(
         width: Double,
         height: Double,
     ) {
@@ -952,6 +952,6 @@ class ARKitEngine : SpatialEngine {
     }
 }
 
-fun createARKitEngine(): SpatialEngine = ARKitEngine()
+public fun createARKitEngine(): SpatialEngine = ARKitEngine()
 
-fun isARKitAvailable(): Boolean = ARWorldTrackingConfiguration.isSupported
+public fun isARKitAvailable(): Boolean = ARWorldTrackingConfiguration.isSupported

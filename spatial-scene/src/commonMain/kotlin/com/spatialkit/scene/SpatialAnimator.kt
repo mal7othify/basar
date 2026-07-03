@@ -33,7 +33,7 @@ import kotlin.math.sin
  * }
  * ```
  */
-class SpatialAnimator {
+public class SpatialAnimator {
     private val activeAnimations = mutableListOf<Animation>()
 
     /**
@@ -47,7 +47,7 @@ class SpatialAnimator {
      * @param onComplete Optional callback when animation finishes
      * @return The created animation
      */
-    fun animatePosition(
+    public fun animatePosition(
         node: SpatialNode,
         from: Vec3,
         to: Vec3,
@@ -80,7 +80,7 @@ class SpatialAnimator {
      * @param onComplete Optional callback when animation finishes
      * @return The created animation
      */
-    fun animateRotation(
+    public fun animateRotation(
         node: SpatialNode,
         from: Quaternion,
         to: Quaternion,
@@ -113,7 +113,7 @@ class SpatialAnimator {
      * @param onComplete Optional callback when animation finishes
      * @return The created animation
      */
-    fun animateScale(
+    public fun animateScale(
         node: SpatialNode,
         from: Vec3,
         to: Vec3,
@@ -141,7 +141,7 @@ class SpatialAnimator {
      *
      * @param deltaTime Time elapsed since last frame in seconds
      */
-    fun update(deltaTime: Float) {
+    public fun update(deltaTime: Float) {
         val iterator = activeAnimations.iterator()
         while (iterator.hasNext()) {
             val animation = iterator.next()
@@ -159,38 +159,38 @@ class SpatialAnimator {
      *
      * @param animation The animation to cancel
      */
-    fun cancel(animation: Animation) {
+    public fun cancel(animation: Animation) {
         activeAnimations.remove(animation)
     }
 
     /**
      * Stop all animations.
      */
-    fun cancelAll() {
+    public fun cancelAll() {
         activeAnimations.clear()
     }
 
     /**
      * Get the number of active animations.
      */
-    val animationCount: Int
+    public val animationCount: Int
         get() = activeAnimations.size
 }
 
 /**
  * Base class for animations.
  */
-sealed class Animation {
-    abstract val duration: Float
-    abstract val easing: Easing
-    abstract val onComplete: (() -> Unit)?
+public sealed class Animation {
+    public abstract val duration: Float
+    public abstract val easing: Easing
+    public abstract val onComplete: (() -> Unit)?
 
     internal var elapsedTime: Float = 0f
 
-    val isComplete: Boolean
+    public val isComplete: Boolean
         get() = elapsedTime >= duration
 
-    val progress: Float
+    public val progress: Float
         get() = (elapsedTime / duration).coerceIn(0f, 1f)
 
     internal abstract fun update(deltaTime: Float)
@@ -255,7 +255,7 @@ internal class ScaleAnimation(
  *
  * Transform the linear progress (0-1) into eased progress.
  */
-enum class Easing {
+public enum class Easing {
     /** No easing - constant speed */
     Linear {
         override fun apply(t: Float): Float = t
@@ -327,5 +327,5 @@ enum class Easing {
     },
     ;
 
-    abstract fun apply(t: Float): Float
+    public abstract fun apply(t: Float): Float
 }

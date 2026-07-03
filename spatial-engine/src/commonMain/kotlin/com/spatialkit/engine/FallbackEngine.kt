@@ -14,7 +14,7 @@ package com.spatialkit.engine
  * - Testing without AR hardware
  * - Graceful degradation for unsupported devices
  */
-class FallbackEngine : SpatialEngine {
+public class FallbackEngine : SpatialEngine {
     private var _state: EngineState = EngineState.Uninitialized
     private var frameCallback: ((FrameData) -> Unit)? = null
 

@@ -23,7 +23,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * val meshNode = loader.loadFirstMesh()
  * ```
  */
-class GltfLoader(private val json: String) {
+public class GltfLoader(private val json: String) {
 
     private val buffers = mutableMapOf<Int, ByteArray>()
 
@@ -33,7 +33,7 @@ class GltfLoader(private val json: String) {
      * @param color Color to apply to the mesh
      * @return CustomMeshNode or null if no mesh found
      */
-    fun loadFirstMesh(color: Color = Color.White): CustomMeshNode? {
+    public fun loadFirstMesh(color: Color = Color.White): CustomMeshNode? {
         val geometry = parseGeometry() ?: return null
         return CustomMeshNode(geometry, color)
     }
@@ -41,7 +41,7 @@ class GltfLoader(private val json: String) {
     /**
      * Parses geometry data from the GLTF.
      */
-    fun parseGeometry(): GeometryData? {
+    public fun parseGeometry(): GeometryData? {
         // Parse buffers first
         parseBuffers()
 

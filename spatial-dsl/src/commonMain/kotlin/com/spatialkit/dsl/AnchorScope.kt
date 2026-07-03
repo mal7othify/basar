@@ -15,7 +15,7 @@ import com.spatialkit.scene.SphereNode
  * tracked position. The anchor's position updates as tracking updates.
  */
 @SpatialDsl
-class AnchorScope(
+public class AnchorScope(
     private val anchor: SpatialAnchor,
     private val scene: SpatialScene,
 ) {
@@ -42,7 +42,7 @@ class AnchorScope(
     /**
      * Creates a cube node anchored to this spatial anchor.
      */
-    fun cube(
+    public fun cube(
         size: Float = 0.1f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
@@ -56,7 +56,7 @@ class AnchorScope(
     /**
      * Creates a sphere node anchored to this spatial anchor.
      */
-    fun sphere(
+    public fun sphere(
         radius: Float = 0.05f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
@@ -70,7 +70,7 @@ class AnchorScope(
     /**
      * Creates a group node anchored to this spatial anchor.
      */
-    fun group(
+    public fun group(
         id: String = SpatialNode.generateId(),
         configure: GroupScope.() -> Unit,
     ): GroupNode {

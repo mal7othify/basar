@@ -1,8 +1,11 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
+    explicitApi()
+
     // Enable default hierarchy for iosMain shared source set
     applyDefaultHierarchyTemplate()
 
@@ -19,8 +22,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":spatial-engine"))
-//            implementation(project(":spatial-core"))
+            // api: createARKitEngine() returns SpatialEngine; ARKitEngine
+            // imports spatial-core math types directly
+            api(project(":spatial-engine"))
+            api(project(":spatial-core"))
         }
 
         iosMain.dependencies {

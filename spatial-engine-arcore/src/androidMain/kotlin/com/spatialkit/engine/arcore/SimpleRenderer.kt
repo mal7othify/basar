@@ -37,7 +37,7 @@ private data class GeometryBuffers(
  * Renders the AR camera background as a fullscreen texture, then renders 3D scene nodes on top.
  * This is a minimal implementation - a production app would use Filament or SceneView.
  */
-class SimpleRenderer(
+public class SimpleRenderer(
     private val context: Context,
 ) {
     private var cameraTextureId: Int = 0
@@ -238,12 +238,12 @@ class SimpleRenderer(
         return shader
     }
 
-    fun getCameraTextureId(): Int = cameraTextureId
+    public fun getCameraTextureId(): Int = cameraTextureId
 
     /**
      * Initialize OpenGL resources (must be called from GL thread)
      */
-    fun initialize() {
+    public fun initialize() {
         if (isInitialized) return
 
         println("SimpleRenderer: Initializing OpenGL resources")
@@ -256,7 +256,7 @@ class SimpleRenderer(
         println("SimpleRenderer: Initialization complete")
     }
 
-    fun resize(
+    public fun resize(
         width: Int,
         height: Int,
     ) {
@@ -266,14 +266,14 @@ class SimpleRenderer(
     /**
      * Update the scene with new data.
      */
-    fun updateScene(sceneData: SceneData) {
+    public fun updateScene(sceneData: SceneData) {
         sceneLock.withLock {
             sceneNodes.clear()
             sceneNodes.addAll(sceneData.nodes)
         }
     }
 
-    fun render(
+    public fun render(
         frame: Frame,
         arCamera: Camera,
     ) {
@@ -306,7 +306,7 @@ class SimpleRenderer(
      * Render only the camera background (used when camera isn't tracking yet).
      * This prevents the brown screen during initialization.
      */
-    fun renderCameraOnly(
+    public fun renderCameraOnly(
         frame: Frame,
         arCamera: Camera,
     ) {
@@ -912,7 +912,7 @@ class SimpleRenderer(
      * @param direction Ray direction (should be normalized)
      * @return Closest intersection or null if no hit
      */
-    fun performRaycast(
+    public fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? {
@@ -1115,7 +1115,7 @@ class SimpleRenderer(
      * Clean up all OpenGL resources.
      * Must be called when the renderer is no longer needed.
      */
-    fun destroy() {
+    public fun destroy() {
         // Delete all OpenGL resources to prevent GPU memory leaks
 
         // Delete textures
