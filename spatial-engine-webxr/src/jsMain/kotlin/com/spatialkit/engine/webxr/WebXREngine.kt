@@ -785,7 +785,7 @@ public class WebXREngine : SpatialEngine {
                 supportsHandTracking = true,
                 supportsDepthOcclusion = false,
                 supportsSpatialAnchors = supportsAR,
-                maxAnchors = 0,
+                maxAnchors = null, // WebXR imposes no fixed anchor limit
             )
         } else {
             EngineCapabilities(

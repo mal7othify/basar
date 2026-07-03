@@ -150,6 +150,7 @@ public enum class GeometryType {
  * @property metallic Metallic factor for PBR (0=dielectric, 1=metal)
  * @property roughness Roughness factor for PBR (0=smooth, 1=rough)
  * @property textureId Optional texture identifier (platform-specific)
+ * @property doubleSided Render both faces (disables back-face culling)
  */
 public data class MaterialData(
     val type: MaterialType,
@@ -157,6 +158,7 @@ public data class MaterialData(
     val metallic: Float = 0f,
     val roughness: Float = 0.5f,
     val textureId: String? = null,
+    val doubleSided: Boolean = false,
 )
 
 /**

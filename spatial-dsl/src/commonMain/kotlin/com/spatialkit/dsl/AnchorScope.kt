@@ -1,5 +1,7 @@
 package com.spatialkit.dsl
 
+import com.spatialkit.core.math.Quaternion
+import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
 import com.spatialkit.scene.CubeNode
 import com.spatialkit.scene.GroupNode
@@ -11,32 +13,45 @@ import com.spatialkit.scene.SphereNode
 /**
  * DSL scope for building content attached to spatial anchors.
  *
- * Content added in this scope is positioned relative to the anchor's
- * tracked position. The anchor's position updates as tracking updates.
+ * Content created in this scope is positioned relative to the anchor: the
+ * position/rotation set at creation time are treated as offsets from the
+ * anchor's pose. Whenever tracking (re)starts, nodes are repositioned from
+ * those stored offsets — losing and regaining tracking does not accumulate.
  */
 @SpatialDsl
 public class AnchorScope(
     private val anchor: SpatialAnchor,
     private val scene: SpatialScene,
 ) {
-    private val anchoredNodes = mutableListOf<SpatialNode>()
+    /**
+     * Local offset of a node relative to the anchor, captured when the node
+     * is registered.
+     */
+    private class AnchorOffset(
+        val node: SpatialNode,
+        val position: Vec3,
+        val rotation: Quaternion,
+    )
+
+    private val anchoredNodes = mutableListOf<AnchorOffset>()
 
     init {
-        // When anchor starts tracking, attach nodes
+        // Whenever the anchor (re)starts tracking, place nodes at the anchor
+        // pose plus their captured local offset. Recomputing from the stored
+        // offset keeps repeated LOST -> TRACKING transitions from drifting.
         anchor.onTrack {
-            anchoredNodes.forEach { node ->
-                if (anchor.pose != null) {
-                    // Position nodes at anchor location
-                    node.position = anchor.pose!!.position + node.position
-                    node.rotation = anchor.pose!!.rotation * node.rotation
-                }
+            val pose = anchor.pose ?: return@onTrack
+            anchoredNodes.forEach { entry ->
+                entry.node.position = pose.position + (pose.rotation * entry.position)
+                entry.node.rotation = pose.rotation * entry.rotation
             }
         }
+    }
 
-        // When anchor loses tracking, could hide nodes
-        anchor.onLost {
-            // Optionally hide or remove nodes
-        }
+    private fun <T : SpatialNode> register(node: T): T {
+        anchoredNodes.add(AnchorOffset(node, node.position, node.rotation))
+        scene.add(node)
+        return node
     }
 
     /**
@@ -47,11 +62,7 @@ public class AnchorScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CubeNode.() -> Unit = {},
-    ): CubeNode =
-        CubeNode(size, color, id).apply(configure).also {
-            anchoredNodes.add(it)
-            scene.add(it)
-        }
+    ): CubeNode = register(CubeNode(size, color, id).apply(configure))
 
     /**
      * Creates a sphere node anchored to this spatial anchor.
@@ -61,11 +72,7 @@ public class AnchorScope(
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: SphereNode.() -> Unit = {},
-    ): SphereNode =
-        SphereNode(radius, color, id).apply(configure).also {
-            anchoredNodes.add(it)
-            scene.add(it)
-        }
+    ): SphereNode = register(SphereNode(radius, color, id).apply(configure))
 
     /**
      * Creates a group node anchored to this spatial anchor.
@@ -76,8 +83,6 @@ public class AnchorScope(
     ): GroupNode {
         val group = GroupNode(id)
         GroupScope(group).configure()
-        anchoredNodes.add(group)
-        scene.add(group)
-        return group
+        return register(group)
     }
 }

@@ -1,5 +1,6 @@
 package com.spatialkit.scene
 
+import com.spatialkit.core.annotations.ExperimentalSpatialApi
 import com.spatialkit.core.types.Color
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
@@ -14,7 +15,14 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * - Basic mesh primitives (POSITION, NORMAL, indices)
  * - Single mesh extraction
  *
- * For production use, consider a full GLTF library.
+ * Known limitations (this loader scans the JSON textually rather than parsing
+ * it): accessor `byteOffset` and bufferView `byteStride` are ignored, POSITION
+ * and NORMAL accessors are assumed to be tightly packed VEC3 floats, and only
+ * the first mesh primitive is read. Files produced by exporters that use
+ * interleaved or offset buffer layouts will load incorrectly.
+ *
+ * For production assets, use a full glTF library and feed the result into
+ * [CustomMeshNode] via [GeometryData].
  *
  * Usage:
  * ```kotlin
@@ -23,6 +31,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * val meshNode = loader.loadFirstMesh()
  * ```
  */
+@ExperimentalSpatialApi
 public class GltfLoader(private val json: String) {
 
     private val buffers = mutableMapOf<Int, ByteArray>()

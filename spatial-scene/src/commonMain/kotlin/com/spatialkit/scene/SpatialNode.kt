@@ -67,13 +67,18 @@ public abstract class SpatialNode(
 
     /**
      * World-space position (accumulated from parent chain).
+     *
+     * Applies the full parent transform: the local position is scaled by the
+     * parent's world scale, rotated by the parent's world rotation, then offset
+     * by the parent's world position — matching what renderers display.
      */
     public val worldPosition: Vec3
         get() {
             val p = parent
             return if (p != null) {
-                // Transform local position by parent's world transform
-                (p.worldRotation * position) + p.worldPosition
+                val ps = p.worldScale
+                val scaled = Vec3(position.x * ps.x, position.y * ps.y, position.z * ps.z)
+                (p.worldRotation * scaled) + p.worldPosition
             } else {
                 position
             }
@@ -114,8 +119,19 @@ public abstract class SpatialNode(
      * The child will inherit this node's transform.
      *
      * @param child Node to add as child
+     * @throws IllegalArgumentException if [child] is this node or an ancestor
+     *   of it (which would create a cycle in the scene graph)
      */
     public fun addChild(child: SpatialNode) {
+        require(child !== this) { "Cannot add a node as a child of itself (id=$id)" }
+        var ancestor = parent
+        while (ancestor != null) {
+            require(ancestor !== child) {
+                "Cannot add ancestor node '${child.id}' as a child of '$id' (cycle)"
+            }
+            ancestor = ancestor.parent
+        }
+
         // Remove from previous parent if any
         child.parent?.removeChild(child)
 
@@ -178,37 +194,12 @@ public abstract class SpatialNode(
     internal abstract fun toSceneNode(): SceneNode
 
     public companion object {
-        private var nodeCounter = 0
-
         /**
          * Generate a unique node ID.
+         *
+         * Uses 64 bits of randomness: safe to call from any thread and the
+         * collision probability is negligible.
          */
-        public fun generateId(): String = "node-${nodeCounter++}-${Random.nextInt(1000)}"
+        public fun generateId(): String = "node-${Random.nextLong().toULong().toString(16)}"
     }
-}
-
-/**
- * Extension to rotate a Vec3 by a Quaternion.
- */
-public fun Quaternion.rotate(v: Vec3): Vec3 {
-    // Quaternion rotation: v' = q * v * q^-1
-    // Optimized version without creating intermediate quaternions
-
-    val qx = this.x
-    val qy = this.y
-    val qz = this.z
-    val qw = this.w
-
-    // First: q * v
-    val ix = qw * v.x + qy * v.z - qz * v.y
-    val iy = qw * v.y + qz * v.x - qx * v.z
-    val iz = qw * v.z + qx * v.y - qy * v.x
-    val iw = -qx * v.x - qy * v.y - qz * v.z
-
-    // Second: result * q^-1 (conjugate for unit quaternion)
-    return Vec3(
-        x = ix * qw + iw * -qx + iy * -qz - iz * -qy,
-        y = iy * qw + iw * -qy + iz * -qx - ix * -qz,
-        z = iz * qw + iw * -qz + ix * -qy - iy * -qx,
-    )
 }

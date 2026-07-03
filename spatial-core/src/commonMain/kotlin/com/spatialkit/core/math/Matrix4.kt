@@ -21,14 +21,40 @@ import kotlin.math.tan
  * [ m3  m7  m11 m15 ]   [ 3  7  11 15 ]
  * ```
  *
- * @property m The 16 matrix elements in column-major order
+ * Instances are immutable: the constructor copies the input array, and the
+ * elements are exposed through [get] and [toFloatArray] (which returns a copy).
  */
-public data class Matrix4(
-    val m: FloatArray,
+public class Matrix4 private constructor(
+    internal val m: FloatArray,
+    @Suppress("UNUSED_PARAMETER") direct: Boolean,
 ) {
+    /**
+     * Creates a matrix from 16 elements in column-major order.
+     * The array is copied; later mutation of [values] does not affect the matrix.
+     */
+    public constructor(values: FloatArray) : this(values.copyOf(), true)
+
     init {
         require(m.size == 16) { "Matrix4 requires exactly 16 elements" }
     }
+
+    /**
+     * Returns the element at [index] (column-major, 0..15).
+     */
+    public operator fun get(index: Int): Float = m[index]
+
+    /**
+     * Returns the element at [row], [col] (0..3 each).
+     */
+    public operator fun get(
+        row: Int,
+        col: Int,
+    ): Float = m[col * 4 + row]
+
+    /**
+     * Returns the 16 elements in column-major order as a new array.
+     */
+    public fun toFloatArray(): FloatArray = m.copyOf()
 
     /**
      * Multiplies this matrix by another matrix.
@@ -47,7 +73,7 @@ public data class Matrix4(
                     m[12 + row] * other.m[col * 4 + 3]
             }
         }
-        return Matrix4(result)
+        return of(result)
     }
 
     /**
@@ -89,7 +115,7 @@ public data class Matrix4(
      * @return A new transposed matrix
      */
     public fun transpose(): Matrix4 =
-        Matrix4(
+        of(
             floatArrayOf(
                 m[0],
                 m[4],
@@ -165,7 +191,7 @@ public data class Matrix4(
             inv[i] *= invDet
         }
 
-        return Matrix4(inv)
+        return of(inv)
     }
 
     /**
@@ -197,11 +223,14 @@ public data class Matrix4(
     override fun hashCode(): Int = m.contentHashCode()
 
     public companion object {
+        /** Wraps a freshly allocated array without copying. */
+        private fun of(values: FloatArray): Matrix4 = Matrix4(values, true)
+
         /**
          * Creates an identity matrix.
          */
         public fun identity(): Matrix4 =
-            Matrix4(
+            of(
                 floatArrayOf(
                     1f,
                     0f,
@@ -235,7 +264,7 @@ public data class Matrix4(
             y: Float,
             z: Float,
         ): Matrix4 =
-            Matrix4(
+            of(
                 floatArrayOf(
                     1f,
                     0f,
@@ -283,7 +312,7 @@ public data class Matrix4(
             val wy = q.w * q.y
             val wz = q.w * q.z
 
-            return Matrix4(
+            return of(
                 floatArrayOf(
                     1f - 2f * (yy + zz),
                     2f * (xy + wz),
@@ -318,7 +347,7 @@ public data class Matrix4(
             y: Float,
             z: Float,
         ): Matrix4 =
-            Matrix4(
+            of(
                 floatArrayOf(
                     x,
                     0f,
@@ -373,7 +402,7 @@ public data class Matrix4(
             val tanHalfFov = tan(fov / 2f)
             val range = far - near
 
-            return Matrix4(
+            return of(
                 floatArrayOf(
                     1f / (aspectRatio * tanHalfFov),
                     0f,
@@ -418,7 +447,7 @@ public data class Matrix4(
             val height = top - bottom
             val depth = far - near
 
-            return Matrix4(
+            return of(
                 floatArrayOf(
                     2f / width,
                     0f,
@@ -457,7 +486,7 @@ public data class Matrix4(
             val right = forward.cross(up).normalized()
             val newUp = right.cross(forward)
 
-            return Matrix4(
+            return of(
                 floatArrayOf(
                     right.x,
                     newUp.x,

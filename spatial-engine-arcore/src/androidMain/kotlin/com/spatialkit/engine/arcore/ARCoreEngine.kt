@@ -676,7 +676,7 @@ public class ARCoreEngine(
             supportsHandTracking = false,
             supportsDepthOcclusion = supportsDepth,
             supportsSpatialAnchors = true,
-            maxAnchors = 0,
+            maxAnchors = null, // ARCore imposes no fixed anchor limit
         )
     }
 

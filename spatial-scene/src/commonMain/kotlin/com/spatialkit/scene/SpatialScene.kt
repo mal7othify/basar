@@ -10,20 +10,28 @@ import com.spatialkit.engine.SceneData
  * - Spatial anchors
  * - Conversion to immutable engine SceneData
  *
- * Thread-safe operations for concurrent access from user code.
+ * ### Threading
+ *
+ * Structural scene operations (add/remove/clear, anchor create/remove, and the
+ * snapshot taken by `toSceneData()`) are synchronized and may be called from
+ * any thread. **Node state is not synchronized**: a node's transform
+ * properties (`position`, `rotation`, `scale`, `visible`) and its child list
+ * (`addChild`/`removeChild`) must only be mutated from the session's frame
+ * callback (or before the session starts). Mutating node state from another
+ * thread while a session is running races with the per-frame scene snapshot.
  *
  * Usage:
  * ```kotlin
  * val scene = SpatialScene()
  *
  * // Add nodes
- * val cube = CubeNode(size = 0.1f, color = Color.RED)
+ * val cube = CubeNode(size = 0.1f, color = Color.Red)
  * cube.position = Vec3(0f, 0f, -1f)
  * scene.add(cube)
  *
  * // Create hierarchy
  * val group = GroupNode()
- * group.addChild(SphereNode(color = Color.BLUE))
+ * group.addChild(SphereNode(color = Color.Blue))
  * scene.add(group)
  *
  * // Create anchor
@@ -34,10 +42,11 @@ import com.spatialkit.engine.SceneData
  * ```
  */
 public class SpatialScene {
-    // Synchronized collections for thread safety
+    // Structural (root list / anchor map) operations are guarded by [lock];
+    // node-level state is intentionally not (see class KDoc "Threading").
     private val rootNodes = mutableListOf<SpatialNode>()
     private val anchors = mutableMapOf<String, SpatialAnchor>()
-    private val lock = SpatialLock() // Synchronization lock
+    private val lock = SpatialLock()
 
     /**
      * All root-level nodes in the scene.

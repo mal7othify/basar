@@ -143,7 +143,8 @@ public interface SpatialEngine {
  * @property supportsHandTracking Can track hand/finger poses
  * @property supportsDepthOcclusion Can occlude virtual objects with real world
  * @property supportsSpatialAnchors Can create persistent spatial anchors
- * @property maxAnchors Maximum number of simultaneous anchors (0 = unlimited)
+ * @property maxAnchors Maximum number of simultaneous anchors
+ *   (null = no engine-imposed limit, 0 = anchors unsupported)
  */
 public data class EngineCapabilities(
     val supportsAR: Boolean,
@@ -154,7 +155,7 @@ public data class EngineCapabilities(
     val supportsHandTracking: Boolean,
     val supportsDepthOcclusion: Boolean,
     val supportsSpatialAnchors: Boolean,
-    val maxAnchors: Int,
+    val maxAnchors: Int? = null,
 )
 
 /**
@@ -220,11 +221,9 @@ public sealed interface SessionMode {
  * @property preferredMode Preferred session mode (engine may fall back)
  * @property enablePlaneDetection Enable plane detection (AR)
  * @property enableLightEstimation Enable light estimation (AR)
- * @property targetFrameRate Desired frame rate (actual may differ)
  */
 public data class EngineConfig(
     val preferredMode: SessionMode = SessionMode.AR,
     val enablePlaneDetection: Boolean = true,
     val enableLightEstimation: Boolean = false,
-    val targetFrameRate: Int = 60,
 )

@@ -80,11 +80,15 @@ public data class Transform(
 
     /**
      * Returns the forward direction of this transform in world space.
-     * Forward is the local positive Z-axis transformed by this rotation.
+     *
+     * Forward is local [Vec3.FORWARD] (0, 0, -1) transformed by this rotation —
+     * the library-wide right-handed convention (OpenGL/WebXR/ARKit style).
+     * A transform created with [lookingAt] therefore satisfies
+     * `forward() == direction to target`.
      *
      * @return The forward direction
      */
-    public fun forward(): Vec3 = rotation * Vec3(0f, 0f, 1f)
+    public fun forward(): Vec3 = rotation * Vec3.FORWARD
 
     /**
      * Returns the right direction of this transform in world space.

@@ -21,8 +21,8 @@ import androidx.compose.ui.unit.dp
 import com.spatialkit.compose.SpatialView
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
-import com.spatialkit.dsl.cm
-import com.spatialkit.dsl.degrees
+import com.spatialkit.core.math.cm
+import com.spatialkit.core.math.degrees
 import com.spatialkit.dsl.rgb
 import com.spatialkit.dsl.vec3
 import com.spatialkit.engine.FrameData

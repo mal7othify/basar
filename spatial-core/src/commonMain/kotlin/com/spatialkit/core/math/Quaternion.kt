@@ -46,14 +46,25 @@ public data class Quaternion(
     /**
      * Rotates a 3D vector by this quaternion.
      *
+     * Computes q * v * q⁻¹ with the intermediate products expanded inline,
+     * so no temporary Quaternion instances are allocated.
+     *
      * @param vec The vector to rotate
      * @return The rotated vector
      */
     public operator fun times(vec: Vec3): Vec3 {
-        // Convert to quaternion multiplication: q * v * q^-1
-        val qVec = Quaternion(vec.x, vec.y, vec.z, 0f)
-        val result = this * qVec * conjugate()
-        return Vec3(result.x, result.y, result.z)
+        // t = q * (v, 0)
+        val ix = w * vec.x + y * vec.z - z * vec.y
+        val iy = w * vec.y + z * vec.x - x * vec.z
+        val iz = w * vec.z + x * vec.y - y * vec.x
+        val iw = -x * vec.x - y * vec.y - z * vec.z
+
+        // result = t * conjugate(q)
+        return Vec3(
+            ix * w - iw * x - iy * z + iz * y,
+            iy * w - iw * y - iz * x + ix * z,
+            iz * w - iw * z - ix * y + iy * x,
+        )
     }
 
     /**
@@ -185,18 +196,18 @@ public data class Quaternion(
 
     /**
      * Converts this quaternion to Euler angles (in radians).
-     * Returns a Vec3 where x = pitch, y = yaw, z = roll.
+     *
+     * Returns a Vec3 where x = pitch (X-axis), y = yaw (Y-axis), z = roll
+     * (Z-axis), matching [fromEuler]'s parameters and composition order, so
+     * `fromEuler(q.toEulerAngles())` reproduces the rotation. Near the gimbal
+     * singularity (pitch = ±90°) yaw and roll are not uniquely defined and one
+     * valid decomposition is returned.
      *
      * @return Euler angles in radians
      */
     public fun toEulerAngles(): Vec3 {
-        // Roll (x-axis rotation)
-        val sinRCosP = 2 * (w * x + y * z)
-        val cosRCosP = 1 - 2 * (x * x + y * y)
-        val roll = atan2(sinRCosP, cosRCosP)
-
-        // Pitch (y-axis rotation)
-        val sinP = 2 * (w * y - z * x)
+        // Pitch (X-axis rotation)
+        val sinP = 2 * (w * x - y * z)
         val pitch =
             if (abs(sinP) >= 1) {
                 (PI.toFloat() / 2) * sign(sinP) // Use 90 degrees if out of range
@@ -204,10 +215,15 @@ public data class Quaternion(
                 asin(sinP)
             }
 
-        // Yaw (z-axis rotation)
-        val sinYCosP = 2 * (w * z + x * y)
-        val cosYCosP = 1 - 2 * (y * y + z * z)
+        // Yaw (Y-axis rotation)
+        val sinYCosP = 2 * (w * y + z * x)
+        val cosYCosP = 1 - 2 * (x * x + y * y)
         val yaw = atan2(sinYCosP, cosYCosP)
+
+        // Roll (Z-axis rotation)
+        val sinRCosP = 2 * (w * z + x * y)
+        val cosRCosP = 1 - 2 * (z * z + x * x)
+        val roll = atan2(sinRCosP, cosRCosP)
 
         return Vec3(pitch, yaw, roll)
     }
@@ -322,21 +338,80 @@ public data class Quaternion(
 
         /**
          * Creates a quaternion that looks in a specific direction.
-         * This rotation will make the object's local forward direction (0, 0, 1)
-         * point in the specified world direction.
+         *
+         * The library convention is right-handed with forward = [Vec3.FORWARD]
+         * (0, 0, -1), matching OpenGL/WebXR/ARKit. The resulting rotation maps
+         * local FORWARD onto [forward] and keeps local up as close to [up] as
+         * possible (no roll around the forward axis).
+         *
+         * If [forward] is zero-length, returns [IDENTITY]. If [forward] is
+         * parallel to [up], an arbitrary but stable up reference is used instead.
          *
          * @param forward The forward direction in world space
-         * @param up The up direction (defaults to Vec3.UP)
+         * @param up The up direction hint (defaults to Vec3.UP)
          * @return A new quaternion representing the rotation
          */
         public fun lookRotation(
             forward: Vec3,
             up: Vec3 = Vec3.UP,
         ): Quaternion {
-            // Use fromToRotation to create a rotation from default forward to target forward
-            // Default forward in object space is (0, 0, 1)
-            val defaultForward = Vec3(0f, 0f, 1f)
-            return fromToRotation(defaultForward, forward.normalized())
+            val f = forward.normalized()
+            if (f.lengthSquared() < 0.000001f) return IDENTITY
+
+            // Basis: local FORWARD (-Z) maps to f, so the basis z-axis is -f.
+            val zAxis = -f
+            var xAxis = up.cross(zAxis)
+            if (xAxis.lengthSquared() < 0.000001f) {
+                // forward parallel to up: fall back to a stable reference
+                val reference = if (abs(zAxis.y) > 0.99f) Vec3.BACK else Vec3.UP
+                xAxis = reference.cross(zAxis)
+            }
+            xAxis = xAxis.normalized()
+            val yAxis = zAxis.cross(xAxis)
+
+            return fromAxes(xAxis, yAxis, zAxis)
+        }
+
+        /**
+         * Creates a quaternion from an orthonormal basis (rotation matrix columns).
+         */
+        private fun fromAxes(
+            xAxis: Vec3,
+            yAxis: Vec3,
+            zAxis: Vec3,
+        ): Quaternion {
+            val m00 = xAxis.x
+            val m10 = xAxis.y
+            val m20 = xAxis.z
+            val m01 = yAxis.x
+            val m11 = yAxis.y
+            val m21 = yAxis.z
+            val m02 = zAxis.x
+            val m12 = zAxis.y
+            val m22 = zAxis.z
+
+            val trace = m00 + m11 + m22
+            return when {
+                trace > 0f -> {
+                    val s = sqrt(trace + 1f) * 2f
+                    Quaternion((m21 - m12) / s, (m02 - m20) / s, (m10 - m01) / s, s / 4f)
+                }
+
+                m00 > m11 && m00 > m22 -> {
+                    val s = sqrt(1f + m00 - m11 - m22) * 2f
+                    Quaternion(s / 4f, (m01 + m10) / s, (m02 + m20) / s, (m21 - m12) / s)
+                }
+
+                m11 > m22 -> {
+                    val s = sqrt(1f + m11 - m00 - m22) * 2f
+                    Quaternion((m01 + m10) / s, s / 4f, (m12 + m21) / s, (m02 - m20) / s)
+                }
+
+                else -> {
+                    val s = sqrt(1f + m22 - m00 - m11) * 2f
+                    Quaternion((m02 + m20) / s, (m12 + m21) / s, s / 4f, (m10 - m01) / s)
+                }
+            }.normalized()
         }
     }
 }
