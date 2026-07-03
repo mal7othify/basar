@@ -177,6 +177,19 @@ public external class DirectionalLight(
 
 // === Math ===
 
+public external class Vector2(
+    x: Double = definedExternally,
+    y: Double = definedExternally,
+) {
+    public var x: Double
+    public var y: Double
+
+    public fun set(
+        x: Double,
+        y: Double,
+    ): Vector2
+}
+
 public external class Vector3(
     x: Double = definedExternally,
     y: Double = definedExternally,
@@ -265,6 +278,11 @@ public external class Raycaster(
     public fun set(
         origin: Vector3,
         direction: Vector3,
+    )
+
+    public fun setFromCamera(
+        coords: Vector2,
+        camera: Camera,
     )
 
     public fun intersectObjects(

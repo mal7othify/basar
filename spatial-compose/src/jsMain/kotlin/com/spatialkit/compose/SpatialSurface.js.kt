@@ -13,6 +13,7 @@ import com.spatialkit.scene.SpatialScene
 import com.spatialkit.scene.SpatialSession
 import kotlinx.browser.document
 import org.w3c.dom.HTMLButtonElement
+import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLDivElement
 
 /**
@@ -27,7 +28,25 @@ public actual fun SpatialSurface(
     session: SpatialSession,
     scene: SpatialScene,
 ) {
-    val webxrEngine = remember { WebXREngine() }
+    val webxrEngine =
+        remember {
+            WebXREngine().apply {
+                // Hide the Compose canvas while immersive XR runs (it would
+                // otherwise cover the camera feed), and restore it afterwards.
+                var previousBackground: String? = null
+                onEnterXR = {
+                    val composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
+                    composeCanvas?.style?.display = "none"
+                    previousBackground = document.body?.style?.background
+                    document.body?.style?.background = "transparent"
+                }
+                onExitXR = {
+                    val composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
+                    composeCanvas?.style?.display = ""
+                    document.body?.style?.background = previousBackground ?: ""
+                }
+            }
+        }
 
     // Set engine on runtime
     LaunchedEffect(webxrEngine) {

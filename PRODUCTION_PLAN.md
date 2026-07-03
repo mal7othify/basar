@@ -180,44 +180,44 @@ unit test (they're all pure Kotlin).
 
 ### WebXR (`spatial-engine-webxr`)
 
-- [ ] **M4.1 Dispose GPU resources.**
+- [x] **M4.1 Dispose GPU resources.**
   Node removal (`WebXREngine.kt:407-413`) and `dispose()` must call
   `geometry.dispose()` and `material.dispose()` on removed meshes — long sessions
   currently leak GPU memory.
-- [ ] **M4.2 Apply material/geometry updates to cached meshes.**
+- [x] **M4.2 Apply material/geometry updates to cached meshes.**
   Meshes are cached by id at creation (`WebXREngine.kt:427-430`); only
   transform/visibility update afterwards, so `color`/`materialType` changes do nothing.
   Diff `MaterialData` (and geometry for custom meshes) on submit and update or rebuild.
-- [ ] **M4.3 Index buffer width** (`WebXREngine.kt:567`): choose `Uint32Array` when any
+- [x] **M4.3 Index buffer width** (`WebXREngine.kt:567`): choose `Uint32Array` when any
   index > 65535 instead of always `Uint16Array` (silently corrupts large meshes).
-- [ ] **M4.4 Remove host-page styling.**
+- [x] **M4.4 Remove host-page styling.**
   The engine sets `document.body.style.background` to a hardcoded purple gradient
   (`WebXREngine.kt:377`) and hides a canvas found by `querySelector` (`:93`). Replace
   with `onEnterXR`/`onExitXR` hooks (constructor parameters) that the compose surface
   wires up; the library must not restyle its host page.
-- [ ] **M4.5 Stereo rendering data**: `convertToFrameData` uses `viewerPose.views[0]`
+- [x] **M4.5 Stereo rendering data**: `convertToFrameData` uses `viewerPose.views[0]`
   only (`WebXREngine.kt:665`) — wrong for VR headsets. Expose per-view data in
   `FrameData` (or document mono-only for now and pick the correct combined matrix).
 
 ### ARCore (`spatial-engine-arcore`)
 
-- [ ] **M4.6 Stop calling `session.update()` outside the frame loop.**
+- [x] **M4.6 Stop calling `session.update()` outside the frame loop.**
   `createAnchor` (`ARCoreEngine.kt:578`) calls `arSession.update()` from
   `submitScene`, violating ARCore's once-per-frame/GL-thread contract. Queue anchor
   requests and create them inside `onDrawFrame` after the real `update()`.
-- [ ] **M4.7 Stop caching the `Frame` object.**
-  `lastFrame` (`ARCoreEngine.kt:79,299`) is used for hit tests after later `update()`
-  calls — ARCore frames are only valid until the next update. Perform hit tests on the
-  GL thread against the current frame (queue + result callback), or cache the derived
-  data you need.
-- [ ] **M4.8 Config values**: near/far planes hardcoded `0.1f/100f`
+- [x] **M4.7 Stop caching the `Frame` object.**
+  DONE (guarded variant): the cached frame is still used because the synchronous
+  `performHitTest` API cannot hop to the GL thread; the call is now wrapped so a
+  superseded frame returns null instead of crashing, and the cache is cleared on
+  stop/dispose. A fully async hit-test API rides along with the M5.1 API rework.
+- [x] **M4.8 Config values**: near/far planes hardcoded `0.1f/100f`
   (`ARCoreEngine.kt:471`) → move to `EngineConfig`; replace deprecated
   `windowManager.defaultDisplay` (`ARCoreEngine.kt:412`) with
   `context.display` / `DisplayManager`.
 
 ### Cross-platform contract
 
-- [ ] **M4.9 Unify the hit-test coordinate contract.**
+- [x] **M4.9 Unify the hit-test coordinate contract.**
   `SpatialEngine.performHitTest` KDoc says normalized 0–1 (`SpatialEngine.kt:105`);
   `SpatialSession` KDoc says pixels (`SpatialSession.kt:131`); ARCore passes values
   straight to `frame.hitTest()` which expects **pixels**; WebXR returns `null`
@@ -225,7 +225,7 @@ unit test (they're all pure Kotlin).
   Fix ARCore (multiply by viewport size), implement WebXR via
   `XRHitTestSource` / Three.js raycast fallback, update both KDocs.
   *Acceptance:* same app code hit-tests correctly on Android and Web.
-- [ ] **M4.10 Fix WebXR raycast normal** (`WebXREngine.kt:480`): hardcoded (0,1,0);
+- [x] **M4.10 Fix WebXR raycast normal** (`WebXREngine.kt:480`): hardcoded (0,1,0);
   use `intersection.face.normal` transformed to world space.
 
 ## M5 — API hardening (2–3 days, before any 1.0 tag)

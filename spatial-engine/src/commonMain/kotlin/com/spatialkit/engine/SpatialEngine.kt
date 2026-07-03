@@ -221,9 +221,13 @@ public sealed interface SessionMode {
  * @property preferredMode Preferred session mode (engine may fall back)
  * @property enablePlaneDetection Enable plane detection (AR)
  * @property enableLightEstimation Enable light estimation (AR)
+ * @property nearPlane Near clipping plane distance in meters
+ * @property farPlane Far clipping plane distance in meters
  */
 public data class EngineConfig(
     val preferredMode: SessionMode = SessionMode.AR,
     val enablePlaneDetection: Boolean = true,
     val enableLightEstimation: Boolean = false,
+    val nearPlane: Float = 0.1f,
+    val farPlane: Float = 100f,
 )

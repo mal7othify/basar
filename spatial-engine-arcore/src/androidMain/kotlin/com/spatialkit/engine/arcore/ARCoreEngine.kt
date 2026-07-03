@@ -79,6 +79,13 @@ public class ARCoreEngine(
     @Volatile
     private var lastFrame: Frame? = null
 
+    // Current rendering surface size in pixels (for normalized hit-test coords)
+    @Volatile
+    private var surfaceWidth: Int = 0
+
+    @Volatile
+    private var surfaceHeight: Int = 0
+
     override val state: EngineState
         get() = _state
 
@@ -249,16 +256,18 @@ public class ARCoreEngine(
     override fun stopSession() {
         val arSession = session ?: return
 
+        lastFrame = null
         try {
             arSession.pause()
             _state = EngineState.Ready
         } catch (e: Exception) {
-            // Ignore errors on pause
+            SpatialLog.warn(TAG, e) { "error pausing ARCore session" }
         }
     }
 
     override fun dispose() {
         stopSession()
+        lastFrame = null
 
         // Clean up anchors
         anchorMap.values.forEach { it.detach() }
@@ -296,11 +305,20 @@ public class ARCoreEngine(
         screenX: Float,
         screenY: Float,
     ): HitTestResult? {
-        // Use cached frame - safe to call from main thread
+        // Contract: coordinates are normalized (0,0 = top-left, 1,1 = bottom-right).
+        // ARCore expects pixels, so scale by the current surface size.
+        if (surfaceWidth == 0 || surfaceHeight == 0) return null
         val frame: Frame = lastFrame ?: return null
 
-        // Perform ARCore hit test
-        val hits: List<HitResult> = frame.hitTest(screenX, screenY)
+        // The cached frame is superseded once the GL thread calls update();
+        // ARCore may reject hit tests against it, so guard the call.
+        val hits: List<HitResult> =
+            try {
+                frame.hitTest(screenX * surfaceWidth, screenY * surfaceHeight)
+            } catch (e: Exception) {
+                SpatialLog.debug(TAG) { "hitTest on superseded frame rejected: ${e.message}" }
+                return null
+            }
         val hit: HitResult = hits.firstOrNull() ?: return null
 
         val pose: Pose = hit.hitPose
@@ -402,10 +420,14 @@ public class ARCoreEngine(
     /**
      * Get the display rotation from the window manager.
      */
-    private fun getDisplayRotation(): Int {
-        val windowManager = context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
-        return windowManager.defaultDisplay.rotation
-    }
+    private fun getDisplayRotation(): Int =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            context.display?.rotation ?: Surface.ROTATION_0
+        } else {
+            @Suppress("DEPRECATION")
+            (context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager)
+                .defaultDisplay.rotation
+        }
 
     /**
      * Call this when the surface is created or changed.
@@ -414,6 +436,8 @@ public class ARCoreEngine(
         width: Int,
         height: Int,
     ) {
+        surfaceWidth = width
+        surfaceHeight = height
         renderer?.resize(width, height)
 
         // Get actual display rotation and pass it to ARCore
@@ -462,7 +486,8 @@ public class ARCoreEngine(
 
     private fun getProjectionMatrix(camera: Camera): FloatArray {
         val matrix = FloatArray(16)
-        camera.getProjectionMatrix(matrix, 0, 0.1f, 100f)
+        val config = currentConfig
+        camera.getProjectionMatrix(matrix, 0, config?.nearPlane ?: 0.1f, config?.farPlane ?: 100f)
         return matrix
     }
 
@@ -569,7 +594,6 @@ public class ARCoreEngine(
         if (anchorMap.containsKey(request.id)) return
 
         val arSession = session ?: return
-        val frame = arSession.update()
 
         val anchor =
             when (val type = request.type) {

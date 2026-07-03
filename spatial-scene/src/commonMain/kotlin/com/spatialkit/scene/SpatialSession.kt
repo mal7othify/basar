@@ -129,8 +129,10 @@ public class SpatialSession(
     /**
      * Perform a hit test from screen coordinates.
      *
-     * @param screenX X coordinate in pixels
-     * @param screenY Y coordinate in pixels
+     * Coordinates are normalized: (0,0) = top-left, (1,1) = bottom-right.
+     *
+     * @param screenX Normalized X coordinate (0-1)
+     * @param screenY Normalized Y coordinate (0-1)
      * @return Hit test result or null
      */
     public fun performHitTest(
