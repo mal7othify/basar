@@ -16,12 +16,12 @@ This module provides a complete ARKit-based implementation of the `SpatialEngine
 - Anchor management
 - Light estimation support
 - Transform conversions (ARKit ↔ Spatial-KMP)
-- Frame loop with callbacks
+- Frame loop with callbacks (driven by the ARSCNView render delegate)
+- Scene rendering via SceneKit (`submitScene` → `SCNNode` graph)
+- Hit testing (`ARSCNView.hitTest`) and raycasting
 
 ⚠️ **Partial / TODO:**
-- Scene rendering (SceneKit/Metal integration)
-- Hit testing
-- Raycasting
+- Custom mesh geometry (primitive shapes only)
 - Input sources
 - Image tracking
 - Face tracking
@@ -127,7 +127,7 @@ User callback
 2. **ARSession**: Apple's AR session (from ARKit framework)
 3. **Transform Conversion**: Converts ARKit's `simd_float4x4` to `Pose`
 4. **Plane Detection**: Converts `ARPlaneAnchor` to `DetectedPlane`
-5. **Frame Loop**: Delivers frames at 60 FPS via timer
+5. **Frame Loop**: Delivers frames from the ARSCNView render delegate (per ARKit frame)
 
 ## Implementation Details
 
@@ -168,11 +168,9 @@ Each plane includes:
 
 1. **VR Not Supported**: iOS doesn't have native VR APIs
 2. **Simulator**: ARKit requires physical device
-3. **Rendering**: Scene rendering not yet implemented
-   - Need SceneKit or Metal integration
-   - Currently just tracks AR state without visual output
-4. **Hit Testing**: Requires ARSCNView integration
-5. **Permissions**: App must request camera permission
+3. **Custom Meshes**: Only primitive shapes (cube, sphere, cylinder, plane) render;
+   arbitrary mesh geometry is not yet supported
+4. **Permissions**: App must request camera permission
 
 ## Performance
 
@@ -190,30 +188,11 @@ ARKit cannot be tested in the iOS Simulator. You must:
 
 ## Next Steps
 
-To complete the implementation:
-
-1. **Rendering Integration**:
-   ```swift
-   // Add SceneKit or Metal renderer
-   func submitScene(sceneData: SceneData) {
-       // Convert to SCNNodes or Metal buffers
-       // Update visual scene
-   }
-   ```
-
-2. **Hit Testing**:
-   ```swift
-   func performHitTest(screenX: Float, screenY: Float) -> HitTestResult? {
-       let results = arView.hitTest(CGPoint(x: screenX, y: screenY))
-       return results.first?.convertToHitTestResult()
-   }
-   ```
-
-3. **Advanced Features**:
-   - Image tracking
-   - Face tracking
-   - Body tracking
-   - People occlusion
+- Custom mesh geometry support in `submitScene`
+- Image tracking
+- Face tracking
+- Body tracking
+- People occlusion
 
 ## Resources
 
@@ -224,4 +203,4 @@ To complete the implementation:
 
 ## License
 
-[Your License Here]
+[Apache-2.0](../LICENSE)

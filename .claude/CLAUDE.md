@@ -30,7 +30,7 @@ need.
 - `spatial-engine` - Core renderer interface + abstractions (THE IMPORTANT PART)
 - `spatial-engine-webxr` - WebXR implementation (Kotlin/JS + Three.js)
 - `spatial-engine-arcore` - ARCore implementation (Android)
-- `spatial-engine-arkit` - ARKit implementation (iOS) - TODO
+- `spatial-engine-arkit` - ARKit implementation (iOS, SceneKit-backed)
 - `spatial-scene` - Scene graph built on engine requirements
 - `spatial-dsl` - Kotlin DSL for building scenes (zero-overhead syntax sugar)
 - `spatial-compose` - Compose Multiplatform integration
@@ -63,13 +63,13 @@ All core phases completed! Full architecture stack:
 
 - **Android**: ARCore engine + Compose integration ✅
 - **Web**: WebXR engine + Compose integration ✅
-- **iOS**: Compose integration ✅ (ARKit engine TODO)
+- **iOS**: ARKit engine (SceneKit) + Compose integration ✅ (custom meshes TODO)
 
 ### Next Steps
 
 The library foundation is complete. Ready for:
 - Example applications showcasing the full stack
-- Full ARKit engine implementation
+- ARKit: custom mesh support, on-device validation
 - Performance optimization and benchmarking
 - Advanced features (physics, gestures, lighting)
 

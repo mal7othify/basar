@@ -24,7 +24,7 @@ until `0.3.0`. Not yet published to Maven Central (Maven Local only, see
 - ✅ Full architecture stack: Compose integration → DSL → scene graph → engine contract → platform renderers
 - ✅ Android (ARCore) and Web (WebXR/Three.js) renderers
 - ✅ Engine contract with observable state (`StateFlow`) and awaitable session start
-- 🚧 iOS (ARKit) renderer — work in progress
+- ✅ iOS (ARKit + SceneKit) renderer — newest of the three; custom meshes not yet supported
 - 🚧 Samples and docs — in progress
 
 Progress is tracked milestone-by-milestone in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**.
@@ -237,7 +237,7 @@ fun Interactive() {
 |----------|------|-------------|-----|---------|----------------------|
 | Android  | ✅    | ✅           | ✅   | ✅       | ✅ ARCore             |
 | Web      | ✅    | ✅           | ✅   | ✅       | ✅ WebXR + Three.js   |
-| iOS      | ✅    | ✅           | ✅   | ✅       | 🚧 ARKit (in progress) |
+| iOS      | ✅    | ✅           | ✅   | ✅       | ✅ ARKit + SceneKit    |
 
 ## Modules
 
@@ -247,7 +247,7 @@ fun Interactive() {
 | `spatial-engine`        | Engine interface + abstractions               |
 | `spatial-engine-arcore` | ARCore renderer (Android)                     |
 | `spatial-engine-webxr`  | WebXR renderer (Web/Three.js)                 |
-| `spatial-engine-arkit`  | ARKit renderer (iOS) — in progress            |
+| `spatial-engine-arkit`  | ARKit renderer (iOS/SceneKit)                 |
 | `spatial-scene`         | Scene graph and session management            |
 | `spatial-dsl`           | Kotlin DSL builders and extensions            |
 | `spatial-compose`       | Compose Multiplatform integration             |
@@ -257,7 +257,7 @@ fun Interactive() {
 - **Kotlin**: 2.0+
 - **Compose Multiplatform**: 1.6+
 - **Android**: API 24+ (for ARCore)
-- **iOS**: iOS 13+ (ARKit engine in progress)
+- **iOS**: iOS 13+, physical device (ARKit does not run in the Simulator)
 - **Web**: Modern browser with WebXR support
 
 ## Building
@@ -284,10 +284,10 @@ fun Interactive() {
 
 ## Roadmap
 
-Tracked in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**: M0–M4 (hygiene, packaging,
-correctness, logging, renderers) are done; current work is M5 (API hardening),
-then M6 (CI, lint, API stability). After that: full ARKit engine, samples,
-gestures, physics.
+Tracked in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**: all milestones (M0–M6 —
+hygiene, packaging, correctness, logging, renderers, API hardening, CI and API
+stability) are done. Next up: first Maven Central release, sample apps,
+on-device validation and benchmarking, then gestures and physics.
 
 ## Documentation
 
@@ -319,4 +319,4 @@ Built with:
 - [Compose Multiplatform](https://www.jetbrains.com/lp/compose-multiplatform/)
 - [ARCore](https://developers.google.com/ar) (Android)
 - [WebXR](https://www.w3.org/TR/webxr/) + [Three.js](https://threejs.org/) (Web)
-- [ARKit](https://developer.apple.com/arkit/) (iOS — in progress)
+- [ARKit](https://developer.apple.com/arkit/) + SceneKit (iOS)
