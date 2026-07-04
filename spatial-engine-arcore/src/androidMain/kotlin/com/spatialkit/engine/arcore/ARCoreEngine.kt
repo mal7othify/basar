@@ -90,6 +90,14 @@ public class ARCoreEngine(
     @Volatile
     private var surfaceHeight: Int = 0
 
+    // Set when the surface size/rotation changes (or before the ARCore session
+    // exists); consumed on the GL thread in onDrawFrame(). The surface usually
+    // appears before the session finishes initializing, so applying display
+    // geometry only from onSurfaceChanged() would silently no-op and leave the
+    // camera background with degenerate UVs (a solid color instead of video).
+    @Volatile
+    private var displayGeometryDirty = true
+
     override val state: StateFlow<EngineState> = _state.asStateFlow()
 
     override val capabilities: EngineCapabilities
@@ -365,11 +373,23 @@ public class ARCoreEngine(
         }
 
         try {
+            // Apply pending display geometry before updating the session; the
+            // session is often created after the surface, so this cannot be
+            // done reliably from onSurfaceChanged().
+            if (displayGeometryDirty && surfaceWidth > 0 && surfaceHeight > 0) {
+                arSession.setDisplayGeometry(getDisplayRotation(), surfaceWidth, surfaceHeight)
+                displayGeometryDirty = false
+            }
+
             // Update ARCore session
             val textureId = arRenderer.getCameraTextureId()
             arSession.setCameraTextureName(textureId)
             val frame = arSession.update()
             val camera = frame.camera
+
+            // No camera image yet (session still warming up) — the external
+            // texture is undefined, so drawing would show garbage.
+            if (frame.timestamp == 0L) return
 
             // Cache frame for thread-safe access from main thread
             lastFrame = frame
@@ -444,10 +464,10 @@ public class ARCoreEngine(
         surfaceHeight = height
         renderer?.resize(width, height)
 
-        // Get actual display rotation and pass it to ARCore
-        val displayRotation = getDisplayRotation()
-        SpatialLog.debug(TAG) { "Display rotation: $displayRotation, size: ${width}x$height" }
-        session?.setDisplayGeometry(displayRotation, width, height)
+        SpatialLog.debug(TAG) { "Surface changed: ${width}x$height" }
+        // Applied on the GL thread in onDrawFrame(), where the session is
+        // guaranteed to exist.
+        displayGeometryDirty = true
     }
 
     // === Private Implementation ===

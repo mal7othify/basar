@@ -28,6 +28,7 @@ import kotlinx.cinterop.FloatVar
 import kotlinx.cinterop.Vector128
 import kotlinx.cinterop.Vector128Var
 import kotlinx.cinterop.allocArray
+import kotlinx.cinterop.autoreleasepool
 import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.pointed
@@ -106,10 +107,7 @@ private class ARViewDelegate(
         renderer: SCNSceneRendererProtocol,
         updateAtTime: Double,
     ) {
-        val arView = renderer as? ARSCNView ?: return
-        val frame = arView.session.currentFrame ?: return
-
-        engine.processFrame(frame)
+        engine.onRenderTick()
     }
 }
 
@@ -129,6 +127,9 @@ public class ARKitEngine : SpatialEngine {
     // SceneKit node management
     private val contentRoot = SCNNode()
     private val sceneNodeMap = mutableMapOf<String, SCNNode>()
+    // Last applied material per node id, to skip redundant per-frame
+    // SCNMaterial updates (each one invalidates SceneKit's render caches)
+    private val materialCache = mutableMapOf<String, MaterialData>()
     private var currentScene: SceneData? = null
 
     // Delegate for frame updates
@@ -301,10 +302,35 @@ public class ARKitEngine : SpatialEngine {
     }
 
     /**
-     * Process a frame update from ARKit.
-     * Called by the ARViewDelegate on each frame.
+     * Per-render-tick frame data that does not require touching an ARFrame.
      */
-    internal fun processFrame(frame: ARFrame) {
+    private class SampledFrameInfo(
+        val trackingState: TrackingState,
+        val detectedPlanes: List<DetectedPlane>,
+        val anchors: List<AnchorState>,
+        val lightEstimate: com.spatialkit.engine.LightEstimate?,
+        val projectionMatrix: FloatArray,
+        val viewMatrix: FloatArray,
+    )
+
+    private var tickCount = 0L
+    private var sampledFrameInfo: SampledFrameInfo? = null
+
+    /**
+     * Drive one frame of the engine. Called by the ARViewDelegate on each
+     * SceneKit render tick (~60 fps).
+     *
+     * IMPORTANT: an ARFrame accessed from Kotlin stays retained until the
+     * Kotlin/Native GC collects its wrapper. Touching `session.currentFrame`
+     * every tick therefore starves ARKit's fixed camera-buffer pool, which
+     * shows up as "No video frame received. Dropping frame!" logs and a
+     * collapsed frame rate. So the ARFrame is sampled only occasionally (for
+     * anchors/planes/light, which change slowly) inside an autorelease pool,
+     * while the per-tick camera pose comes from SceneKit's pointOfView node —
+     * no ARFrame needed.
+     */
+    @OptIn(kotlinx.cinterop.BetaInteropApi::class)
+    internal fun onRenderTick() {
         // Only process frames when session is running
         if (_state.value !is EngineState.Running) return
 
@@ -317,20 +343,64 @@ public class ARKitEngine : SpatialEngine {
             }
         lastFrameTime = currentTime
 
-        val frameData = convertARFrameToFrameData(frame, currentTime, deltaTime)
-        frameCallback?.invoke(frameData)
+        if (sampledFrameInfo == null || tickCount % FRAME_SAMPLE_INTERVAL == 0L) {
+            autoreleasepool {
+                arSession?.currentFrame?.let { frame ->
+                    sampledFrameInfo = sampleFrameInfo(frame)
+                }
+            }
+        }
+        tickCount++
+
+        val info = sampledFrameInfo ?: return
+        val cameraPose = currentCameraPose() ?: return
+
+        frameCallback?.invoke(
+            FrameData(
+                timestamp = currentTime,
+                deltaTime = deltaTime,
+                cameraPose = cameraPose,
+                projectionMatrix = info.projectionMatrix,
+                viewMatrix = info.viewMatrix,
+                trackingState = info.trackingState,
+                detectedPlanes = info.detectedPlanes,
+                lightEstimate = info.lightEstimate,
+                inputSources = emptyList(),
+                anchors = info.anchors,
+            ),
+        )
+    }
+
+    /**
+     * Camera pose from SceneKit's point-of-view node (kept in sync with the
+     * ARKit camera by ARSCNView). Reading it does not retain an ARFrame.
+     */
+    @OptIn(ExperimentalForeignApi::class)
+    private fun currentCameraPose(): Pose? {
+        val pointOfView = arView?.pointOfView ?: return null
+        return pointOfView.worldTransform.useContents {
+            // SCNMatrix4: basis vectors are rows (m11,m12,m13 = X axis),
+            // translation is (m41,m42,m43) — same memory layout as
+            // simd_float4x4 columns.
+            val position = Vec3(m41, m42, m43)
+            val rotation =
+                quaternionFromRotationElements(
+                    m00 = m11,
+                    m01 = m21,
+                    m02 = m31,
+                    m10 = m12,
+                    m11 = m22,
+                    m12 = m32,
+                    m20 = m13,
+                    m21 = m23,
+                    m22 = m33,
+                )
+            Pose(position, rotation)
+        }
     }
 
     @OptIn(ExperimentalForeignApi::class)
-    private fun convertARFrameToFrameData(
-        frame: ARFrame,
-        timestamp: Long,
-        deltaTime: Float,
-    ): FrameData {
-        // Camera pose
-        val transform: CValue<simd_float4x4> = frame.camera.transform
-        val cameraPose = convertTransform(transform)
-
+    private fun sampleFrameInfo(frame: ARFrame): SampledFrameInfo {
         // Tracking state
         val trackingState =
             when (frame.camera.trackingState) {
@@ -384,17 +454,13 @@ public class ARKitEngine : SpatialEngine {
                 )
             }
 
-        return FrameData(
-            timestamp = timestamp,
-            deltaTime = deltaTime,
-            cameraPose = cameraPose,
-            projectionMatrix = projectionMatrix,
-            viewMatrix = viewMatrix,
+        return SampledFrameInfo(
             trackingState = trackingState,
             detectedPlanes = detectedPlanes,
-            lightEstimate = lightEstimate,
-            inputSources = emptyList(),
             anchors = anchorsList,
+            lightEstimate = lightEstimate,
+            projectionMatrix = projectionMatrix,
+            viewMatrix = viewMatrix,
         )
     }
 
@@ -488,16 +554,31 @@ public class ARKitEngine : SpatialEngine {
 
         // col[0] = x, col[1] = y, col[2] = z, col[3] = w
         // Matrix diagonal: col0[0], col1[1], col2[2]
-        val m00 = col0[0]
-        val m01 = col1[0]
-        val m02 = col2[0]
-        val m10 = col0[1]
-        val m11 = col1[1]
-        val m12 = col2[1]
-        val m20 = col0[2]
-        val m21 = col1[2]
-        val m22 = col2[2]
+        return quaternionFromRotationElements(
+            m00 = col0[0],
+            m01 = col1[0],
+            m02 = col2[0],
+            m10 = col0[1],
+            m11 = col1[1],
+            m12 = col2[1],
+            m20 = col0[2],
+            m21 = col1[2],
+            m22 = col2[2],
+        )
+    }
 
+    @Suppress("LongParameterList")
+    private fun quaternionFromRotationElements(
+        m00: Float,
+        m01: Float,
+        m02: Float,
+        m10: Float,
+        m11: Float,
+        m12: Float,
+        m20: Float,
+        m21: Float,
+        m22: Float,
+    ): Quaternion {
         val trace = m00 + m11 + m22
 
         return when {
@@ -588,6 +669,7 @@ public class ARKitEngine : SpatialEngine {
         toRemove.forEach { id ->
             sceneNodeMap[id]?.removeFromParentNode()
             sceneNodeMap.remove(id)
+            materialCache.remove(id)
         }
 
         // Create or update nodes
@@ -636,8 +718,11 @@ public class ARKitEngine : SpatialEngine {
         // Update visibility
         scnNode.hidden = !mesh.visible
 
-        // Update material if needed
-        updateNodeMaterial(scnNode, mesh.material)
+        // Update material only when it actually changed
+        if (materialCache[mesh.id] != mesh.material) {
+            updateNodeMaterial(scnNode, mesh.material)
+            materialCache[mesh.id] = mesh.material
+        }
     }
 
     private fun processGroupNode(
@@ -937,6 +1022,8 @@ public class ARKitEngine : SpatialEngine {
 
     override fun stopSession() {
         arSession?.pause()
+        lastFrameTime = 0L
+        sampledFrameInfo = null
         _state.value = EngineState.Ready
     }
 
@@ -947,13 +1034,23 @@ public class ARKitEngine : SpatialEngine {
         frameCallback = null
         currentConfig = null
         currentScene = null
+        sampledFrameInfo = null
+        lastFrameTime = 0L
 
         // Clean up SceneKit nodes
         contentRoot.removeFromParentNode()
         sceneNodeMap.values.forEach { it.removeFromParentNode() }
         sceneNodeMap.clear()
+        materialCache.clear()
 
         _state.value = EngineState.Uninitialized
+    }
+
+    private companion object {
+        // Render ticks between ARFrame samples (~1 s at 60 fps). Anchors,
+        // planes and light estimates change slowly; the camera pose is
+        // refreshed every tick from pointOfView instead.
+        const val FRAME_SAMPLE_INTERVAL = 60L
     }
 }
 

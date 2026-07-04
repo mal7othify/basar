@@ -34,6 +34,7 @@ import kotlin.math.sin
  */
 public class SpatialAnimator {
     private val activeAnimations = mutableListOf<Animation>()
+    private val lock = SpatialLock()
 
     /**
      * Animate a node's position.
@@ -64,7 +65,7 @@ public class SpatialAnimator {
                 easing = easing,
                 onComplete = onComplete,
             )
-        activeAnimations.add(animation)
+        lock.withLock { activeAnimations.add(animation) }
         return animation
     }
 
@@ -97,7 +98,7 @@ public class SpatialAnimator {
                 easing = easing,
                 onComplete = onComplete,
             )
-        activeAnimations.add(animation)
+        lock.withLock { activeAnimations.add(animation) }
         return animation
     }
 
@@ -130,7 +131,7 @@ public class SpatialAnimator {
                 easing = easing,
                 onComplete = onComplete,
             )
-        activeAnimations.add(animation)
+        lock.withLock { activeAnimations.add(animation) }
         return animation
     }
 
@@ -138,18 +139,27 @@ public class SpatialAnimator {
      * Update all active animations.
      * Call this each frame with the frame's deltaTime.
      *
+     * Safe to call while animations are being added from other threads (e.g.
+     * a UI tap handler racing the render thread), and safe for [Animation.onComplete]
+     * callbacks to start new animations: completions are collected first and
+     * invoked only after the list is done being iterated.
+     *
      * @param deltaTime Time elapsed since last frame in seconds
      */
     public fun update(deltaTime: Float) {
-        val iterator = activeAnimations.iterator()
-        while (iterator.hasNext()) {
-            val animation = iterator.next()
-            animation.update(deltaTime)
+        val snapshot = lock.withLock { if (activeAnimations.isEmpty()) return else activeAnimations.toList() }
 
+        var completed: MutableList<Animation>? = null
+        for (animation in snapshot) {
+            animation.update(deltaTime)
             if (animation.isComplete) {
-                animation.onComplete?.invoke()
-                iterator.remove()
+                (completed ?: mutableListOf<Animation>().also { completed = it }).add(animation)
             }
+        }
+
+        completed?.let { done ->
+            lock.withLock { activeAnimations.removeAll(done) }
+            done.forEach { it.onComplete?.invoke() }
         }
     }
 
@@ -159,21 +169,21 @@ public class SpatialAnimator {
      * @param animation The animation to cancel
      */
     public fun cancel(animation: Animation) {
-        activeAnimations.remove(animation)
+        lock.withLock { activeAnimations.remove(animation) }
     }
 
     /**
      * Stop all animations.
      */
     public fun cancelAll() {
-        activeAnimations.clear()
+        lock.withLock { activeAnimations.clear() }
     }
 
     /**
      * Get the number of active animations.
      */
     public val animationCount: Int
-        get() = activeAnimations.size
+        get() = lock.withLock { activeAnimations.size }
 }
 
 /**
