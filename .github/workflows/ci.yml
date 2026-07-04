@@ -27,6 +27,32 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       # `build` includes `check`: unit tests, ktlintCheck, and the
-      # binary-compatibility apiCheck for all modules.
-      - name: Build and check all modules
-        run: ./gradlew build --stacktrace
+      # binary-compatibility apiCheck. Scoped to the published library
+      # modules — the demo app is compiled separately below.
+      # --max-workers=3 keeps concurrent Kotlin/Native link tasks from
+      # exhausting the ~7 GB of runner memory.
+      - name: Build and check library modules
+        run: >
+          ./gradlew --max-workers=3 --stacktrace
+          :spatial-core:build
+          :spatial-engine:build
+          :spatial-engine-arcore:build
+          :spatial-engine-arkit:build
+          :spatial-engine-webxr:build
+          :spatial-scene:build
+          :spatial-dsl:build
+          :spatial-compose:build
+
+      # The demo app (composeApp + shared + server) only needs to prove it
+      # compiles and its tests pass. Debug-only for iOS: release-mode
+      # framework links of the full Compose runtime OOM the runner and are
+      # never shipped from CI.
+      - name: Compile and test demo app
+        run: >
+          ./gradlew --max-workers=3 --stacktrace
+          :composeApp:assembleDebug
+          :composeApp:jsBrowserDistribution
+          :composeApp:linkDebugFrameworkIosSimulatorArm64
+          :composeApp:check
+          :shared:check
+          :server:build
