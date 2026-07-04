@@ -11,6 +11,7 @@ import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.EngineError
 import com.spatialkit.engine.FrameData
 import com.spatialkit.engine.SessionMode
+import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.SpatialRuntime
 import com.spatialkit.scene.SpatialScene
 import com.spatialkit.scene.SpatialSession
@@ -46,6 +47,7 @@ public fun SpatialView(
     modifier: Modifier = Modifier,
     mode: SessionMode = SessionMode.AR,
     config: EngineConfig = EngineConfig(preferredMode = mode),
+    engine: SpatialEngine? = null,
     onSessionReady: (SpatialSession) -> Unit = {},
     onFrame: (FrameData) -> Unit = {},
     onError: (EngineError) -> Unit = {},
@@ -54,6 +56,13 @@ public fun SpatialView(
     // Create runtime and session (remember across recompositions)
     val runtime = remember { SpatialRuntime() }
     val session = remember { SpatialSession(runtime) }
+
+    // Engine selection: explicit parameter > LocalSpatialEngine > the
+    // platform surface's default (where one exists).
+    val providedEngine = engine ?: LocalSpatialEngine.current
+    remember(providedEngine) {
+        providedEngine?.let { runtime.setEngine(it) }
+    }
 
     // Build scene from DSL (rebuild when content changes)
     val scene =
@@ -74,7 +83,11 @@ public fun SpatialView(
         scene = scene,
     )
 
-    // Start session when mode changes
+    // (Re)start the session when the mode changes. SpatialRuntime.start stops
+    // a running session before starting the new one, so mode switches work.
+    // Note: because the engine is only initialized once, changes to [config]
+    // fields other than preferredMode require recreating the SpatialView
+    // (or disposing the session) to take effect.
     LaunchedEffect(mode, config) {
         try {
             session.start(

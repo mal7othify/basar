@@ -230,14 +230,19 @@ unit test (they're all pure Kotlin).
 
 ## M5 — API hardening (2–3 days, before any 1.0 tag)
 
-- [ ] **M5.1 Make engine state observable and session start awaitable.**
+- [x] **M5.1 Make engine state observable and session start awaitable.**
   `SpatialEngine.state` is a polled `val`, and `startSession()` is fire-and-forget
   while WebXR resolves promises asynchronously — callers cannot know when or whether
   the session started. Change the contract to `val state: StateFlow<EngineState>` and
   `suspend fun startSession(mode)` completing on Running/Error. Ripple through
   `SpatialRuntime`, `SpatialSession`, all engines. This is the largest single API
   change — do it before anything is published, not after.
-- [ ] **M5.2 Decouple `spatial-compose` from ARCore.**
+- [x] **M5.2 Decouple `spatial-compose` from ARCore.**
+  DONE via `LocalSpatialEngine` / `SpatialView(engine = …)` plus the
+  `GLSurfaceDrivenEngine` interface in `spatial-engine` androidMain: the Android
+  surface drives whatever GL-surface engine the app provides and `spatial-compose`
+  no longer depends on `spatial-engine-arcore`. iOS/Web keep bundled defaults but
+  now honor a provided engine instead of clobbering it.
   `spatial-compose` androidMain hard-depends on `spatial-engine-arcore`
   (`build.gradle.kts:43`) and instantiates `ARCoreEngine` directly
   (`SpatialSurface.android.kt:41`), so every Android consumer bundles ARCore whether
@@ -245,7 +250,7 @@ unit test (they're all pure Kotlin).
   Introduce an engine provider (parameter on `SpatialView` or a `CompositionLocal`)
   and ship the ARCore wiring as a small `spatial-compose-arcore` module (or a factory
   the app passes in).
-- [ ] **M5.3 Fix `SpatialView` restart semantics** (`SpatialView.kt:78-93`).
+- [x] **M5.3 Fix `SpatialView` restart semantics** (`SpatialView.kt:78-93`).
   `LaunchedEffect(mode, config)` calls `session.start()` again without stopping the
   previous session; `ARCoreEngine.initialize` then throws "already initialized" which
   surfaces as `onError`. Tear down (stop + reinit or dispose/recreate) before

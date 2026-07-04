@@ -1,6 +1,9 @@
 package com.spatialkit.engine
 
 import com.spatialkit.core.log.SpatialLog
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Fallback engine implementation for unsupported platforms.
@@ -17,7 +20,7 @@ import com.spatialkit.core.log.SpatialLog
  * - Graceful degradation for unsupported devices
  */
 public class FallbackEngine : SpatialEngine {
-    private var _state: EngineState = EngineState.Uninitialized
+    private val _state = MutableStateFlow<EngineState>(EngineState.Uninitialized)
     private var frameCallback: ((FrameData) -> Unit)? = null
 
     override val capabilities: EngineCapabilities =
@@ -33,20 +36,19 @@ public class FallbackEngine : SpatialEngine {
             maxAnchors = 0,
         )
 
-    override val state: EngineState
-        get() = _state
+    override val state: StateFlow<EngineState> = _state.asStateFlow()
 
     override suspend fun initialize(config: EngineConfig) {
         SpatialLog.warn(TAG) { "initialize() called on unsupported platform" }
-        _state =
+        _state.value =
             EngineState.Error(
                 EngineError.NotSupported,
             )
     }
 
-    override fun startSession(mode: SessionMode) {
+    override suspend fun startSession(mode: SessionMode) {
         SpatialLog.warn(TAG) { "startSession() called on unsupported platform" }
-        _state =
+        _state.value =
             EngineState.Error(
                 EngineError.NotSupported,
             )
@@ -60,7 +62,7 @@ public class FallbackEngine : SpatialEngine {
 
     override fun dispose() {
         SpatialLog.debug(TAG) { "dispose() called" }
-        _state = EngineState.Disposed
+        _state.value = EngineState.Disposed
         frameCallback = null
     }
 

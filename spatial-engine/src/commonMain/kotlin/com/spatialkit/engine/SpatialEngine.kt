@@ -1,5 +1,7 @@
 package com.spatialkit.engine
 
+import kotlinx.coroutines.flow.StateFlow
+
 /**
  * The core AR/VR engine interface.
  *
@@ -26,12 +28,12 @@ public interface SpatialEngine {
     public val capabilities: EngineCapabilities
 
     /**
-     * Current state of the engine.
+     * Current state of the engine, observable as a [StateFlow].
      *
-     * Use this to determine if the engine is ready for session start,
-     * currently running, or in an error state.
+     * Read `state.value` for the current state, or collect the flow to react
+     * to transitions (Ready, Running, Error, ...).
      */
-    public val state: EngineState
+    public val state: StateFlow<EngineState>
 
     /**
      * Initialize the engine with the given configuration.
@@ -47,13 +49,14 @@ public interface SpatialEngine {
     /**
      * Start an AR/VR session.
      *
-     * Engine must be in Ready state. After starting, the engine will
-     * begin calling registered onFrame() callbacks.
+     * Engine must be in Ready state. Suspends until the session is actually
+     * running (or has failed): when this returns, `state.value` is either
+     * [EngineState.Running] or [EngineState.Error].
      *
      * @param mode The session mode (AR, VR, or Passthrough)
      * @throws IllegalStateException if not initialized or already running
      */
-    public fun startSession(mode: SessionMode)
+    public suspend fun startSession(mode: SessionMode)
 
     /**
      * Stop the current session.

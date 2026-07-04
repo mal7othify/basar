@@ -1,17 +1,18 @@
 package com.spatialkit.compose
 
-import com.spatialkit.core.log.SpatialLog
-
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import com.spatialkit.core.log.SpatialLog
+import com.spatialkit.engine.EngineState
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.webxr.WebXREngine
 import com.spatialkit.scene.SpatialScene
 import com.spatialkit.scene.SpatialSession
 import kotlinx.browser.document
+import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLDivElement
@@ -19,8 +20,12 @@ import org.w3c.dom.HTMLDivElement
 /**
  * JavaScript/Browser implementation of SpatialSurface.
  *
- * For WebXR, we need a user gesture to start the AR session.
- * The button triggers the WebXR session request.
+ * Uses the engine provided through [SpatialView] (parameter or
+ * [LocalSpatialEngine]) when there is one, and defaults to a bundled
+ * [WebXREngine] otherwise.
+ *
+ * WebXR needs a user gesture to start an AR session, so this surface shows a
+ * "Start AR" overlay button that (re)requests the session with gesture context.
  */
 @Composable
 public actual fun SpatialSurface(
@@ -28,30 +33,32 @@ public actual fun SpatialSurface(
     session: SpatialSession,
     scene: SpatialScene,
 ) {
-    val webxrEngine =
+    // Honor an engine provided via SpatialView; create the platform default
+    // only when none was set. Runs during composition so the engine exists
+    // before SpatialView's LaunchedEffect calls session.start().
+    val engine =
         remember {
-            WebXREngine().apply {
-                // Hide the Compose canvas while immersive XR runs (it would
-                // otherwise cover the camera feed), and restore it afterwards.
-                var previousBackground: String? = null
-                onEnterXR = {
-                    val composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
-                    composeCanvas?.style?.display = "none"
-                    previousBackground = document.body?.style?.background
-                    document.body?.style?.background = "transparent"
-                }
-                onExitXR = {
-                    val composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
-                    composeCanvas?.style?.display = ""
-                    document.body?.style?.background = previousBackground ?: ""
-                }
-            }
+            session.runtime.getEngine()
+                ?: WebXREngine()
+                    .apply {
+                        // Hide the Compose canvas while immersive XR runs (it would
+                        // otherwise cover the camera feed), and restore it afterwards.
+                        var previousBackground: String? = null
+                        onEnterXR = {
+                            val composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
+                            composeCanvas?.style?.display = "none"
+                            previousBackground = document.body?.style?.background
+                            document.body?.style?.background = "transparent"
+                        }
+                        onExitXR = {
+                            val composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
+                            composeCanvas?.style?.display = ""
+                            document.body?.style?.background = previousBackground ?: ""
+                        }
+                    }.also { session.runtime.setEngine(it) }
         }
 
-    // Set engine on runtime
-    LaunchedEffect(webxrEngine) {
-        session.runtime.setEngine(webxrEngine)
-    }
+    val scope = rememberCoroutineScope()
 
     // Note: SpatialView will auto-call session.start() which will fail without user gesture.
     // The button below retries with proper user gesture context.
@@ -86,21 +93,30 @@ public actual fun SpatialSurface(
             fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
         }
 
-        var hasStarted = false
+        var starting = false
         button.onclick = {
-            if (!hasStarted) {
-                hasStarted = true
+            if (!starting) {
+                starting = true
                 SpatialLog.debug("SpatialSurface") { "start button clicked, starting WebXR session" }
-                try {
-                    // Engine is already initialized, just start the session
-                    // This call now has user gesture context
-                    webxrEngine.startSession(SessionMode.AR)
-                    overlay.style.display = "none"
-                    SpatialLog.debug("SpatialSurface") { "WebXR session start requested" }
-                } catch (e: Throwable) {
-                    SpatialLog.error("SpatialSurface", e) { "failed to start AR" }
-                    button.textContent = "Failed to start AR. Tap to retry."
-                    hasStarted = false
+                // startSession is a suspend fun; the coroutine dispatches soon
+                // enough that the browser's transient user activation from the
+                // click still covers the XR session request.
+                scope.launch {
+                    try {
+                        // Engine is already initialized, just start the session
+                        engine.startSession(SessionMode.AR)
+                        if (engine.state.value is EngineState.Running) {
+                            overlay.style.display = "none"
+                            SpatialLog.debug("SpatialSurface") { "WebXR session running" }
+                        } else {
+                            button.textContent = "Failed to start AR. Tap to retry."
+                            starting = false
+                        }
+                    } catch (e: Throwable) {
+                        SpatialLog.error("SpatialSurface", e) { "failed to start AR" }
+                        button.textContent = "Failed to start AR. Tap to retry."
+                        starting = false
+                    }
                 }
             }
             null

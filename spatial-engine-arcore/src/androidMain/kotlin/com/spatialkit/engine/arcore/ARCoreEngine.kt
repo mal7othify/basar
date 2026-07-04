@@ -31,6 +31,7 @@ import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.EngineError
 import com.spatialkit.engine.EngineState
 import com.spatialkit.engine.FrameData
+import com.spatialkit.engine.GLSurfaceDrivenEngine
 import com.spatialkit.engine.HitTestResult
 import com.spatialkit.engine.LightEstimate
 import com.spatialkit.engine.PlaneType
@@ -41,6 +42,9 @@ import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.Vec3
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.nio.FloatBuffer
 import java.util.EnumSet
@@ -54,7 +58,7 @@ import com.spatialkit.engine.Pose as EnginePose
  */
 public class ARCoreEngine(
     private val context: Context,
-) : SpatialEngine {
+) : SpatialEngine, GLSurfaceDrivenEngine {
     // ARCore components
     private var session: Session? = null
     private var config: Config? = null
@@ -63,7 +67,7 @@ public class ARCoreEngine(
     private var renderer: SimpleRenderer? = null
 
     // State management
-    private var _state: EngineState = EngineState.Uninitialized
+    private val _state = MutableStateFlow<EngineState>(EngineState.Uninitialized)
     private var _capabilities: EngineCapabilities? = null
     private var currentConfig: EngineConfig? = null
     private var frameCallback: ((FrameData) -> Unit)? = null
@@ -86,8 +90,7 @@ public class ARCoreEngine(
     @Volatile
     private var surfaceHeight: Int = 0
 
-    override val state: EngineState
-        get() = _state
+    override val state: StateFlow<EngineState> = _state.asStateFlow()
 
     override val capabilities: EngineCapabilities
         get() =
@@ -106,14 +109,14 @@ public class ARCoreEngine(
     override suspend fun initialize(config: EngineConfig) {
         withContext(Dispatchers.Main) {
             SpatialLog.debug(TAG) { "=== INITIALIZE CALLED ===" }
-            SpatialLog.debug(TAG) { "Current state: $_state" }
+            SpatialLog.debug(TAG) { "Current state: ${_state.value}" }
 
-            if (_state != EngineState.Uninitialized) {
+            if (_state.value != EngineState.Uninitialized && _state.value != EngineState.Disposed) {
                 SpatialLog.error(TAG) { "Engine already initialized!" }
                 throw IllegalStateException("Engine already initialized")
             }
 
-            _state = EngineState.Initializing
+            _state.value = EngineState.Initializing
             currentConfig = config
             SpatialLog.debug(TAG) { "State set to Initializing" }
 
@@ -174,41 +177,41 @@ public class ARCoreEngine(
                 _capabilities = checkCapabilities(arSession)
                 SpatialLog.debug(TAG) { "Capabilities: $_capabilities" }
 
-                _state = EngineState.Ready
+                _state.value = EngineState.Ready
                 SpatialLog.debug(TAG) { "=== INITIALIZATION COMPLETE ===" }
-                SpatialLog.debug(TAG) { "State: $_state" }
+                SpatialLog.debug(TAG) { "State: ${_state.value}" }
             } catch (e: UnavailableArcoreNotInstalledException) {
-                _state =
+                _state.value =
                     EngineState.Error(
                         EngineError.InitializationFailed("ARCore not installed"),
                     )
                 throw e
             } catch (e: UnavailableUserDeclinedInstallationException) {
-                _state =
+                _state.value =
                     EngineState.Error(
                         EngineError.InitializationFailed("User declined ARCore installation"),
                     )
                 throw e
             } catch (e: UnavailableApkTooOldException) {
-                _state =
+                _state.value =
                     EngineState.Error(
                         EngineError.InitializationFailed("ARCore APK too old"),
                     )
                 throw e
             } catch (e: UnavailableSdkTooOldException) {
-                _state =
+                _state.value =
                     EngineState.Error(
                         EngineError.InitializationFailed("SDK too old for ARCore"),
                     )
                 throw e
             } catch (e: UnavailableDeviceNotCompatibleException) {
-                _state =
+                _state.value =
                     EngineState.Error(
                         EngineError.InitializationFailed("Device not compatible with ARCore"),
                     )
                 throw e
             } catch (e: Exception) {
-                _state =
+                _state.value =
                     EngineState.Error(
                         EngineError.InitializationFailed("Failed to initialize ARCore: ${e.message}"),
                     )
@@ -217,13 +220,13 @@ public class ARCoreEngine(
         }
     }
 
-    override fun startSession(mode: SessionMode) {
+    override suspend fun startSession(mode: SessionMode) {
         SpatialLog.debug(TAG) { "=== START SESSION CALLED ===" }
-        SpatialLog.debug(TAG) { "Mode: $mode, State: $_state" }
+        SpatialLog.debug(TAG) { "Mode: $mode, State: ${_state.value}" }
 
-        if (_state != EngineState.Ready) {
-            SpatialLog.error(TAG) { "Engine not ready! Current state: $_state" }
-            throw IllegalStateException("Engine not ready. Current state: $_state")
+        if (_state.value != EngineState.Ready) {
+            SpatialLog.error(TAG) { "Engine not ready! Current state: ${_state.value}" }
+            throw IllegalStateException("Engine not ready. Current state: ${_state.value}")
         }
 
         val arSession = session ?: run {
@@ -234,7 +237,7 @@ public class ARCoreEngine(
 
         // ARCore only supports AR mode
         if (mode !is SessionMode.AR) {
-            _state =
+            _state.value =
                 EngineState.Error(
                     EngineError.SessionFailed("ARCore only supports AR mode"),
                 )
@@ -244,9 +247,9 @@ public class ARCoreEngine(
         try {
             // Resume ARCore session
             arSession.resume()
-            _state = EngineState.Running(mode)
+            _state.value = EngineState.Running(mode)
         } catch (e: CameraNotAvailableException) {
-            _state =
+            _state.value =
                 EngineState.Error(
                     EngineError.SessionFailed("Camera not available: ${e.message}"),
                 )
@@ -259,7 +262,7 @@ public class ARCoreEngine(
         lastFrame = null
         try {
             arSession.pause()
-            _state = EngineState.Ready
+            _state.value = EngineState.Ready
         } catch (e: Exception) {
             SpatialLog.warn(TAG, e) { "error pausing ARCore session" }
         }
@@ -282,7 +285,7 @@ public class ARCoreEngine(
         session = null
         config = null
 
-        _state = EngineState.Disposed
+        _state.value = EngineState.Disposed
     }
 
     override fun onFrame(callback: (FrameData) -> Unit) {
@@ -352,11 +355,11 @@ public class ARCoreEngine(
      * Call this from the rendering surface (GLSurfaceView or SurfaceView)
      * to update the AR frame and invoke callbacks.
      */
-    public fun onDrawFrame(surface: Surface? = null) {
+    override fun onDrawFrame() {
         val arSession = session ?: return
         val arRenderer = renderer ?: return
 
-        if (_state !is EngineState.Running) {
+        if (_state.value !is EngineState.Running) {
             return
         }
 
@@ -402,7 +405,7 @@ public class ARCoreEngine(
             // Render full scene (camera + 3D objects)
             arRenderer.render(frame, camera)
         } catch (e: CameraNotAvailableException) {
-            _state =
+            _state.value =
                 EngineState.Error(
                     EngineError.SessionFailed("Camera not available during frame: ${e.message}"),
                 )
@@ -413,7 +416,7 @@ public class ARCoreEngine(
      * Call this when the OpenGL surface is created.
      * This initializes the renderer with a valid GL context.
      */
-    public fun onSurfaceCreated() {
+    override fun onSurfaceCreated() {
         renderer?.initialize()
     }
 
@@ -432,7 +435,7 @@ public class ARCoreEngine(
     /**
      * Call this when the surface is created or changed.
      */
-    public fun onSurfaceChanged(
+    override fun onSurfaceChanged(
         width: Int,
         height: Int,
     ) {

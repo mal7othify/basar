@@ -10,14 +10,15 @@ import com.spatialkit.engine.HitTestResult
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SessionMode
-import com.spatialkit.engine.SpatialEngine
-import com.spatialkit.engine.SpatialEngineFactory
+import com.spatialkit.engine.SpatialRuntime
 import com.spatialkit.engine.Vec3
 
 /**
- * Android-specific convenience wrapper for SpatialRuntime.
+ * Android-specific convenience wrapper around [SpatialRuntime].
  *
- * Handles Android Context requirement automatically.
+ * Creates the ARCore engine with the given [Context] up front (the
+ * cross-platform [com.spatialkit.engine.SpatialEngineFactory] cannot, because
+ * it has no Context) and delegates everything else to [SpatialRuntime].
  *
  * Usage:
  * ```kotlin
@@ -31,13 +32,8 @@ import com.spatialkit.engine.Vec3
  *             lifecycleScope.launch {
  *                 runtime.start(
  *                     config = EngineConfig(preferredMode = SessionMode.AR),
- *                     onFrame = { frameData ->
- *                         // Update scene
- *                         runtime.submitScene(myScene)
- *                     },
- *                     onError = { error ->
- *                         // Handle error
- *                     }
+ *                     onFrame = { frameData -> runtime.submitScene(myScene) },
+ *                     onError = { error -> /* handle */ },
  *                 )
  *             }
  *         }
@@ -51,16 +47,17 @@ import com.spatialkit.engine.Vec3
  * ```
  */
 public class SpatialRuntimeAndroid(
-    private val context: Context,
+    context: Context,
 ) {
-    private var engine: SpatialEngine? = null
-    private var errorCallback: ((EngineError) -> Unit)? = null
+    private val delegate =
+        SpatialRuntime().apply {
+            setEngine(createARCoreEngine(context))
+        }
 
     /**
      * Check if ARCore is supported on this device.
      */
-    public val isSupported: Boolean
-        get() = SpatialEngineFactory.isSupported() // TODO: Context might be needed here to check!
+    public val isSupported: Boolean = isARCoreSupported(context)
 
     /**
      * Get supported session modes (ARCore only supports AR).
@@ -72,13 +69,19 @@ public class SpatialRuntimeAndroid(
      * Get current engine state.
      */
     public val state: EngineState?
-        get() = engine?.state
+        get() = delegate.state
 
     /**
      * Get engine capabilities.
      */
     public val capabilities: EngineCapabilities?
-        get() = engine?.capabilities
+        get() = delegate.capabilities
+
+    /**
+     * Check if running.
+     */
+    public val isRunning: Boolean
+        get() = delegate.isRunning
 
     /**
      * Start the spatial runtime.
@@ -92,129 +95,50 @@ public class SpatialRuntimeAndroid(
         onFrame: (FrameData) -> Unit,
         onError: (EngineError) -> Unit = {},
     ) {
-        errorCallback = onError
-
         if (!isSupported) {
             onError(EngineError.NotSupported)
             return
         }
-
-        try {
-            // Create ARCore engine with context
-            val spatialEngine = createARCoreEngine(context)
-            engine = spatialEngine
-
-            // Initialize
-            spatialEngine.initialize(config)
-
-            when (val engineState = spatialEngine.state) {
-                is EngineState.Error -> {
-                    onError(engineState.error)
-                    return
-                }
-
-                EngineState.Ready -> {
-                    // Continue
-                }
-
-                else -> {
-                    onError(
-                        EngineError.InitializationFailed(
-                            "Unexpected state: $engineState",
-                        ),
-                    )
-                    return
-                }
-            }
-
-            // Register frame callback
-            spatialEngine.onFrame { frame: FrameData ->
-                try {
-                    onFrame(frame)
-                } catch (e: Exception) {
-                    onError(
-                        EngineError.InitializationFailed(
-                            "Frame callback error: ${e.message}",
-                        ),
-                    )
-                }
-            }
-
-            // Start session
-            spatialEngine.startSession(config.preferredMode)
-
-            when (val engineState = spatialEngine.state) {
-                is EngineState.Running -> {
-                    // Success
-                }
-
-                is EngineState.Error -> {
-                    onError(engineState.error)
-                }
-
-                else -> {
-                    onError(
-                        EngineError.SessionFailed(
-                            "Failed to start: $engineState",
-                        ),
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            onError(
-                EngineError.InitializationFailed(
-                    "Failed to start: ${e.message}",
-                ),
-            )
-        }
+        delegate.start(config, onFrame, onError)
     }
 
     /**
      * Submit scene to render.
      */
     public fun submitScene(scene: SceneData) {
-        engine?.submitScene(scene) ?: errorCallback?.invoke(
-            EngineError.InitializationFailed("Engine not started"),
-        )
+        delegate.submitScene(scene)
     }
 
     /**
-     * Perform hit test.
+     * Perform a hit test from normalized screen coordinates
+     * ((0,0) = top-left, (1,1) = bottom-right).
      */
     public fun performHitTest(
         screenX: Float,
         screenY: Float,
-    ): HitTestResult? = engine?.performHitTest(screenX, screenY)
+    ): HitTestResult? = delegate.performHitTest(screenX, screenY)
 
     /**
-     * Perform raycast.
+     * Perform a world-space raycast.
      */
     public fun performRaycast(
         origin: Vec3,
         direction: Vec3,
-    ): RaycastResult? = engine?.performRaycast(origin, direction)
+    ): RaycastResult? = delegate.performRaycast(origin, direction)
 
     /**
      * Stop the session.
      */
     public fun stop() {
-        engine?.stopSession()
+        delegate.stop()
     }
 
     /**
      * Dispose and clean up.
      */
     public fun dispose() {
-        engine?.dispose()
-        engine = null
-        errorCallback = null
+        delegate.dispose()
     }
-
-    /**
-     * Check if running.
-     */
-    public val isRunning: Boolean
-        get() = engine?.state is EngineState.Running
 
     /**
      * Request ARCore installation if needed.

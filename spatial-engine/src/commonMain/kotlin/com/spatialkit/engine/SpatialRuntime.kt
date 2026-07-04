@@ -1,6 +1,7 @@
 package com.spatialkit.engine
 
 import com.spatialkit.core.log.SpatialLog
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * High-level convenience wrapper for SpatialEngine.
@@ -72,6 +73,13 @@ public class SpatialRuntime {
      * Get the current engine state.
      */
     public val state: EngineState?
+        get() = engine?.state?.value
+
+    /**
+     * Observe engine state transitions. Null until an engine exists
+     * (after [setEngine] or [start]).
+     */
+    public val stateFlow: StateFlow<EngineState>?
         get() = engine?.state
 
     /**
@@ -117,11 +125,25 @@ public class SpatialRuntime {
             engine = spatialEngine
             SpatialLog.debug(TAG) { "engine acquired: ${spatialEngine::class.simpleName}" }
 
-            spatialEngine.initialize(config)
-            SpatialLog.debug(TAG) { "engine initialized" }
+            // Restart support: stop a running session, initialize only when the
+            // engine hasn't been initialized yet (or was disposed).
+            when (spatialEngine.state.value) {
+                is EngineState.Running -> {
+                    SpatialLog.debug(TAG) { "restarting: stopping current session" }
+                    spatialEngine.stopSession()
+                }
+
+                else -> {}
+            }
+            if (spatialEngine.state.value is EngineState.Uninitialized ||
+                spatialEngine.state.value is EngineState.Disposed
+            ) {
+                spatialEngine.initialize(config)
+                SpatialLog.debug(TAG) { "engine initialized" }
+            }
 
             // Check if initialization succeeded
-            when (val engineState = spatialEngine.state) {
+            when (val engineState = spatialEngine.state.value) {
                 is EngineState.Error -> {
                     onError(engineState.error)
                     return
@@ -151,11 +173,10 @@ public class SpatialRuntime {
                 }
             }
 
-            // Start session
+            // Start session — suspends until Running or Error
             spatialEngine.startSession(config.preferredMode)
 
-            // Check if session started
-            when (val engineState = spatialEngine.state) {
+            when (val engineState = spatialEngine.state.value) {
                 is EngineState.Running -> {
                     // Success!
                 }
@@ -249,7 +270,7 @@ public class SpatialRuntime {
      * Check if the runtime is currently running.
      */
     public val isRunning: Boolean
-        get() = engine?.state is EngineState.Running
+        get() = engine?.state?.value is EngineState.Running
 
     private companion object {
         const val TAG = "SpatialRuntime"

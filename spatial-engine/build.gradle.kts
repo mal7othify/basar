@@ -34,6 +34,8 @@ kotlin {
             // api: the engine contract exposes spatial-core types
             // (Math.kt typealiases, Transform in SceneData, Vec3/Quaternion in Pose)
             api(project(":spatial-core"))
+            // api: SpatialEngine.state is a StateFlow
+            api(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

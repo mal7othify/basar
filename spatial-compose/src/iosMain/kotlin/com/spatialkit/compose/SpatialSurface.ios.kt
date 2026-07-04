@@ -1,8 +1,6 @@
 package com.spatialkit.compose
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitView
@@ -17,8 +15,11 @@ import platform.CoreGraphics.CGRectMake
 /**
  * iOS implementation of SpatialSurface.
  *
- * Creates an ARSCNView for ARKit rendering and connects it to the ARKitEngine.
- * The engine handles all SceneKit rendering via submitScene().
+ * Uses the engine provided through [SpatialView] (parameter or
+ * [LocalSpatialEngine]) when there is one, and defaults to a bundled
+ * [ARKitEngine] otherwise. When the engine is ARKit-backed, an ARSCNView is
+ * created and connected to it; the engine handles all SceneKit rendering via
+ * submitScene().
  */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -27,13 +28,18 @@ public actual fun SpatialSurface(
     session: SpatialSession,
     scene: SpatialScene,
 ) {
-    // Create the ARKitEngine and configure it with the runtime
-    val arkitEngine = remember { ARKitEngine() }
+    // Honor an engine provided via SpatialView; create the platform default
+    // only when none was set. Runs during composition so the engine exists
+    // before SpatialView's LaunchedEffect calls session.start().
+    val engine =
+        remember {
+            session.runtime.getEngine()
+                ?: ARKitEngine().also { session.runtime.setEngine(it) }
+        }
 
-    // Set the engine on the runtime before start() is called
-    LaunchedEffect(arkitEngine) {
-        session.runtime.setEngine(arkitEngine)
-    }
+    // A custom non-ARKit engine renders through its own means; there is no
+    // view to host in that case.
+    val arkitEngine = engine as? ARKitEngine ?: return
 
     // Create a native ARSCNView for spatial rendering
     UIKitView(
@@ -63,11 +69,4 @@ public actual fun SpatialSurface(
             }
         },
     )
-
-    // Clean up on dispose
-    DisposableEffect(arkitEngine) {
-        onDispose {
-            // Engine cleanup is handled by SpatialSession.dispose()
-        }
-    }
 }

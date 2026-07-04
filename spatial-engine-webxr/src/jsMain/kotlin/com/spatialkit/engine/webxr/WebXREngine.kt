@@ -29,6 +29,9 @@ import com.spatialkit.engine.Vec3
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.await
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.w3c.dom.HTMLCanvasElement
 import com.spatialkit.engine.Hand as ControllerHand
 
@@ -51,7 +54,7 @@ public class WebXREngine : SpatialEngine {
     private var hitTestSource: XRHitTestSource? = null
 
     // State management
-    private var _state: EngineState = EngineState.Uninitialized
+    private val _state = MutableStateFlow<EngineState>(EngineState.Uninitialized)
     private var _capabilities: EngineCapabilities? = null
     private var currentConfig: EngineConfig? = null
     private var frameCallback: ((FrameData) -> Unit)? = null
@@ -75,8 +78,7 @@ public class WebXREngine : SpatialEngine {
      */
     public var onExitXR: (() -> Unit)? = null
 
-    override val state: EngineState
-        get() = _state
+    override val state: StateFlow<EngineState> = _state.asStateFlow()
 
     override val capabilities: EngineCapabilities
         get() =
@@ -93,11 +95,11 @@ public class WebXREngine : SpatialEngine {
             )
 
     override suspend fun initialize(config: EngineConfig) {
-        if (_state != EngineState.Uninitialized) {
+        if (_state.value != EngineState.Uninitialized && _state.value != EngineState.Disposed) {
             throw IllegalStateException("Engine already initialized")
         }
 
-        _state = EngineState.Initializing
+        _state.value = EngineState.Initializing
         currentConfig = config
 
         try {
@@ -148,9 +150,9 @@ public class WebXREngine : SpatialEngine {
             // Check WebXR capabilities
             _capabilities = checkCapabilities()
 
-            _state = EngineState.Ready
+            _state.value = EngineState.Ready
         } catch (e: Exception) {
-            _state =
+            _state.value =
                 EngineState.Error(
                     EngineError.InitializationFailed("Failed to initialize WebXR: ${e.message}"),
                 )
@@ -158,20 +160,20 @@ public class WebXREngine : SpatialEngine {
         }
     }
 
-    override fun startSession(mode: SessionMode) {
+    override suspend fun startSession(mode: SessionMode) {
         // Allow retry from Error state if the error was due to missing user activation
-        if (_state != EngineState.Ready) {
-            val currentState = _state
+        if (_state.value != EngineState.Ready) {
+            val currentState = _state.value
             if (currentState is EngineState.Error) {
                 val errorMessage = currentState.error.toString()
                 if (errorMessage.contains("user activation", ignoreCase = true)) {
-                    _state = EngineState.Ready
+                    _state.value = EngineState.Ready
                     SpatialLog.debug(TAG) { "retrying session start with user gesture" }
                 } else {
-                    throw IllegalStateException("Engine not ready. Current state: $_state")
+                    throw IllegalStateException("Engine not ready. Current state: ${_state.value}")
                 }
             } else {
-                throw IllegalStateException("Engine not ready. Current state: $_state")
+                throw IllegalStateException("Engine not ready. Current state: ${_state.value}")
             }
         }
 
@@ -185,44 +187,14 @@ public class WebXREngine : SpatialEngine {
         val navigator = window.asDynamic().navigator as Navigator
         val xr =
             navigator.xr ?: run {
-                _state = EngineState.Error(EngineError.NotSupported)
+                _state.value = EngineState.Error(EngineError.NotSupported)
                 return
             }
 
-        if (mode is SessionMode.AR) {
-            SpatialLog.debug(TAG) { "requesting camera permission" }
-            val mediaDevices = navigator.asDynamic().mediaDevices
-            if (mediaDevices != null) {
-                val constraints = js("{video: true}")
-                mediaDevices
-                    .getUserMedia(constraints)
-                    .then { stream ->
-                        SpatialLog.debug(TAG) { "camera permission granted" }
-                        stream.getTracks().forEach { track ->
-                            track.stop()
-                        }
-                        requestXRSession(xr, xrMode, mode)
-                    }.catch { error ->
-                        SpatialLog.error(TAG) { "camera permission denied: $error" }
-                        _state =
-                            EngineState.Error(
-                                EngineError.SessionFailed("Camera permission denied: $error"),
-                            )
-                    }
-            } else {
-                SpatialLog.warn(TAG) { "MediaDevices API not available, trying XR session anyway" }
-                requestXRSession(xr, xrMode, mode)
-            }
-        } else {
-            requestXRSession(xr, xrMode, mode)
+        if (mode is SessionMode.AR && !requestCameraPermission(navigator)) {
+            return
         }
-    }
 
-    private fun requestXRSession(
-        xr: dynamic,
-        xrMode: String,
-        mode: SessionMode,
-    ) {
         SpatialLog.debug(TAG) { "requesting $xrMode session" }
 
         // Build required/optional features based on mode
@@ -244,23 +216,50 @@ public class WebXREngine : SpatialEngine {
         sessionOptions.requiredFeatures = requiredFeatures
         sessionOptions.optionalFeatures = optionalFeatures
 
-        xr
-            .requestSession(
-                xrMode,
-                sessionOptions,
-            ).then { session ->
-                SpatialLog.debug(TAG) { "session granted, configuring" }
-                handleSessionStarted(session, mode)
-            }.catch { error ->
-                SpatialLog.error(TAG) { "session request failed: $error" }
-                _state =
+        val session =
+            try {
+                xr.requestSession(xrMode, sessionOptions).await()
+            } catch (e: Throwable) {
+                SpatialLog.error(TAG, e) { "session request failed" }
+                _state.value =
                     EngineState.Error(
-                        EngineError.SessionFailed("Failed to start session: $error"),
+                        EngineError.SessionFailed("Failed to start session: ${e.message}"),
                     )
+                return
             }
+
+        SpatialLog.debug(TAG) { "session granted, configuring" }
+        handleSessionStarted(session, mode)
     }
 
-    private fun handleSessionStarted(
+    /**
+     * Requests (and immediately releases) camera access so the XR session
+     * request runs with the permission already granted.
+     *
+     * @return false if permission was denied (state is set to Error)
+     */
+    private suspend fun requestCameraPermission(navigator: Navigator): Boolean {
+        val mediaDevices = navigator.asDynamic().mediaDevices
+        if (mediaDevices == null) {
+            SpatialLog.warn(TAG) { "MediaDevices API not available, trying XR session anyway" }
+            return true
+        }
+        SpatialLog.debug(TAG) { "requesting camera permission" }
+        return try {
+            val stream = mediaDevices.getUserMedia(js("{video: true}")).unsafeCast<kotlin.js.Promise<dynamic>>().await()
+            SpatialLog.debug(TAG) { "camera permission granted" }
+            stream.getTracks().unsafeCast<Array<dynamic>>().forEach { track ->
+                track.stop()
+            }
+            true
+        } catch (e: Throwable) {
+            SpatialLog.error(TAG, e) { "camera permission denied" }
+            _state.value = EngineState.Error(EngineError.PermissionDenied)
+            false
+        }
+    }
+
+    private suspend fun handleSessionStarted(
         session: XRSession,
         mode: SessionMode,
     ) {
@@ -272,26 +271,28 @@ public class WebXREngine : SpatialEngine {
         renderer?.xr?.setReferenceSpaceType(referenceSpaceType)
 
         // Also request our own reference space for building FrameData
-        session
-            .requestReferenceSpace(referenceSpaceType)
-            .then { referenceSpace ->
-                SpatialLog.debug(TAG) { "reference space acquired: $referenceSpaceType" }
-                xrReferenceSpace = referenceSpace
+        try {
+            xrReferenceSpace = session.requestReferenceSpace(referenceSpaceType).await()
+            SpatialLog.debug(TAG) { "reference space acquired: $referenceSpaceType" }
+        } catch (e: Throwable) {
+            SpatialLog.error(TAG, e) { "failed to get reference space" }
+            _state.value =
+                EngineState.Error(
+                    EngineError.SessionFailed("Failed to get reference space: ${e.message}"),
+                )
+            session.end()
+            return
+        }
 
-                // Set up hit test source for AR
-                if (mode is SessionMode.AR) {
-                    val hitTestOptions = js("{}")
-                    hitTestOptions.space = referenceSpace
-                    session
-                        .requestHitTestSource(
-                            hitTestOptions,
-                        ).then { source ->
-                            hitTestSource = source
-                        }.catch { }
-                }
-            }.catch { error ->
-                SpatialLog.error(TAG) { "failed to get reference space: $error" }
-            }
+        // Set up hit test source for AR (fire-and-forget; optional feature)
+        if (mode is SessionMode.AR) {
+            val hitTestOptions = js("{}")
+            hitTestOptions.space = xrReferenceSpace
+            session
+                .requestHitTestSource(hitTestOptions)
+                .then { source -> hitTestSource = source }
+                .catch { null }
+        }
 
         // === Let Three.js manage the XR session ===
         // This tells Three.js to handle framebuffer binding, camera matrices,
@@ -312,7 +313,7 @@ public class WebXREngine : SpatialEngine {
             onFrame(time, xrFrame)
         }
 
-        _state = EngineState.Running(mode)
+        _state.value = EngineState.Running(mode)
         SpatialLog.debug(TAG) { "session running via Three.js XR manager" }
     }
 
@@ -373,7 +374,7 @@ public class WebXREngine : SpatialEngine {
         // Let the hosting UI restore itself (see [onExitXR])
         onExitXR?.invoke()
 
-        _state = EngineState.Ready
+        _state.value = EngineState.Ready
     }
 
     override fun stopSession() {
@@ -394,7 +395,7 @@ public class WebXREngine : SpatialEngine {
         renderer?.domElement?.remove()
         renderer = null
 
-        _state = EngineState.Disposed
+        _state.value = EngineState.Disposed
     }
 
     override fun onFrame(callback: (FrameData) -> Unit) {

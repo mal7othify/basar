@@ -9,6 +9,9 @@ import com.spatialkit.engine.EngineCapabilities
 import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.EngineError
 import com.spatialkit.engine.EngineState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import com.spatialkit.engine.FrameData
 import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.HitTestResult
@@ -129,8 +132,8 @@ public class ARKitEngine : SpatialEngine {
     // Delegate for frame updates
     private val viewDelegate = ARViewDelegate(this)
 
-    override var state: EngineState = EngineState.Uninitialized
-        private set
+    private val _state = MutableStateFlow<EngineState>(EngineState.Uninitialized)
+    override val state: StateFlow<EngineState> = _state.asStateFlow()
 
     override val capabilities: EngineCapabilities
         get() =
@@ -159,9 +162,9 @@ public class ARKitEngine : SpatialEngine {
             if (arSession == null) {
                 arSession = ARSession()
             }
-            state = EngineState.Ready
+            _state.value = EngineState.Ready
         } catch (e: Exception) {
-            state =
+            _state.value =
                 EngineState.Error(
                     EngineError.InitializationFailed("ARKit initialization failed: ${e.message}"),
                 )
@@ -251,7 +254,7 @@ public class ARKitEngine : SpatialEngine {
         }
     }
 
-    override fun startSession(mode: SessionMode) {
+    override suspend fun startSession(mode: SessionMode) {
         val session = arSession ?: throw IllegalStateException("Engine not initialized")
         val config = currentConfig ?: throw IllegalStateException("Engine not initialized")
 
@@ -267,9 +270,9 @@ public class ARKitEngine : SpatialEngine {
             if (arConfig == null) return
 
             session.runWithConfiguration(arConfig)
-            state = EngineState.Running(mode)
+            _state.value = EngineState.Running(mode)
         } catch (e: Exception) {
-            state =
+            _state.value =
                 EngineState.Error(
                     EngineError.InitializationFailed("Failed to start session: ${e.message}"),
                 )
@@ -301,7 +304,7 @@ public class ARKitEngine : SpatialEngine {
      */
     internal fun processFrame(frame: ARFrame) {
         // Only process frames when session is running
-        if (state !is EngineState.Running) return
+        if (_state.value !is EngineState.Running) return
 
         val currentTime = (CACurrentMediaTime() * 1000).toLong()
         val deltaTime =
@@ -932,7 +935,7 @@ public class ARKitEngine : SpatialEngine {
 
     override fun stopSession() {
         arSession?.pause()
-        state = EngineState.Ready
+        _state.value = EngineState.Ready
     }
 
     override fun dispose() {
@@ -948,7 +951,7 @@ public class ARKitEngine : SpatialEngine {
         sceneNodeMap.values.forEach { it.removeFromParentNode() }
         sceneNodeMap.clear()
 
-        state = EngineState.Uninitialized
+        _state.value = EngineState.Uninitialized
     }
 }
 
