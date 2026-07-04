@@ -2,7 +2,6 @@ package com.spatialkit.core.math
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class Vec3Test {
     private fun assertVec3Equals(

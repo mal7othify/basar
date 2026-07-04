@@ -1,7 +1,5 @@
 package com.spatialkit.engine.arcore
 
-import com.spatialkit.core.log.SpatialLog
-
 import android.content.Context
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
@@ -9,9 +7,9 @@ import android.opengl.Matrix
 import com.google.ar.core.Camera
 import com.google.ar.core.Coordinates2d
 import com.google.ar.core.Frame
+import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
-import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SceneNode
@@ -521,7 +519,10 @@ public class SimpleRenderer(
     /**
      * Get or create cached geometry buffers for a custom mesh, keyed by node ID.
      */
-    private fun getOrCreateCustomMeshBuffers(nodeId: String, geometry: GeometryData): GeometryBuffers? {
+    private fun getOrCreateCustomMeshBuffers(
+        nodeId: String,
+        geometry: GeometryData,
+    ): GeometryBuffers? {
         return customMeshCache.getOrPut(nodeId) {
             val vertices = geometry.vertices ?: return null
             val indices = geometry.indices ?: return null
@@ -794,7 +795,6 @@ public class SimpleRenderer(
         GLES30.glDeleteBuffers(3, vboIds, 0)
     }
 
-
     private fun render3DScene(
         frame: Frame,
         arCamera: Camera,
@@ -891,11 +891,12 @@ public class SimpleRenderer(
         )
 
         // Use cached geometry buffers instead of creating new ones every frame
-        val buffers = if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
-            getOrCreateCustomMeshBuffers(mesh.id, mesh.geometry)
-        } else {
-            getOrCreateGeometryBuffers(mesh.geometry.type)
-        }
+        val buffers =
+            if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+                getOrCreateCustomMeshBuffers(mesh.id, mesh.geometry)
+            } else {
+                getOrCreateGeometryBuffers(mesh.geometry.type)
+            }
         if (buffers != null) {
             // Bind VAO and draw
             GLES30.glBindVertexArray(buffers.vao)

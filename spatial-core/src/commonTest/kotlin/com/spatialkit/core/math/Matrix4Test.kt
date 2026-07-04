@@ -211,10 +211,22 @@ class Matrix4Test {
     fun testConstructorCopiesInputArray() {
         val values =
             floatArrayOf(
-                1f, 0f, 0f, 0f,
-                0f, 1f, 0f, 0f,
-                0f, 0f, 1f, 0f,
-                0f, 0f, 0f, 1f,
+                1f,
+                0f,
+                0f,
+                0f,
+                0f,
+                1f,
+                0f,
+                0f,
+                0f,
+                0f,
+                1f,
+                0f,
+                0f,
+                0f,
+                0f,
+                1f,
             )
         val matrix = Matrix4(values)
 

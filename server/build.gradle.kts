@@ -8,7 +8,7 @@ group = "com.mal7othify.basar"
 version = "1.0.0"
 application {
     mainClass.set("com.mal7othify.basar.ApplicationKt")
-    
+
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
 }

@@ -1,0 +1,776 @@
+public final class com/spatialkit/engine/AnchorRequest {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/engine/AnchorType;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/engine/AnchorType;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/engine/AnchorType;)Lcom/spatialkit/engine/AnchorRequest;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/AnchorRequest;Ljava/lang/String;Lcom/spatialkit/engine/AnchorType;ILjava/lang/Object;)Lcom/spatialkit/engine/AnchorRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getType ()Lcom/spatialkit/engine/AnchorType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/AnchorState {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/engine/AnchorStatus;Lcom/spatialkit/engine/Pose;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/engine/AnchorStatus;
+	public final fun component3 ()Lcom/spatialkit/engine/Pose;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/engine/AnchorStatus;Lcom/spatialkit/engine/Pose;)Lcom/spatialkit/engine/AnchorState;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/AnchorState;Ljava/lang/String;Lcom/spatialkit/engine/AnchorStatus;Lcom/spatialkit/engine/Pose;ILjava/lang/Object;)Lcom/spatialkit/engine/AnchorState;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getPose ()Lcom/spatialkit/engine/Pose;
+	public final fun getStatus ()Lcom/spatialkit/engine/AnchorStatus;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/AnchorStatus : java/lang/Enum {
+	public static final field ERROR Lcom/spatialkit/engine/AnchorStatus;
+	public static final field LOST Lcom/spatialkit/engine/AnchorStatus;
+	public static final field PAUSED Lcom/spatialkit/engine/AnchorStatus;
+	public static final field PENDING Lcom/spatialkit/engine/AnchorStatus;
+	public static final field TRACKING Lcom/spatialkit/engine/AnchorStatus;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/AnchorStatus;
+	public static fun values ()[Lcom/spatialkit/engine/AnchorStatus;
+}
+
+public abstract interface class com/spatialkit/engine/AnchorType {
+}
+
+public final class com/spatialkit/engine/AnchorType$HitTest : com/spatialkit/engine/AnchorType {
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)V
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/AnchorType$HitTest;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/AnchorType$HitTest;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/engine/AnchorType$HitTest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHitNormal ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getHitPoint ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/AnchorType$Persistent : com/spatialkit/engine/AnchorType {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/spatialkit/engine/AnchorType$Persistent;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/AnchorType$Persistent;Ljava/lang/String;ILjava/lang/Object;)Lcom/spatialkit/engine/AnchorType$Persistent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCloudId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/AnchorType$Plane : com/spatialkit/engine/AnchorType {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/AnchorType$Plane;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/AnchorType$Plane;Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/engine/AnchorType$Plane;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOffsetFromCenter ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getPlaneId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/AnchorType$World : com/spatialkit/engine/AnchorType {
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;)V
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Quaternion;
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;)Lcom/spatialkit/engine/AnchorType$World;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/AnchorType$World;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;ILjava/lang/Object;)Lcom/spatialkit/engine/AnchorType$World;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPosition ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getRotation ()Lcom/spatialkit/core/math/Quaternion;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/Axis : java/lang/Enum {
+	public static final field THUMBSTICK_X Lcom/spatialkit/engine/Axis;
+	public static final field THUMBSTICK_Y Lcom/spatialkit/engine/Axis;
+	public static final field TRIGGER Lcom/spatialkit/engine/Axis;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/Axis;
+	public static fun values ()[Lcom/spatialkit/engine/Axis;
+}
+
+public final class com/spatialkit/engine/Button : java/lang/Enum {
+	public static final field GRIP Lcom/spatialkit/engine/Button;
+	public static final field PRIMARY Lcom/spatialkit/engine/Button;
+	public static final field SECONDARY Lcom/spatialkit/engine/Button;
+	public static final field THUMBSTICK Lcom/spatialkit/engine/Button;
+	public static final field TRIGGER Lcom/spatialkit/engine/Button;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/Button;
+	public static fun values ()[Lcom/spatialkit/engine/Button;
+}
+
+public final class com/spatialkit/engine/ButtonState : java/lang/Enum {
+	public static final field PRESSED Lcom/spatialkit/engine/ButtonState;
+	public static final field RELEASED Lcom/spatialkit/engine/ButtonState;
+	public static final field TOUCHED Lcom/spatialkit/engine/ButtonState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/ButtonState;
+	public static fun values ()[Lcom/spatialkit/engine/ButtonState;
+}
+
+public final class com/spatialkit/engine/DetectedPlane {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/engine/PlaneType;Lcom/spatialkit/engine/Pose;FFLjava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/engine/PlaneType;
+	public final fun component3 ()Lcom/spatialkit/engine/Pose;
+	public final fun component4 ()F
+	public final fun component5 ()F
+	public final fun component6 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/engine/PlaneType;Lcom/spatialkit/engine/Pose;FFLjava/util/List;)Lcom/spatialkit/engine/DetectedPlane;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/DetectedPlane;Ljava/lang/String;Lcom/spatialkit/engine/PlaneType;Lcom/spatialkit/engine/Pose;FFLjava/util/List;ILjava/lang/Object;)Lcom/spatialkit/engine/DetectedPlane;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCenterPose ()Lcom/spatialkit/engine/Pose;
+	public final fun getExtentX ()F
+	public final fun getExtentZ ()F
+	public final fun getId ()Ljava/lang/String;
+	public final fun getType ()Lcom/spatialkit/engine/PlaneType;
+	public final fun getVertices ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineCapabilities {
+	public fun <init> (ZZZZZZZZLjava/lang/Integer;)V
+	public synthetic fun <init> (ZZZZZZZZLjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun component6 ()Z
+	public final fun component7 ()Z
+	public final fun component8 ()Z
+	public final fun component9 ()Ljava/lang/Integer;
+	public final fun copy (ZZZZZZZZLjava/lang/Integer;)Lcom/spatialkit/engine/EngineCapabilities;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineCapabilities;ZZZZZZZZLjava/lang/Integer;ILjava/lang/Object;)Lcom/spatialkit/engine/EngineCapabilities;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMaxAnchors ()Ljava/lang/Integer;
+	public final fun getSupportsAR ()Z
+	public final fun getSupportsDepthOcclusion ()Z
+	public final fun getSupportsFaceTracking ()Z
+	public final fun getSupportsHandTracking ()Z
+	public final fun getSupportsImageTracking ()Z
+	public final fun getSupportsPlaneDetection ()Z
+	public final fun getSupportsSpatialAnchors ()Z
+	public final fun getSupportsVR ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineConfig {
+	public fun <init> ()V
+	public fun <init> (Lcom/spatialkit/engine/SessionMode;ZZFF)V
+	public synthetic fun <init> (Lcom/spatialkit/engine/SessionMode;ZZFFILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/spatialkit/engine/SessionMode;
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun component4 ()F
+	public final fun component5 ()F
+	public final fun copy (Lcom/spatialkit/engine/SessionMode;ZZFF)Lcom/spatialkit/engine/EngineConfig;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineConfig;Lcom/spatialkit/engine/SessionMode;ZZFFILjava/lang/Object;)Lcom/spatialkit/engine/EngineConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnableLightEstimation ()Z
+	public final fun getEnablePlaneDetection ()Z
+	public final fun getFarPlane ()F
+	public final fun getNearPlane ()F
+	public final fun getPreferredMode ()Lcom/spatialkit/engine/SessionMode;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/spatialkit/engine/EngineError {
+}
+
+public final class com/spatialkit/engine/EngineError$InitializationFailed : com/spatialkit/engine/EngineError {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/spatialkit/engine/EngineError$InitializationFailed;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineError$InitializationFailed;Ljava/lang/String;ILjava/lang/Object;)Lcom/spatialkit/engine/EngineError$InitializationFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineError$NotSupported : com/spatialkit/engine/EngineError {
+	public static final field INSTANCE Lcom/spatialkit/engine/EngineError$NotSupported;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineError$PermissionDenied : com/spatialkit/engine/EngineError {
+	public static final field INSTANCE Lcom/spatialkit/engine/EngineError$PermissionDenied;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineError$RuntimeError : com/spatialkit/engine/EngineError {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Throwable;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Throwable;)Lcom/spatialkit/engine/EngineError$RuntimeError;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineError$RuntimeError;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)Lcom/spatialkit/engine/EngineError$RuntimeError;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineError$SessionFailed : com/spatialkit/engine/EngineError {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/spatialkit/engine/EngineError$SessionFailed;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineError$SessionFailed;Ljava/lang/String;ILjava/lang/Object;)Lcom/spatialkit/engine/EngineError$SessionFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineError$TrackingFailed : com/spatialkit/engine/EngineError {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/spatialkit/engine/EngineError$TrackingFailed;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineError$TrackingFailed;Ljava/lang/String;ILjava/lang/Object;)Lcom/spatialkit/engine/EngineError$TrackingFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/spatialkit/engine/EngineState {
+}
+
+public final class com/spatialkit/engine/EngineState$Disposed : com/spatialkit/engine/EngineState {
+	public static final field INSTANCE Lcom/spatialkit/engine/EngineState$Disposed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineState$Error : com/spatialkit/engine/EngineState {
+	public fun <init> (Lcom/spatialkit/engine/EngineError;)V
+	public final fun component1 ()Lcom/spatialkit/engine/EngineError;
+	public final fun copy (Lcom/spatialkit/engine/EngineError;)Lcom/spatialkit/engine/EngineState$Error;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineState$Error;Lcom/spatialkit/engine/EngineError;ILjava/lang/Object;)Lcom/spatialkit/engine/EngineState$Error;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getError ()Lcom/spatialkit/engine/EngineError;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineState$Initializing : com/spatialkit/engine/EngineState {
+	public static final field INSTANCE Lcom/spatialkit/engine/EngineState$Initializing;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineState$Ready : com/spatialkit/engine/EngineState {
+	public static final field INSTANCE Lcom/spatialkit/engine/EngineState$Ready;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineState$Running : com/spatialkit/engine/EngineState {
+	public fun <init> (Lcom/spatialkit/engine/SessionMode;)V
+	public final fun component1 ()Lcom/spatialkit/engine/SessionMode;
+	public final fun copy (Lcom/spatialkit/engine/SessionMode;)Lcom/spatialkit/engine/EngineState$Running;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineState$Running;Lcom/spatialkit/engine/SessionMode;ILjava/lang/Object;)Lcom/spatialkit/engine/EngineState$Running;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSessionMode ()Lcom/spatialkit/engine/SessionMode;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/EngineState$Uninitialized : com/spatialkit/engine/EngineState {
+	public static final field INSTANCE Lcom/spatialkit/engine/EngineState$Uninitialized;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/FallbackEngine : com/spatialkit/engine/SpatialEngine {
+	public static final field TAG Ljava/lang/String;
+	public fun <init> ()V
+	public fun dispose ()V
+	public fun getCapabilities ()Lcom/spatialkit/engine/EngineCapabilities;
+	public fun getState ()Lkotlinx/coroutines/flow/StateFlow;
+	public fun initialize (Lcom/spatialkit/engine/EngineConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onFrame (Lkotlin/jvm/functions/Function1;)V
+	public fun performHitTest (FF)Lcom/spatialkit/engine/HitTestResult;
+	public fun performRaycast (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/RaycastResult;
+	public fun startSession (Lcom/spatialkit/engine/SessionMode;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stopSession ()V
+	public fun submitScene (Lcom/spatialkit/engine/SceneData;)V
+}
+
+public final class com/spatialkit/engine/FrameData {
+	public fun <init> (JFLcom/spatialkit/engine/Pose;[F[FLcom/spatialkit/engine/TrackingState;Ljava/util/List;Lcom/spatialkit/engine/LightEstimate;Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()J
+	public final fun component10 ()Ljava/util/List;
+	public final fun component2 ()F
+	public final fun component3 ()Lcom/spatialkit/engine/Pose;
+	public final fun component4 ()[F
+	public final fun component5 ()[F
+	public final fun component6 ()Lcom/spatialkit/engine/TrackingState;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Lcom/spatialkit/engine/LightEstimate;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (JFLcom/spatialkit/engine/Pose;[F[FLcom/spatialkit/engine/TrackingState;Ljava/util/List;Lcom/spatialkit/engine/LightEstimate;Ljava/util/List;Ljava/util/List;)Lcom/spatialkit/engine/FrameData;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/FrameData;JFLcom/spatialkit/engine/Pose;[F[FLcom/spatialkit/engine/TrackingState;Ljava/util/List;Lcom/spatialkit/engine/LightEstimate;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/spatialkit/engine/FrameData;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAnchors ()Ljava/util/List;
+	public final fun getCameraPose ()Lcom/spatialkit/engine/Pose;
+	public final fun getDeltaTime ()F
+	public final fun getDetectedPlanes ()Ljava/util/List;
+	public final fun getInputSources ()Ljava/util/List;
+	public final fun getLightEstimate ()Lcom/spatialkit/engine/LightEstimate;
+	public final fun getProjectionMatrix ()[F
+	public final fun getTimestamp ()J
+	public final fun getTrackingState ()Lcom/spatialkit/engine/TrackingState;
+	public final fun getViewMatrix ()[F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/GeometryData {
+	public fun <init> (Lcom/spatialkit/engine/GeometryType;[F[I[F[F)V
+	public synthetic fun <init> (Lcom/spatialkit/engine/GeometryType;[F[I[F[FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/spatialkit/engine/GeometryType;
+	public final fun component2 ()[F
+	public final fun component3 ()[I
+	public final fun component4 ()[F
+	public final fun component5 ()[F
+	public final fun copy (Lcom/spatialkit/engine/GeometryType;[F[I[F[F)Lcom/spatialkit/engine/GeometryData;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/GeometryType;[F[I[F[FILjava/lang/Object;)Lcom/spatialkit/engine/GeometryData;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIndices ()[I
+	public final fun getNormals ()[F
+	public final fun getType ()Lcom/spatialkit/engine/GeometryType;
+	public final fun getUvs ()[F
+	public final fun getVertices ()[F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/GeometryType : java/lang/Enum {
+	public static final field CAPSULE Lcom/spatialkit/engine/GeometryType;
+	public static final field CUBE Lcom/spatialkit/engine/GeometryType;
+	public static final field CUSTOM_MESH Lcom/spatialkit/engine/GeometryType;
+	public static final field CYLINDER Lcom/spatialkit/engine/GeometryType;
+	public static final field PLANE Lcom/spatialkit/engine/GeometryType;
+	public static final field SPHERE Lcom/spatialkit/engine/GeometryType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/GeometryType;
+	public static fun values ()[Lcom/spatialkit/engine/GeometryType;
+}
+
+public final class com/spatialkit/engine/Hand : java/lang/Enum {
+	public static final field LEFT Lcom/spatialkit/engine/Hand;
+	public static final field RIGHT Lcom/spatialkit/engine/Hand;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/Hand;
+	public static fun values ()[Lcom/spatialkit/engine/Hand;
+}
+
+public final class com/spatialkit/engine/HandGesture : java/lang/Enum {
+	public static final field GRAB Lcom/spatialkit/engine/HandGesture;
+	public static final field OPEN Lcom/spatialkit/engine/HandGesture;
+	public static final field PINCH Lcom/spatialkit/engine/HandGesture;
+	public static final field POINT Lcom/spatialkit/engine/HandGesture;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/HandGesture;
+	public static fun values ()[Lcom/spatialkit/engine/HandGesture;
+}
+
+public final class com/spatialkit/engine/HandJoint : java/lang/Enum {
+	public static final field INDEX_DIP Lcom/spatialkit/engine/HandJoint;
+	public static final field INDEX_MCP Lcom/spatialkit/engine/HandJoint;
+	public static final field INDEX_PIP Lcom/spatialkit/engine/HandJoint;
+	public static final field INDEX_TIP Lcom/spatialkit/engine/HandJoint;
+	public static final field MIDDLE_DIP Lcom/spatialkit/engine/HandJoint;
+	public static final field MIDDLE_MCP Lcom/spatialkit/engine/HandJoint;
+	public static final field MIDDLE_PIP Lcom/spatialkit/engine/HandJoint;
+	public static final field MIDDLE_TIP Lcom/spatialkit/engine/HandJoint;
+	public static final field PINKY_DIP Lcom/spatialkit/engine/HandJoint;
+	public static final field PINKY_MCP Lcom/spatialkit/engine/HandJoint;
+	public static final field PINKY_PIP Lcom/spatialkit/engine/HandJoint;
+	public static final field PINKY_TIP Lcom/spatialkit/engine/HandJoint;
+	public static final field RING_DIP Lcom/spatialkit/engine/HandJoint;
+	public static final field RING_MCP Lcom/spatialkit/engine/HandJoint;
+	public static final field RING_PIP Lcom/spatialkit/engine/HandJoint;
+	public static final field RING_TIP Lcom/spatialkit/engine/HandJoint;
+	public static final field THUMB_CMC Lcom/spatialkit/engine/HandJoint;
+	public static final field THUMB_IP Lcom/spatialkit/engine/HandJoint;
+	public static final field THUMB_MCP Lcom/spatialkit/engine/HandJoint;
+	public static final field THUMB_TIP Lcom/spatialkit/engine/HandJoint;
+	public static final field WRIST Lcom/spatialkit/engine/HandJoint;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/HandJoint;
+	public static fun values ()[Lcom/spatialkit/engine/HandJoint;
+}
+
+public final class com/spatialkit/engine/Handedness : java/lang/Enum {
+	public static final field LEFT Lcom/spatialkit/engine/Handedness;
+	public static final field RIGHT Lcom/spatialkit/engine/Handedness;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/Handedness;
+	public static fun values ()[Lcom/spatialkit/engine/Handedness;
+}
+
+public final class com/spatialkit/engine/HitTestResult {
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;FLjava/lang/String;)V
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component3 ()F
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;FLjava/lang/String;)Lcom/spatialkit/engine/HitTestResult;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/HitTestResult;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;FLjava/lang/String;ILjava/lang/Object;)Lcom/spatialkit/engine/HitTestResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDistance ()F
+	public final fun getNormal ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getPlaneId ()Ljava/lang/String;
+	public final fun getPosition ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/spatialkit/engine/InputSource {
+	public abstract fun getId ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/InputSource$Controller : com/spatialkit/engine/InputSource {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/engine/Hand;Lcom/spatialkit/engine/Pose;Ljava/util/Map;Ljava/util/Map;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/engine/Hand;
+	public final fun component3 ()Lcom/spatialkit/engine/Pose;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun component5 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/engine/Hand;Lcom/spatialkit/engine/Pose;Ljava/util/Map;Ljava/util/Map;)Lcom/spatialkit/engine/InputSource$Controller;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/InputSource$Controller;Ljava/lang/String;Lcom/spatialkit/engine/Hand;Lcom/spatialkit/engine/Pose;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)Lcom/spatialkit/engine/InputSource$Controller;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAxes ()Ljava/util/Map;
+	public final fun getButtons ()Ljava/util/Map;
+	public final fun getHand ()Lcom/spatialkit/engine/Hand;
+	public fun getId ()Ljava/lang/String;
+	public final fun getPose ()Lcom/spatialkit/engine/Pose;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/InputSource$Gaze : com/spatialkit/engine/InputSource {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component3 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/InputSource$Gaze;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/InputSource$Gaze;Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/engine/InputSource$Gaze;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDirection ()Lcom/spatialkit/core/math/Vec3;
+	public fun getId ()Ljava/lang/String;
+	public final fun getOrigin ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/InputSource$Hand : com/spatialkit/engine/InputSource {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/engine/Handedness;Ljava/util/Map;Lcom/spatialkit/engine/HandGesture;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/engine/Handedness;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Lcom/spatialkit/engine/HandGesture;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/engine/Handedness;Ljava/util/Map;Lcom/spatialkit/engine/HandGesture;)Lcom/spatialkit/engine/InputSource$Hand;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/InputSource$Hand;Ljava/lang/String;Lcom/spatialkit/engine/Handedness;Ljava/util/Map;Lcom/spatialkit/engine/HandGesture;ILjava/lang/Object;)Lcom/spatialkit/engine/InputSource$Hand;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGesture ()Lcom/spatialkit/engine/HandGesture;
+	public final fun getHandedness ()Lcom/spatialkit/engine/Handedness;
+	public fun getId ()Ljava/lang/String;
+	public final fun getJoints ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/InputSource$Screen : com/spatialkit/engine/InputSource {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Lcom/spatialkit/engine/InputSource$Screen;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/InputSource$Screen;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/spatialkit/engine/InputSource$Screen;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getId ()Ljava/lang/String;
+	public final fun getTouches ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/LightEstimate {
+	public fun <init> (FLcom/spatialkit/core/math/Vec3;FLcom/spatialkit/core/math/Vec3;)V
+	public final fun component1 ()F
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component3 ()F
+	public final fun component4 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun copy (FLcom/spatialkit/core/math/Vec3;FLcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/LightEstimate;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/LightEstimate;FLcom/spatialkit/core/math/Vec3;FLcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/engine/LightEstimate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAmbientColor ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getAmbientIntensity ()F
+	public final fun getDirectionalDirection ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getDirectionalIntensity ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/MaterialData {
+	public fun <init> (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLjava/lang/String;Z)V
+	public synthetic fun <init> (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLjava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/spatialkit/engine/MaterialType;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec4;
+	public final fun component3 ()F
+	public final fun component4 ()F
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Z
+	public final fun copy (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLjava/lang/String;Z)Lcom/spatialkit/engine/MaterialData;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/MaterialData;Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLjava/lang/String;ZILjava/lang/Object;)Lcom/spatialkit/engine/MaterialData;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBaseColor ()Lcom/spatialkit/core/math/Vec4;
+	public final fun getDoubleSided ()Z
+	public final fun getMetallic ()F
+	public final fun getRoughness ()F
+	public final fun getTextureId ()Ljava/lang/String;
+	public final fun getType ()Lcom/spatialkit/engine/MaterialType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/MaterialType : java/lang/Enum {
+	public static final field LIT Lcom/spatialkit/engine/MaterialType;
+	public static final field PBR Lcom/spatialkit/engine/MaterialType;
+	public static final field UNLIT Lcom/spatialkit/engine/MaterialType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/MaterialType;
+	public static fun values ()[Lcom/spatialkit/engine/MaterialType;
+}
+
+public final class com/spatialkit/engine/PlaneType : java/lang/Enum {
+	public static final field HORIZONTAL_DOWN Lcom/spatialkit/engine/PlaneType;
+	public static final field HORIZONTAL_UP Lcom/spatialkit/engine/PlaneType;
+	public static final field UNKNOWN Lcom/spatialkit/engine/PlaneType;
+	public static final field VERTICAL Lcom/spatialkit/engine/PlaneType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/PlaneType;
+	public static fun values ()[Lcom/spatialkit/engine/PlaneType;
+}
+
+public final class com/spatialkit/engine/Pose {
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;)V
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Quaternion;
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;)Lcom/spatialkit/engine/Pose;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/Pose;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;ILjava/lang/Object;)Lcom/spatialkit/engine/Pose;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPosition ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getRotation ()Lcom/spatialkit/core/math/Quaternion;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/RaycastResult {
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;FLjava/lang/String;)V
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component3 ()F
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;FLjava/lang/String;)Lcom/spatialkit/engine/RaycastResult;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/RaycastResult;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;FLjava/lang/String;ILjava/lang/Object;)Lcom/spatialkit/engine/RaycastResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDistance ()F
+	public final fun getNodeId ()Ljava/lang/String;
+	public final fun getNormal ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getPosition ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/SceneData {
+	public fun <init> (Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;Ljava/util/List;)Lcom/spatialkit/engine/SceneData;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/SceneData;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/spatialkit/engine/SceneData;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAnchors ()Ljava/util/List;
+	public final fun getNodes ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/spatialkit/engine/SceneNode {
+	public abstract fun getId ()Ljava/lang/String;
+	public abstract fun getTransform ()Lcom/spatialkit/core/math/Transform;
+	public abstract fun getVisible ()Z
+}
+
+public final class com/spatialkit/engine/SceneNode$Group : com/spatialkit/engine/SceneNode {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/core/math/Transform;
+	public final fun component3 ()Z
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;)Lcom/spatialkit/engine/SceneNode$Group;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/SceneNode$Group;Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;ILjava/lang/Object;)Lcom/spatialkit/engine/SceneNode$Group;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChildren ()Ljava/util/List;
+	public fun getId ()Ljava/lang/String;
+	public fun getTransform ()Lcom/spatialkit/core/math/Transform;
+	public fun getVisible ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/SceneNode$Mesh : com/spatialkit/engine/SceneNode {
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/spatialkit/core/math/Transform;
+	public final fun component3 ()Z
+	public final fun component4 ()Lcom/spatialkit/engine/GeometryData;
+	public final fun component5 ()Lcom/spatialkit/engine/MaterialData;
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;)Lcom/spatialkit/engine/SceneNode$Mesh;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/SceneNode$Mesh;Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;ILjava/lang/Object;)Lcom/spatialkit/engine/SceneNode$Mesh;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGeometry ()Lcom/spatialkit/engine/GeometryData;
+	public fun getId ()Ljava/lang/String;
+	public final fun getMaterial ()Lcom/spatialkit/engine/MaterialData;
+	public fun getTransform ()Lcom/spatialkit/core/math/Transform;
+	public fun getVisible ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/spatialkit/engine/SessionMode {
+}
+
+public final class com/spatialkit/engine/SessionMode$AR : com/spatialkit/engine/SessionMode {
+	public static final field INSTANCE Lcom/spatialkit/engine/SessionMode$AR;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/SessionMode$Passthrough : com/spatialkit/engine/SessionMode {
+	public fun <init> ()V
+	public fun <init> (F)V
+	public synthetic fun <init> (FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun copy (F)Lcom/spatialkit/engine/SessionMode$Passthrough;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/SessionMode$Passthrough;FILjava/lang/Object;)Lcom/spatialkit/engine/SessionMode$Passthrough;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOpacity ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/SessionMode$VR : com/spatialkit/engine/SessionMode {
+	public static final field INSTANCE Lcom/spatialkit/engine/SessionMode$VR;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/spatialkit/engine/SpatialEngine {
+	public abstract fun dispose ()V
+	public abstract fun getCapabilities ()Lcom/spatialkit/engine/EngineCapabilities;
+	public abstract fun getState ()Lkotlinx/coroutines/flow/StateFlow;
+	public abstract fun initialize (Lcom/spatialkit/engine/EngineConfig;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun onFrame (Lkotlin/jvm/functions/Function1;)V
+	public abstract fun performHitTest (FF)Lcom/spatialkit/engine/HitTestResult;
+	public abstract fun performRaycast (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/RaycastResult;
+	public abstract fun startSession (Lcom/spatialkit/engine/SessionMode;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun stopSession ()V
+	public abstract fun submitScene (Lcom/spatialkit/engine/SceneData;)V
+}
+
+public final class com/spatialkit/engine/SpatialEngineFactory {
+	public static final field INSTANCE Lcom/spatialkit/engine/SpatialEngineFactory;
+	public final fun create ()Lcom/spatialkit/engine/SpatialEngine;
+	public final fun getEngineName ()Ljava/lang/String;
+	public final fun getSupportedModes ()Ljava/util/List;
+	public final fun isSupported ()Z
+}
+
+public final class com/spatialkit/engine/SpatialRuntime {
+	public static final field TAG Ljava/lang/String;
+	public fun <init> ()V
+	public final fun dispose ()V
+	public final fun getCapabilities ()Lcom/spatialkit/engine/EngineCapabilities;
+	public final fun getEngine ()Lcom/spatialkit/engine/SpatialEngine;
+	public final fun getEngineName ()Ljava/lang/String;
+	public final fun getState ()Lcom/spatialkit/engine/EngineState;
+	public final fun getStateFlow ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getSupportedModes ()Ljava/util/List;
+	public final fun isRunning ()Z
+	public final fun isSupported ()Z
+	public final fun performHitTest (FF)Lcom/spatialkit/engine/HitTestResult;
+	public final fun performRaycast (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/RaycastResult;
+	public final fun setEngine (Lcom/spatialkit/engine/SpatialEngine;)V
+	public final fun start (Lcom/spatialkit/engine/EngineConfig;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun start$default (Lcom/spatialkit/engine/SpatialRuntime;Lcom/spatialkit/engine/EngineConfig;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun stop ()V
+	public final fun submitScene (Lcom/spatialkit/engine/SceneData;)V
+}
+
+public final class com/spatialkit/engine/Touch {
+	public fun <init> (IFFLcom/spatialkit/engine/TouchPhase;)V
+	public final fun component1 ()I
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun component4 ()Lcom/spatialkit/engine/TouchPhase;
+	public final fun copy (IFFLcom/spatialkit/engine/TouchPhase;)Lcom/spatialkit/engine/Touch;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/Touch;IFFLcom/spatialkit/engine/TouchPhase;ILjava/lang/Object;)Lcom/spatialkit/engine/Touch;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()I
+	public final fun getPhase ()Lcom/spatialkit/engine/TouchPhase;
+	public final fun getScreenX ()F
+	public final fun getScreenY ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/TouchPhase : java/lang/Enum {
+	public static final field BEGAN Lcom/spatialkit/engine/TouchPhase;
+	public static final field CANCELLED Lcom/spatialkit/engine/TouchPhase;
+	public static final field ENDED Lcom/spatialkit/engine/TouchPhase;
+	public static final field MOVED Lcom/spatialkit/engine/TouchPhase;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/TouchPhase;
+	public static fun values ()[Lcom/spatialkit/engine/TouchPhase;
+}
+
+public final class com/spatialkit/engine/TrackingState : java/lang/Enum {
+	public static final field LIMITED Lcom/spatialkit/engine/TrackingState;
+	public static final field NORMAL Lcom/spatialkit/engine/TrackingState;
+	public static final field NOT_AVAILABLE Lcom/spatialkit/engine/TrackingState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/TrackingState;
+	public static fun values ()[Lcom/spatialkit/engine/TrackingState;
+}
+

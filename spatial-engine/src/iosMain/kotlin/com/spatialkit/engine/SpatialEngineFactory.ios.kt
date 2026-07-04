@@ -1,7 +1,6 @@
 package com.spatialkit.engine
 
 import com.spatialkit.core.log.SpatialLog
-
 import platform.ARKit.ARWorldTrackingConfiguration
 
 /**
@@ -30,7 +29,9 @@ public actual object SpatialEngineFactory {
         }
 
     public actual fun create(): SpatialEngine {
-        SpatialLog.warn("SpatialEngineFactory") { "Use createARKitEngine() from spatial-engine-arkit for ARKit support" }
+        SpatialLog.warn(
+            "SpatialEngineFactory",
+        ) { "Use createARKitEngine() from spatial-engine-arkit for ARKit support" }
         return FallbackEngine()
     }
 

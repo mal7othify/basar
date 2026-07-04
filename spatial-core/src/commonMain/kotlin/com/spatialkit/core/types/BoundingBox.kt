@@ -96,9 +96,12 @@ public data class BoundingBox(
      * @return True if the point is inside or on the boundary
      */
     public fun contains(point: Vec3): Boolean =
-        point.x >= min.x && point.x <= max.x &&
-            point.y >= min.y && point.y <= max.y &&
-            point.z >= min.z && point.z <= max.z
+        point.x >= min.x &&
+            point.x <= max.x &&
+            point.y >= min.y &&
+            point.y <= max.y &&
+            point.z >= min.z &&
+            point.z <= max.z
 
     /**
      * Checks if another bounding box intersects with this one.
@@ -107,9 +110,12 @@ public data class BoundingBox(
      * @return True if the boxes overlap
      */
     public fun intersects(other: BoundingBox): Boolean =
-        min.x <= other.max.x && max.x >= other.min.x &&
-            min.y <= other.max.y && max.y >= other.min.y &&
-            min.z <= other.max.z && max.z >= other.min.z
+        min.x <= other.max.x &&
+            max.x >= other.min.x &&
+            min.y <= other.max.y &&
+            max.y >= other.min.y &&
+            min.z <= other.max.z &&
+            max.z >= other.min.z
 
     /**
      * Checks if this bounding box completely contains another bounding box.
@@ -118,9 +124,12 @@ public data class BoundingBox(
      * @return True if other is completely inside this box
      */
     public fun contains(other: BoundingBox): Boolean =
-        other.min.x >= min.x && other.max.x <= max.x &&
-            other.min.y >= min.y && other.max.y <= max.y &&
-            other.min.z >= min.z && other.max.z <= max.z
+        other.min.x >= min.x &&
+            other.max.x <= max.x &&
+            other.min.y >= min.y &&
+            other.max.y <= max.y &&
+            other.min.z >= min.z &&
+            other.max.z <= max.z
 
     /**
      * Expands this bounding box to include a point.

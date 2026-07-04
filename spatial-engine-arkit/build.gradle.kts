@@ -12,7 +12,7 @@ kotlin {
     listOf(
         iosX64(),
         iosArm64(),
-        iosSimulatorArm64()
+        iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "SpatialEngineARKit"
@@ -29,7 +29,10 @@ kotlin {
         }
 
         iosMain.dependencies {
-            // ARKit is part of iOS SDK, no external dependencies needed
+            // ARKit itself is part of the iOS SDK. Coroutines are used
+            // directly (ARKitEngine.state is a MutableStateFlow) — declared
+            // here because metadata compilation does not see it transitively.
+            implementation(libs.kotlinx.coroutines.core)
         }
 
         commonTest.dependencies {

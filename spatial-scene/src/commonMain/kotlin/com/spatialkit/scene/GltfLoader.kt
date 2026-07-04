@@ -32,8 +32,9 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * ```
  */
 @ExperimentalSpatialApi
-public class GltfLoader(private val json: String) {
-
+public class GltfLoader(
+    private val json: String,
+) {
     private val buffers = mutableMapOf<Int, ByteArray>()
 
     /**
@@ -82,7 +83,7 @@ public class GltfLoader(private val json: String) {
             type = GeometryType.CUSTOM_MESH,
             vertices = vertices,
             normals = normals,
-            indices = indices
+            indices = indices,
         )
     }
 
@@ -114,7 +115,10 @@ public class GltfLoader(private val json: String) {
         }
     }
 
-    private fun findAttributeAccessor(name: String, startIndex: Int): Int? {
+    private fun findAttributeAccessor(
+        name: String,
+        startIndex: Int,
+    ): Int? {
         val pattern = "\"$name\""
         val attrStart = json.indexOf(pattern, startIndex)
         if (attrStart == -1) return null
@@ -122,7 +126,7 @@ public class GltfLoader(private val json: String) {
         val colonPos = json.indexOf(":", attrStart + pattern.length)
         if (colonPos == -1) return null
 
-        return parseIntAfter(colonPos)
+        return parseIntAfter(json, colonPos)
     }
 
     private fun findIndicesAccessor(startIndex: Int): Int? {
@@ -133,18 +137,23 @@ public class GltfLoader(private val json: String) {
         val colonPos = json.indexOf(":", indicesStart + pattern.length)
         if (colonPos == -1) return null
 
-        return parseIntAfter(colonPos)
+        return parseIntAfter(json, colonPos)
     }
 
-    private fun parseIntAfter(colonPos: Int): Int? {
+    // Positions must be interpreted against the string they were found in —
+    // extractInt() passes object substrings, not the full document.
+    private fun parseIntAfter(
+        source: String,
+        colonPos: Int,
+    ): Int? {
         var i = colonPos + 1
-        while (i < json.length && json[i].isWhitespace()) i++
+        while (i < source.length && source[i].isWhitespace()) i++
 
         val numStart = i
-        while (i < json.length && json[i].isDigit()) i++
+        while (i < source.length && source[i].isDigit()) i++
 
         if (i == numStart) return null
-        return json.substring(numStart, i).toIntOrNull()
+        return source.substring(numStart, i).toIntOrNull()
     }
 
     private fun extractFloatData(accessorIndex: Int): FloatArray? {
@@ -179,11 +188,12 @@ public class GltfLoader(private val json: String) {
         for (i in 0 until accessor.count) {
             val byteIndex = offset + i * bytesPerElement
             if (byteIndex + bytesPerElement > buffer.size) break
-            ints[i] = if (bytesPerElement == 2) {
-                bytesToUShort(buffer, byteIndex)
-            } else {
-                bytesToInt(buffer, byteIndex)
-            }
+            ints[i] =
+                if (bytesPerElement == 2) {
+                    bytesToUShort(buffer, byteIndex)
+                } else {
+                    bytesToInt(buffer, byteIndex)
+                }
         }
 
         return ints
@@ -192,13 +202,13 @@ public class GltfLoader(private val json: String) {
     private data class AccessorInfo(
         val bufferView: Int,
         val componentType: Int,
-        val count: Int
+        val count: Int,
     )
 
     private data class BufferViewInfo(
         val buffer: Int,
         val byteOffset: Int,
-        val byteLength: Int
+        val byteLength: Int,
     )
 
     private fun findAccessor(index: Int): AccessorInfo? {
@@ -259,14 +269,17 @@ public class GltfLoader(private val json: String) {
         return null
     }
 
-    private fun extractInt(json: String, key: String): Int? {
+    private fun extractInt(
+        json: String,
+        key: String,
+    ): Int? {
         val keyStart = json.indexOf("\"$key\"")
         if (keyStart == -1) return null
 
         val colonPos = json.indexOf(":", keyStart)
         if (colonPos == -1) return null
 
-        return parseIntAfter(colonPos)
+        return parseIntAfter(json, colonPos)
     }
 
     private fun findMatchingBrace(openPos: Int): Int {
@@ -282,23 +295,31 @@ public class GltfLoader(private val json: String) {
         return i - 1
     }
 
-    private fun bytesToFloat(bytes: ByteArray, offset: Int): Float {
-        val bits = (bytes[offset].toInt() and 0xFF) or
+    private fun bytesToFloat(
+        bytes: ByteArray,
+        offset: Int,
+    ): Float {
+        val bits =
+            (bytes[offset].toInt() and 0xFF) or
                 ((bytes[offset + 1].toInt() and 0xFF) shl 8) or
                 ((bytes[offset + 2].toInt() and 0xFF) shl 16) or
                 ((bytes[offset + 3].toInt() and 0xFF) shl 24)
         return Float.fromBits(bits)
     }
 
-    private fun bytesToUShort(bytes: ByteArray, offset: Int): Int {
-        return (bytes[offset].toInt() and 0xFF) or
-                ((bytes[offset + 1].toInt() and 0xFF) shl 8)
-    }
+    private fun bytesToUShort(
+        bytes: ByteArray,
+        offset: Int,
+    ): Int =
+        (bytes[offset].toInt() and 0xFF) or
+            ((bytes[offset + 1].toInt() and 0xFF) shl 8)
 
-    private fun bytesToInt(bytes: ByteArray, offset: Int): Int {
-        return (bytes[offset].toInt() and 0xFF) or
-                ((bytes[offset + 1].toInt() and 0xFF) shl 8) or
-                ((bytes[offset + 2].toInt() and 0xFF) shl 16) or
-                ((bytes[offset + 3].toInt() and 0xFF) shl 24)
-    }
+    private fun bytesToInt(
+        bytes: ByteArray,
+        offset: Int,
+    ): Int =
+        (bytes[offset].toInt() and 0xFF) or
+            ((bytes[offset + 1].toInt() and 0xFF) shl 8) or
+            ((bytes[offset + 2].toInt() and 0xFF) shl 16) or
+            ((bytes[offset + 3].toInt() and 0xFF) shl 24)
 }

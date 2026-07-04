@@ -1,0 +1,67 @@
+public final class com/spatialkit/dsl/AnchorScope {
+	public fun <init> (Lcom/spatialkit/scene/SpatialAnchor;Lcom/spatialkit/scene/SpatialScene;)V
+	public final fun cube (FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CubeNode;
+	public static synthetic fun cube$default (Lcom/spatialkit/dsl/AnchorScope;FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CubeNode;
+	public final fun group (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/GroupNode;
+	public static synthetic fun group$default (Lcom/spatialkit/dsl/AnchorScope;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/GroupNode;
+	public final fun sphere (FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/SphereNode;
+	public static synthetic fun sphere$default (Lcom/spatialkit/dsl/AnchorScope;FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/SphereNode;
+}
+
+public final class com/spatialkit/dsl/ExtensionsKt {
+	public static final fun eulerDegrees (FFF)Lcom/spatialkit/core/math/Quaternion;
+	public static final fun eulerDegrees (III)Lcom/spatialkit/core/math/Quaternion;
+	public static final fun eulerRadians (FFF)Lcom/spatialkit/core/math/Quaternion;
+	public static final fun position (FFF)Lcom/spatialkit/core/math/Vec3;
+	public static final fun rgb (I)Lcom/spatialkit/core/types/Color;
+	public static final fun rgba (I)Lcom/spatialkit/core/types/Color;
+	public static final fun vec3 (FFF)Lcom/spatialkit/core/math/Vec3;
+}
+
+public final class com/spatialkit/dsl/GroupScope {
+	public fun <init> (Lcom/spatialkit/scene/GroupNode;)V
+	public final fun capsule (FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CapsuleNode;
+	public static synthetic fun capsule$default (Lcom/spatialkit/dsl/GroupScope;FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CapsuleNode;
+	public final fun cube (FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CubeNode;
+	public static synthetic fun cube$default (Lcom/spatialkit/dsl/GroupScope;FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CubeNode;
+	public final fun customMesh (Lcom/spatialkit/engine/GeometryData;Lcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CustomMeshNode;
+	public static synthetic fun customMesh$default (Lcom/spatialkit/dsl/GroupScope;Lcom/spatialkit/engine/GeometryData;Lcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CustomMeshNode;
+	public final fun cylinder (FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CylinderNode;
+	public static synthetic fun cylinder$default (Lcom/spatialkit/dsl/GroupScope;FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CylinderNode;
+	public final fun group (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/GroupNode;
+	public static synthetic fun group$default (Lcom/spatialkit/dsl/GroupScope;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/GroupNode;
+	public final fun plane (FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/PlaneNode;
+	public static synthetic fun plane$default (Lcom/spatialkit/dsl/GroupScope;FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/PlaneNode;
+	public final fun sphere (FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/SphereNode;
+	public static synthetic fun sphere$default (Lcom/spatialkit/dsl/GroupScope;FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/SphereNode;
+}
+
+public abstract interface annotation class com/spatialkit/dsl/SpatialDsl : java/lang/annotation/Annotation {
+}
+
+public final class com/spatialkit/dsl/SpatialSceneBuilderKt {
+	public static final fun spatialScene (Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/SpatialScene;
+}
+
+public final class com/spatialkit/dsl/SpatialSceneScope {
+	public fun <init> (Lcom/spatialkit/scene/SpatialScene;)V
+	public final fun anchorAtPosition (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/SpatialAnchor;
+	public static synthetic fun anchorAtPosition$default (Lcom/spatialkit/dsl/SpatialSceneScope;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/SpatialAnchor;
+	public final fun anchorToPlane (Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/SpatialAnchor;
+	public static synthetic fun anchorToPlane$default (Lcom/spatialkit/dsl/SpatialSceneScope;Ljava/lang/String;Lcom/spatialkit/core/math/Vec3;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/SpatialAnchor;
+	public final fun capsule (FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CapsuleNode;
+	public static synthetic fun capsule$default (Lcom/spatialkit/dsl/SpatialSceneScope;FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CapsuleNode;
+	public final fun cube (FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CubeNode;
+	public static synthetic fun cube$default (Lcom/spatialkit/dsl/SpatialSceneScope;FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CubeNode;
+	public final fun customMesh (Lcom/spatialkit/engine/GeometryData;Lcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CustomMeshNode;
+	public static synthetic fun customMesh$default (Lcom/spatialkit/dsl/SpatialSceneScope;Lcom/spatialkit/engine/GeometryData;Lcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CustomMeshNode;
+	public final fun cylinder (FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CylinderNode;
+	public static synthetic fun cylinder$default (Lcom/spatialkit/dsl/SpatialSceneScope;FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CylinderNode;
+	public final fun group (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/GroupNode;
+	public static synthetic fun group$default (Lcom/spatialkit/dsl/SpatialSceneScope;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/GroupNode;
+	public final fun plane (FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/PlaneNode;
+	public static synthetic fun plane$default (Lcom/spatialkit/dsl/SpatialSceneScope;FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/PlaneNode;
+	public final fun sphere (FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/SphereNode;
+	public static synthetic fun sphere$default (Lcom/spatialkit/dsl/SpatialSceneScope;FLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/SphereNode;
+}
+

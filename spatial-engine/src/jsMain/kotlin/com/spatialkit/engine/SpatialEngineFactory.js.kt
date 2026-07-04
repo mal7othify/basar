@@ -27,13 +27,12 @@ public actual object SpatialEngineFactory {
         return xr !== undefined && xr !== null
     }
 
-    public actual fun getSupportedModes(): List<SessionMode> {
-        return if (isSupported()) {
+    public actual fun getSupportedModes(): List<SessionMode> =
+        if (isSupported()) {
             listOf(SessionMode.AR, SessionMode.VR)
         } else {
             emptyList()
         }
-    }
 
     public actual fun create(): SpatialEngine {
         SpatialLog.warn("SpatialEngineFactory") {

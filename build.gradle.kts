@@ -25,6 +25,10 @@ apiValidation {
 subprojects {
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
 
+    // Generated sources are excluded from linting via .editorconfig
+    // ([**/build/generated/**/*.kt] ktlint = disabled) — the plugin-level
+    // filter { } DSL does not reliably apply to KMP source sets.
+
     // Documentation is generated for the published library modules only.
     if (name.startsWith("spatial-")) {
         apply(plugin = "org.jetbrains.dokka")

@@ -1,7 +1,6 @@
 package com.spatialkit.engine.webxr
 
 import com.spatialkit.core.log.SpatialLog
-
 import com.spatialkit.engine.Axis
 import com.spatialkit.engine.Button
 import com.spatialkit.engine.ButtonState
@@ -490,11 +489,12 @@ public class WebXREngine : SpatialEngine {
      */
     private fun Intersection.worldNormal(): Vec3 {
         val face = this.face ?: return Vec3(0f, 1f, 0f)
-        val normal = Vector3(
-            (face.normal.x as Number).toDouble(),
-            (face.normal.y as Number).toDouble(),
-            (face.normal.z as Number).toDouble(),
-        )
+        val normal =
+            Vector3(
+                (face.normal.x as Number).toDouble(),
+                (face.normal.y as Number).toDouble(),
+                (face.normal.z as Number).toDouble(),
+            )
         // Face normals are in object space; rotate into world space
         val worldQuaternion = Quaternion()
         this.`object`.asDynamic().getWorldQuaternion(worldQuaternion)

@@ -3,7 +3,6 @@ package com.spatialkit.scene
 import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.Vec3
 import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 

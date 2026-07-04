@@ -1,7 +1,5 @@
 package com.spatialkit.engine.arcore
 
-import com.spatialkit.core.log.SpatialLog
-
 import android.content.Context
 import android.view.Surface
 import com.google.ar.core.Anchor
@@ -21,6 +19,7 @@ import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException
 import com.google.ar.core.exceptions.UnavailableDeviceNotCompatibleException
 import com.google.ar.core.exceptions.UnavailableSdkTooOldException
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
+import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.engine.AnchorRequest
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
@@ -58,7 +57,8 @@ import com.spatialkit.engine.Pose as EnginePose
  */
 public class ARCoreEngine(
     private val context: Context,
-) : SpatialEngine, GLSurfaceDrivenEngine {
+) : SpatialEngine,
+    GLSurfaceDrivenEngine {
     // ARCore components
     private var session: Session? = null
     private var config: Config? = null
@@ -229,10 +229,11 @@ public class ARCoreEngine(
             throw IllegalStateException("Engine not ready. Current state: ${_state.value}")
         }
 
-        val arSession = session ?: run {
-            SpatialLog.error(TAG) { "ARCore session not initialized!" }
-            throw IllegalStateException("ARCore session not initialized")
-        }
+        val arSession =
+            session ?: run {
+                SpatialLog.error(TAG) { "ARCore session not initialized!" }
+                throw IllegalStateException("ARCore session not initialized")
+            }
         SpatialLog.debug(TAG) { "Session exists, starting..." }
 
         // ARCore only supports AR mode
@@ -445,7 +446,7 @@ public class ARCoreEngine(
 
         // Get actual display rotation and pass it to ARCore
         val displayRotation = getDisplayRotation()
-        SpatialLog.debug(TAG) { "Display rotation: $displayRotation, size: ${width}x${height}" }
+        SpatialLog.debug(TAG) { "Display rotation: $displayRotation, size: ${width}x$height" }
         session?.setDisplayGeometry(displayRotation, width, height)
     }
 

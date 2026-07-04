@@ -1,0 +1,679 @@
+public abstract interface annotation class com/spatialkit/core/annotations/ExperimentalSpatialApi : java/lang/annotation/Annotation {
+}
+
+public final class com/spatialkit/core/log/SpatialLog {
+	public static final field INSTANCE Lcom/spatialkit/core/log/SpatialLog;
+	public final fun debug (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+	public final fun error (Ljava/lang/String;Ljava/lang/Throwable;Lkotlin/jvm/functions/Function0;)V
+	public static synthetic fun error$default (Lcom/spatialkit/core/log/SpatialLog;Ljava/lang/String;Ljava/lang/Throwable;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public final fun getMinLevel ()Lcom/spatialkit/core/log/SpatialLogLevel;
+	public final fun getSink ()Lcom/spatialkit/core/log/SpatialLogSink;
+	public final fun info (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+	public final fun setMinLevel (Lcom/spatialkit/core/log/SpatialLogLevel;)V
+	public final fun setSink (Lcom/spatialkit/core/log/SpatialLogSink;)V
+	public final fun warn (Ljava/lang/String;Ljava/lang/Throwable;Lkotlin/jvm/functions/Function0;)V
+	public static synthetic fun warn$default (Lcom/spatialkit/core/log/SpatialLog;Ljava/lang/String;Ljava/lang/Throwable;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+}
+
+public final class com/spatialkit/core/log/SpatialLogLevel : java/lang/Enum {
+	public static final field DEBUG Lcom/spatialkit/core/log/SpatialLogLevel;
+	public static final field ERROR Lcom/spatialkit/core/log/SpatialLogLevel;
+	public static final field INFO Lcom/spatialkit/core/log/SpatialLogLevel;
+	public static final field WARN Lcom/spatialkit/core/log/SpatialLogLevel;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/core/log/SpatialLogLevel;
+	public static fun values ()[Lcom/spatialkit/core/log/SpatialLogLevel;
+}
+
+public abstract interface class com/spatialkit/core/log/SpatialLogSink {
+	public abstract fun log (Lcom/spatialkit/core/log/SpatialLogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V
+}
+
+public final class com/spatialkit/core/math/Matrix4 {
+	public static final field Companion Lcom/spatialkit/core/math/Matrix4$Companion;
+	public fun <init> ([F)V
+	public synthetic fun <init> ([FZLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun get (I)F
+	public final fun get (II)F
+	public final fun getScale ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getTranslation ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public final fun inverse ()Lcom/spatialkit/core/math/Matrix4;
+	public final fun times (Lcom/spatialkit/core/math/Matrix4;)Lcom/spatialkit/core/math/Matrix4;
+	public final fun times (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun times (Lcom/spatialkit/core/math/Vec4;)Lcom/spatialkit/core/math/Vec4;
+	public final fun toFloatArray ()[F
+	public final fun transpose ()Lcom/spatialkit/core/math/Matrix4;
+}
+
+public final class com/spatialkit/core/math/Matrix4$Companion {
+	public final fun identity ()Lcom/spatialkit/core/math/Matrix4;
+	public final fun lookAt (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Matrix4;
+	public final fun orthographic (FFFFFF)Lcom/spatialkit/core/math/Matrix4;
+	public final fun perspective (FFFF)Lcom/spatialkit/core/math/Matrix4;
+	public final fun rotation (Lcom/spatialkit/core/math/Quaternion;)Lcom/spatialkit/core/math/Matrix4;
+	public final fun scale (F)Lcom/spatialkit/core/math/Matrix4;
+	public final fun scale (FFF)Lcom/spatialkit/core/math/Matrix4;
+	public final fun scale (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Matrix4;
+	public final fun translation (FFF)Lcom/spatialkit/core/math/Matrix4;
+	public final fun translation (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Matrix4;
+	public final fun trs (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Matrix4;
+}
+
+public final class com/spatialkit/core/math/Quaternion {
+	public static final field Companion Lcom/spatialkit/core/math/Quaternion$Companion;
+	public fun <init> (FFFF)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun component4 ()F
+	public final fun conjugate ()Lcom/spatialkit/core/math/Quaternion;
+	public final fun copy (FFFF)Lcom/spatialkit/core/math/Quaternion;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/math/Quaternion;FFFFILjava/lang/Object;)Lcom/spatialkit/core/math/Quaternion;
+	public final fun div (F)Lcom/spatialkit/core/math/Quaternion;
+	public final fun dot (Lcom/spatialkit/core/math/Quaternion;)F
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getW ()F
+	public final fun getX ()F
+	public final fun getY ()F
+	public final fun getZ ()F
+	public fun hashCode ()I
+	public final fun inverse ()Lcom/spatialkit/core/math/Quaternion;
+	public final fun length ()F
+	public final fun lengthSquared ()F
+	public final fun normalized ()Lcom/spatialkit/core/math/Quaternion;
+	public final fun slerp (Lcom/spatialkit/core/math/Quaternion;F)Lcom/spatialkit/core/math/Quaternion;
+	public final fun times (Lcom/spatialkit/core/math/Quaternion;)Lcom/spatialkit/core/math/Quaternion;
+	public final fun times (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun toEulerAngles ()Lcom/spatialkit/core/math/Vec3;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/core/math/Quaternion$Companion {
+	public final fun fromAxisAngle (Lcom/spatialkit/core/math/Vec3;F)Lcom/spatialkit/core/math/Quaternion;
+	public final fun fromEuler (FFF)Lcom/spatialkit/core/math/Quaternion;
+	public final fun fromEuler (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Quaternion;
+	public final fun fromToRotation (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Quaternion;
+	public final fun getIDENTITY ()Lcom/spatialkit/core/math/Quaternion;
+	public final fun lookRotation (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Quaternion;
+	public static synthetic fun lookRotation$default (Lcom/spatialkit/core/math/Quaternion$Companion;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/core/math/Quaternion;
+}
+
+public final class com/spatialkit/core/math/Transform {
+	public static final field Companion Lcom/spatialkit/core/math/Transform$Companion;
+	public fun <init> ()V
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;Lcom/spatialkit/core/math/Vec3;)V
+	public synthetic fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;Lcom/spatialkit/core/math/Vec3;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun combine (Lcom/spatialkit/core/math/Transform;)Lcom/spatialkit/core/math/Transform;
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Quaternion;
+	public final fun component3 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/math/Transform;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Quaternion;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/core/math/Transform;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun forward ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getPosition ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getRotation ()Lcom/spatialkit/core/math/Quaternion;
+	public final fun getScale ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public final fun inverse ()Lcom/spatialkit/core/math/Transform;
+	public final fun lerp (Lcom/spatialkit/core/math/Transform;F)Lcom/spatialkit/core/math/Transform;
+	public final fun localToWorld (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun localToWorldDirection (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun lookAt (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public static synthetic fun lookAt$default (Lcom/spatialkit/core/math/Transform;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/core/math/Transform;
+	public final fun right ()Lcom/spatialkit/core/math/Vec3;
+	public final fun rotate (Lcom/spatialkit/core/math/Quaternion;)Lcom/spatialkit/core/math/Transform;
+	public final fun rotateAround (Lcom/spatialkit/core/math/Vec3;F)Lcom/spatialkit/core/math/Transform;
+	public final fun scaleBy (F)Lcom/spatialkit/core/math/Transform;
+	public final fun scaleBy (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public final fun toMatrix ()Lcom/spatialkit/core/math/Matrix4;
+	public fun toString ()Ljava/lang/String;
+	public final fun translate (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public final fun up ()Lcom/spatialkit/core/math/Vec3;
+	public final fun withPosition (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public final fun withRotation (Lcom/spatialkit/core/math/Quaternion;)Lcom/spatialkit/core/math/Transform;
+	public final fun withScale (F)Lcom/spatialkit/core/math/Transform;
+	public final fun withScale (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public final fun worldToLocal (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun worldToLocalDirection (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+}
+
+public final class com/spatialkit/core/math/Transform$Companion {
+	public final fun fromEuler (FFF)Lcom/spatialkit/core/math/Transform;
+	public final fun fromEuler (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public final fun fromPosition (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public final fun fromRotation (Lcom/spatialkit/core/math/Quaternion;)Lcom/spatialkit/core/math/Transform;
+	public final fun getIDENTITY ()Lcom/spatialkit/core/math/Transform;
+	public final fun lookingAt (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Transform;
+	public static synthetic fun lookingAt$default (Lcom/spatialkit/core/math/Transform$Companion;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/core/math/Transform;
+}
+
+public final class com/spatialkit/core/math/UnitsKt {
+	public static final fun centimetersToMeters (F)F
+	public static final fun clamp (FFF)F
+	public static final fun degreesToRadians (F)F
+	public static final fun feetToMeters (F)F
+	public static final fun getCentimeters (Ljava/lang/Number;)F
+	public static final fun getCm (Ljava/lang/Number;)F
+	public static final fun getDeg (Ljava/lang/Number;)F
+	public static final fun getDegrees (Ljava/lang/Number;)F
+	public static final fun getFeet (Ljava/lang/Number;)F
+	public static final fun getFt (Ljava/lang/Number;)F
+	public static final fun getInch (Ljava/lang/Number;)F
+	public static final fun getInches (Ljava/lang/Number;)F
+	public static final fun getKilometers (Ljava/lang/Number;)F
+	public static final fun getKm (Ljava/lang/Number;)F
+	public static final fun getM (Ljava/lang/Number;)F
+	public static final fun getMeters (Ljava/lang/Number;)F
+	public static final fun getMillimeters (Ljava/lang/Number;)F
+	public static final fun getMilliseconds (Ljava/lang/Number;)F
+	public static final fun getMin (Ljava/lang/Number;)F
+	public static final fun getMinutes (Ljava/lang/Number;)F
+	public static final fun getMm (Ljava/lang/Number;)F
+	public static final fun getMs (Ljava/lang/Number;)F
+	public static final fun getRad (Ljava/lang/Number;)F
+	public static final fun getRadians (Ljava/lang/Number;)F
+	public static final fun getS (Ljava/lang/Number;)F
+	public static final fun getSeconds (Ljava/lang/Number;)F
+	public static final fun lerp (FFF)F
+	public static final fun mapRange (FFFFF)F
+	public static final fun metersToCentimeters (F)F
+	public static final fun metersToFeet (F)F
+	public static final fun radiansToDegrees (F)F
+}
+
+public final class com/spatialkit/core/math/Vec2 {
+	public static final field Companion Lcom/spatialkit/core/math/Vec2$Companion;
+	public fun <init> (FF)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun copy (FF)Lcom/spatialkit/core/math/Vec2;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/math/Vec2;FFILjava/lang/Object;)Lcom/spatialkit/core/math/Vec2;
+	public final fun distance (Lcom/spatialkit/core/math/Vec2;)F
+	public final fun distanceSquared (Lcom/spatialkit/core/math/Vec2;)F
+	public final fun div (F)Lcom/spatialkit/core/math/Vec2;
+	public final fun dot (Lcom/spatialkit/core/math/Vec2;)F
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getX ()F
+	public final fun getY ()F
+	public fun hashCode ()I
+	public final fun length ()F
+	public final fun lengthSquared ()F
+	public final fun lerp (Lcom/spatialkit/core/math/Vec2;F)Lcom/spatialkit/core/math/Vec2;
+	public final fun minus (Lcom/spatialkit/core/math/Vec2;)Lcom/spatialkit/core/math/Vec2;
+	public final fun normalized ()Lcom/spatialkit/core/math/Vec2;
+	public final fun plus (Lcom/spatialkit/core/math/Vec2;)Lcom/spatialkit/core/math/Vec2;
+	public final fun times (F)Lcom/spatialkit/core/math/Vec2;
+	public fun toString ()Ljava/lang/String;
+	public final fun unaryMinus ()Lcom/spatialkit/core/math/Vec2;
+}
+
+public final class com/spatialkit/core/math/Vec2$Companion {
+	public final fun getDOWN ()Lcom/spatialkit/core/math/Vec2;
+	public final fun getLEFT ()Lcom/spatialkit/core/math/Vec2;
+	public final fun getONE ()Lcom/spatialkit/core/math/Vec2;
+	public final fun getRIGHT ()Lcom/spatialkit/core/math/Vec2;
+	public final fun getUP ()Lcom/spatialkit/core/math/Vec2;
+	public final fun getZERO ()Lcom/spatialkit/core/math/Vec2;
+	public final fun of (DD)Lcom/spatialkit/core/math/Vec2;
+	public final fun of (II)Lcom/spatialkit/core/math/Vec2;
+}
+
+public final class com/spatialkit/core/math/Vec2Kt {
+	public static final fun times (FLcom/spatialkit/core/math/Vec2;)Lcom/spatialkit/core/math/Vec2;
+	public static final fun times (ILcom/spatialkit/core/math/Vec2;)Lcom/spatialkit/core/math/Vec2;
+}
+
+public final class com/spatialkit/core/math/Vec3 {
+	public static final field Companion Lcom/spatialkit/core/math/Vec3$Companion;
+	public fun <init> (FFF)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun copy (FFF)Lcom/spatialkit/core/math/Vec3;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/math/Vec3;FFFILjava/lang/Object;)Lcom/spatialkit/core/math/Vec3;
+	public final fun cross (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun distance (Lcom/spatialkit/core/math/Vec3;)F
+	public final fun distanceSquared (Lcom/spatialkit/core/math/Vec3;)F
+	public final fun div (F)Lcom/spatialkit/core/math/Vec3;
+	public final fun dot (Lcom/spatialkit/core/math/Vec3;)F
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getX ()F
+	public final fun getY ()F
+	public final fun getZ ()F
+	public fun hashCode ()I
+	public final fun length ()F
+	public final fun lengthSquared ()F
+	public final fun lerp (Lcom/spatialkit/core/math/Vec3;F)Lcom/spatialkit/core/math/Vec3;
+	public final fun minus (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun normalized ()Lcom/spatialkit/core/math/Vec3;
+	public final fun plus (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun times (F)Lcom/spatialkit/core/math/Vec3;
+	public final fun times (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public fun toString ()Ljava/lang/String;
+	public final fun toVec2 ()Lcom/spatialkit/core/math/Vec2;
+	public final fun unaryMinus ()Lcom/spatialkit/core/math/Vec3;
+}
+
+public final class com/spatialkit/core/math/Vec3$Companion {
+	public final fun from (Lcom/spatialkit/core/math/Vec2;F)Lcom/spatialkit/core/math/Vec3;
+	public static synthetic fun from$default (Lcom/spatialkit/core/math/Vec3$Companion;Lcom/spatialkit/core/math/Vec2;FILjava/lang/Object;)Lcom/spatialkit/core/math/Vec3;
+	public final fun getBACK ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getDOWN ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getFORWARD ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getLEFT ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getONE ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getRIGHT ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getUP ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getZERO ()Lcom/spatialkit/core/math/Vec3;
+	public final fun of (DDD)Lcom/spatialkit/core/math/Vec3;
+	public final fun of (III)Lcom/spatialkit/core/math/Vec3;
+}
+
+public final class com/spatialkit/core/math/Vec3Kt {
+	public static final fun times (FLcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public static final fun times (ILcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+}
+
+public final class com/spatialkit/core/math/Vec4 {
+	public static final field Companion Lcom/spatialkit/core/math/Vec4$Companion;
+	public fun <init> (FFFF)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun component4 ()F
+	public final fun copy (FFFF)Lcom/spatialkit/core/math/Vec4;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/math/Vec4;FFFFILjava/lang/Object;)Lcom/spatialkit/core/math/Vec4;
+	public final fun div (F)Lcom/spatialkit/core/math/Vec4;
+	public final fun dot (Lcom/spatialkit/core/math/Vec4;)F
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getW ()F
+	public final fun getX ()F
+	public final fun getY ()F
+	public final fun getZ ()F
+	public fun hashCode ()I
+	public final fun length ()F
+	public final fun lengthSquared ()F
+	public final fun lerp (Lcom/spatialkit/core/math/Vec4;F)Lcom/spatialkit/core/math/Vec4;
+	public final fun minus (Lcom/spatialkit/core/math/Vec4;)Lcom/spatialkit/core/math/Vec4;
+	public final fun normalized ()Lcom/spatialkit/core/math/Vec4;
+	public final fun perspectiveDivide ()Lcom/spatialkit/core/math/Vec3;
+	public final fun plus (Lcom/spatialkit/core/math/Vec4;)Lcom/spatialkit/core/math/Vec4;
+	public final fun times (F)Lcom/spatialkit/core/math/Vec4;
+	public fun toString ()Ljava/lang/String;
+	public final fun toVec3 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun unaryMinus ()Lcom/spatialkit/core/math/Vec4;
+}
+
+public final class com/spatialkit/core/math/Vec4$Companion {
+	public final fun direction (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec4;
+	public final fun from (Lcom/spatialkit/core/math/Vec3;F)Lcom/spatialkit/core/math/Vec4;
+	public static synthetic fun from$default (Lcom/spatialkit/core/math/Vec4$Companion;Lcom/spatialkit/core/math/Vec3;FILjava/lang/Object;)Lcom/spatialkit/core/math/Vec4;
+	public final fun getONE ()Lcom/spatialkit/core/math/Vec4;
+	public final fun getORIGIN_POINT ()Lcom/spatialkit/core/math/Vec4;
+	public final fun getZERO ()Lcom/spatialkit/core/math/Vec4;
+	public final fun of (DDDD)Lcom/spatialkit/core/math/Vec4;
+	public final fun of (IIII)Lcom/spatialkit/core/math/Vec4;
+	public final fun point (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec4;
+}
+
+public final class com/spatialkit/core/math/Vec4Kt {
+	public static final fun times (FLcom/spatialkit/core/math/Vec4;)Lcom/spatialkit/core/math/Vec4;
+	public static final fun times (ILcom/spatialkit/core/math/Vec4;)Lcom/spatialkit/core/math/Vec4;
+}
+
+public final class com/spatialkit/core/primitives/CapsuleGeometry : com/spatialkit/core/primitives/ShapeGeometry {
+	public static final field Companion Lcom/spatialkit/core/primitives/CapsuleGeometry$Companion;
+	public fun <init> (FF)V
+	public fun boundingBox ()Lcom/spatialkit/core/types/BoundingBox;
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun copy (FF)Lcom/spatialkit/core/primitives/CapsuleGeometry;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/primitives/CapsuleGeometry;FFILjava/lang/Object;)Lcom/spatialkit/core/primitives/CapsuleGeometry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiameter ()F
+	public final fun getHeight ()F
+	public final fun getRadius ()F
+	public final fun getTotalHeight ()F
+	public fun hashCode ()I
+	public fun surfaceArea ()F
+	public fun toString ()Ljava/lang/String;
+	public fun volume ()F
+}
+
+public final class com/spatialkit/core/primitives/CapsuleGeometry$Companion {
+	public final fun fromDiameter (FF)Lcom/spatialkit/core/primitives/CapsuleGeometry;
+	public final fun fromTotalHeight (FF)Lcom/spatialkit/core/primitives/CapsuleGeometry;
+	public final fun getUNIT ()Lcom/spatialkit/core/primitives/CapsuleGeometry;
+}
+
+public final class com/spatialkit/core/primitives/ConeGeometry : com/spatialkit/core/primitives/ShapeGeometry {
+	public static final field Companion Lcom/spatialkit/core/primitives/ConeGeometry$Companion;
+	public fun <init> (FFI)V
+	public synthetic fun <init> (FFIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun boundingBox ()Lcom/spatialkit/core/types/BoundingBox;
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()I
+	public final fun copy (FFI)Lcom/spatialkit/core/primitives/ConeGeometry;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/primitives/ConeGeometry;FFIILjava/lang/Object;)Lcom/spatialkit/core/primitives/ConeGeometry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiameter ()F
+	public final fun getHeight ()F
+	public final fun getRadius ()F
+	public final fun getSegments ()I
+	public final fun getSlantHeight ()F
+	public fun hashCode ()I
+	public fun surfaceArea ()F
+	public fun toString ()Ljava/lang/String;
+	public fun volume ()F
+}
+
+public final class com/spatialkit/core/primitives/ConeGeometry$Companion {
+	public final fun fromDiameter (FFI)Lcom/spatialkit/core/primitives/ConeGeometry;
+	public static synthetic fun fromDiameter$default (Lcom/spatialkit/core/primitives/ConeGeometry$Companion;FFIILjava/lang/Object;)Lcom/spatialkit/core/primitives/ConeGeometry;
+	public final fun getUNIT ()Lcom/spatialkit/core/primitives/ConeGeometry;
+}
+
+public final class com/spatialkit/core/primitives/CubeGeometry : com/spatialkit/core/primitives/ShapeGeometry {
+	public static final field Companion Lcom/spatialkit/core/primitives/CubeGeometry$Companion;
+	public fun <init> ()V
+	public fun <init> (F)V
+	public fun <init> (Lcom/spatialkit/core/types/Size3D;)V
+	public synthetic fun <init> (Lcom/spatialkit/core/types/Size3D;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun boundingBox ()Lcom/spatialkit/core/types/BoundingBox;
+	public final fun component1 ()Lcom/spatialkit/core/types/Size3D;
+	public final fun copy (Lcom/spatialkit/core/types/Size3D;)Lcom/spatialkit/core/primitives/CubeGeometry;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/primitives/CubeGeometry;Lcom/spatialkit/core/types/Size3D;ILjava/lang/Object;)Lcom/spatialkit/core/primitives/CubeGeometry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDepth ()F
+	public final fun getHeight ()F
+	public final fun getSize ()Lcom/spatialkit/core/types/Size3D;
+	public final fun getWidth ()F
+	public fun hashCode ()I
+	public fun surfaceArea ()F
+	public fun toString ()Ljava/lang/String;
+	public fun volume ()F
+}
+
+public final class com/spatialkit/core/primitives/CubeGeometry$Companion {
+	public final fun getUNIT ()Lcom/spatialkit/core/primitives/CubeGeometry;
+	public final fun of (FFF)Lcom/spatialkit/core/primitives/CubeGeometry;
+}
+
+public final class com/spatialkit/core/primitives/CylinderGeometry : com/spatialkit/core/primitives/ShapeGeometry {
+	public static final field Companion Lcom/spatialkit/core/primitives/CylinderGeometry$Companion;
+	public fun <init> (FFI)V
+	public synthetic fun <init> (FFIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun boundingBox ()Lcom/spatialkit/core/types/BoundingBox;
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()I
+	public final fun copy (FFI)Lcom/spatialkit/core/primitives/CylinderGeometry;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/primitives/CylinderGeometry;FFIILjava/lang/Object;)Lcom/spatialkit/core/primitives/CylinderGeometry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiameter ()F
+	public final fun getHeight ()F
+	public final fun getRadius ()F
+	public final fun getSegments ()I
+	public fun hashCode ()I
+	public fun surfaceArea ()F
+	public fun toString ()Ljava/lang/String;
+	public fun volume ()F
+}
+
+public final class com/spatialkit/core/primitives/CylinderGeometry$Companion {
+	public final fun fromDiameter (FFI)Lcom/spatialkit/core/primitives/CylinderGeometry;
+	public static synthetic fun fromDiameter$default (Lcom/spatialkit/core/primitives/CylinderGeometry$Companion;FFIILjava/lang/Object;)Lcom/spatialkit/core/primitives/CylinderGeometry;
+	public final fun getUNIT ()Lcom/spatialkit/core/primitives/CylinderGeometry;
+}
+
+public final class com/spatialkit/core/primitives/PlaneGeometry : com/spatialkit/core/primitives/ShapeGeometry {
+	public static final field Companion Lcom/spatialkit/core/primitives/PlaneGeometry$Companion;
+	public fun <init> (FF)V
+	public fun boundingBox ()Lcom/spatialkit/core/types/BoundingBox;
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun copy (FF)Lcom/spatialkit/core/primitives/PlaneGeometry;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/primitives/PlaneGeometry;FFILjava/lang/Object;)Lcom/spatialkit/core/primitives/PlaneGeometry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHeight ()F
+	public final fun getSize ()Lcom/spatialkit/core/types/Size3D;
+	public final fun getWidth ()F
+	public fun hashCode ()I
+	public fun surfaceArea ()F
+	public fun toString ()Ljava/lang/String;
+	public fun volume ()F
+}
+
+public final class com/spatialkit/core/primitives/PlaneGeometry$Companion {
+	public final fun getUNIT ()Lcom/spatialkit/core/primitives/PlaneGeometry;
+	public final fun square (F)Lcom/spatialkit/core/primitives/PlaneGeometry;
+}
+
+public abstract interface class com/spatialkit/core/primitives/ShapeGeometry {
+	public abstract fun boundingBox ()Lcom/spatialkit/core/types/BoundingBox;
+	public abstract fun surfaceArea ()F
+	public abstract fun volume ()F
+}
+
+public final class com/spatialkit/core/primitives/SphereGeometry : com/spatialkit/core/primitives/ShapeGeometry {
+	public static final field Companion Lcom/spatialkit/core/primitives/SphereGeometry$Companion;
+	public fun <init> (FI)V
+	public synthetic fun <init> (FIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun boundingBox ()Lcom/spatialkit/core/types/BoundingBox;
+	public final fun component1 ()F
+	public final fun component2 ()I
+	public final fun copy (FI)Lcom/spatialkit/core/primitives/SphereGeometry;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/primitives/SphereGeometry;FIILjava/lang/Object;)Lcom/spatialkit/core/primitives/SphereGeometry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiameter ()F
+	public final fun getRadius ()F
+	public final fun getSegments ()I
+	public fun hashCode ()I
+	public fun surfaceArea ()F
+	public fun toString ()Ljava/lang/String;
+	public fun volume ()F
+}
+
+public final class com/spatialkit/core/primitives/SphereGeometry$Companion {
+	public final fun fromDiameter (FI)Lcom/spatialkit/core/primitives/SphereGeometry;
+	public static synthetic fun fromDiameter$default (Lcom/spatialkit/core/primitives/SphereGeometry$Companion;FIILjava/lang/Object;)Lcom/spatialkit/core/primitives/SphereGeometry;
+	public final fun getUNIT ()Lcom/spatialkit/core/primitives/SphereGeometry;
+}
+
+public final class com/spatialkit/core/types/BoundingBox {
+	public static final field Companion Lcom/spatialkit/core/types/BoundingBox$Companion;
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)V
+	public final fun closestPoint (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun contains (Lcom/spatialkit/core/math/Vec3;)Z
+	public final fun contains (Lcom/spatialkit/core/types/BoundingBox;)Z
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/BoundingBox;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/types/BoundingBox;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun distance (Lcom/spatialkit/core/math/Vec3;)F
+	public final fun distanceSquared (Lcom/spatialkit/core/math/Vec3;)F
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun expand (F)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun expand (FFF)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun expand (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun expand (Lcom/spatialkit/core/types/BoundingBox;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun getCenter ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getCorners ()[Lcom/spatialkit/core/math/Vec3;
+	public final fun getExtents ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getMax ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getMin ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getSize ()Lcom/spatialkit/core/types/Size3D;
+	public fun hashCode ()I
+	public final fun intersection (Lcom/spatialkit/core/types/BoundingBox;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun intersects (Lcom/spatialkit/core/types/BoundingBox;)Z
+	public final fun scale (F)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun scale (FFF)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun surfaceArea ()F
+	public fun toString ()Ljava/lang/String;
+	public final fun translate (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun volume ()F
+}
+
+public final class com/spatialkit/core/types/BoundingBox$Companion {
+	public final fun fromCenterAndExtents (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun fromCenterAndSize (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/types/Size3D;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun fromPoints (Ljava/util/List;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun fromPoints ([Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/BoundingBox;
+	public final fun getUNIT ()Lcom/spatialkit/core/types/BoundingBox;
+	public final fun getZERO ()Lcom/spatialkit/core/types/BoundingBox;
+}
+
+public final class com/spatialkit/core/types/Color {
+	public static final field Companion Lcom/spatialkit/core/types/Color$Companion;
+	public fun <init> (FFFF)V
+	public synthetic fun <init> (FFFFILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun component4 ()F
+	public final fun copy (FFFF)Lcom/spatialkit/core/types/Color;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/types/Color;FFFFILjava/lang/Object;)Lcom/spatialkit/core/types/Color;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getA ()F
+	public final fun getB ()F
+	public final fun getG ()F
+	public final fun getR ()F
+	public fun hashCode ()I
+	public final fun lerp (Lcom/spatialkit/core/types/Color;F)Lcom/spatialkit/core/types/Color;
+	public final fun plus (Lcom/spatialkit/core/types/Color;)Lcom/spatialkit/core/types/Color;
+	public final fun times (F)Lcom/spatialkit/core/types/Color;
+	public final fun toArgb ()I
+	public final fun toHSL ()Lkotlin/Triple;
+	public final fun toHex (Z)Ljava/lang/String;
+	public static synthetic fun toHex$default (Lcom/spatialkit/core/types/Color;ZILjava/lang/Object;)Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+	public final fun withAlpha (F)Lcom/spatialkit/core/types/Color;
+	public final fun withBlue (F)Lcom/spatialkit/core/types/Color;
+	public final fun withGreen (F)Lcom/spatialkit/core/types/Color;
+	public final fun withRed (F)Lcom/spatialkit/core/types/Color;
+}
+
+public final class com/spatialkit/core/types/Color$Companion {
+	public final fun fromArgb (I)Lcom/spatialkit/core/types/Color;
+	public final fun fromHSL (FFFF)Lcom/spatialkit/core/types/Color;
+	public static synthetic fun fromHSL$default (Lcom/spatialkit/core/types/Color$Companion;FFFFILjava/lang/Object;)Lcom/spatialkit/core/types/Color;
+	public final fun fromHex (Ljava/lang/String;)Lcom/spatialkit/core/types/Color;
+	public final fun fromRGB (IIII)Lcom/spatialkit/core/types/Color;
+	public static synthetic fun fromRGB$default (Lcom/spatialkit/core/types/Color$Companion;IIIIILjava/lang/Object;)Lcom/spatialkit/core/types/Color;
+	public final fun getBlack ()Lcom/spatialkit/core/types/Color;
+	public final fun getBlue ()Lcom/spatialkit/core/types/Color;
+	public final fun getCyan ()Lcom/spatialkit/core/types/Color;
+	public final fun getDarkGray ()Lcom/spatialkit/core/types/Color;
+	public final fun getGray ()Lcom/spatialkit/core/types/Color;
+	public final fun getGreen ()Lcom/spatialkit/core/types/Color;
+	public final fun getLightGray ()Lcom/spatialkit/core/types/Color;
+	public final fun getMagenta ()Lcom/spatialkit/core/types/Color;
+	public final fun getRed ()Lcom/spatialkit/core/types/Color;
+	public final fun getTransparent ()Lcom/spatialkit/core/types/Color;
+	public final fun getWhite ()Lcom/spatialkit/core/types/Color;
+	public final fun getYellow ()Lcom/spatialkit/core/types/Color;
+}
+
+public final class com/spatialkit/core/types/Ray {
+	public static final field Companion Lcom/spatialkit/core/types/Ray$Companion;
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)V
+	public final fun closestPointTo (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/math/Vec3;
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/Ray;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/types/Ray;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/core/types/Ray;
+	public final fun distanceSquaredTo (Lcom/spatialkit/core/math/Vec3;)F
+	public final fun distanceTo (Lcom/spatialkit/core/math/Vec3;)F
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDirection ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getNormalizedDirection ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getOrigin ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public final fun intersects (Lcom/spatialkit/core/types/BoundingBox;)Ljava/lang/Float;
+	public final fun intersectsPlane (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Ljava/lang/Float;
+	public final fun intersectsSphere (Lcom/spatialkit/core/math/Vec3;F)Ljava/lang/Float;
+	public final fun normalized ()Lcom/spatialkit/core/types/Ray;
+	public final fun pointAt (F)Lcom/spatialkit/core/math/Vec3;
+	public fun toString ()Ljava/lang/String;
+	public final fun transform (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/Ray;
+	public final fun translate (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/Ray;
+}
+
+public final class com/spatialkit/core/types/Ray$Companion {
+	public final fun fromTo (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/Ray;
+	public final fun throughPoints (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/Ray;
+}
+
+public final class com/spatialkit/core/types/RayHit {
+	public static final field Companion Lcom/spatialkit/core/types/RayHit$Companion;
+	public fun <init> (ZLjava/lang/Float;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)V
+	public synthetic fun <init> (ZLjava/lang/Float;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/Float;
+	public final fun component3 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component4 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun copy (ZLjava/lang/Float;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/RayHit;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/types/RayHit;ZLjava/lang/Float;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/core/types/RayHit;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDistance ()Ljava/lang/Float;
+	public final fun getHit ()Z
+	public final fun getNormal ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getPoint ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/core/types/RayHit$Companion {
+	public final fun getMISS ()Lcom/spatialkit/core/types/RayHit;
+	public final fun hit (FLcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/RayHit;
+}
+
+public final class com/spatialkit/core/types/Size3D {
+	public static final field Companion Lcom/spatialkit/core/types/Size3D$Companion;
+	public fun <init> (FFF)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun copy (FFF)Lcom/spatialkit/core/types/Size3D;
+	public static synthetic fun copy$default (Lcom/spatialkit/core/types/Size3D;FFFILjava/lang/Object;)Lcom/spatialkit/core/types/Size3D;
+	public final fun div (F)Lcom/spatialkit/core/types/Size3D;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDepth ()F
+	public final fun getHeight ()F
+	public final fun getWidth ()F
+	public fun hashCode ()I
+	public final fun isZero (F)Z
+	public static synthetic fun isZero$default (Lcom/spatialkit/core/types/Size3D;FILjava/lang/Object;)Z
+	public final fun lerp (Lcom/spatialkit/core/types/Size3D;F)Lcom/spatialkit/core/types/Size3D;
+	public final fun maxDimension ()F
+	public final fun minDimension ()F
+	public final fun minus (Lcom/spatialkit/core/types/Size3D;)Lcom/spatialkit/core/types/Size3D;
+	public final fun plus (Lcom/spatialkit/core/types/Size3D;)Lcom/spatialkit/core/types/Size3D;
+	public final fun surfaceArea ()F
+	public final fun times (F)Lcom/spatialkit/core/types/Size3D;
+	public fun toString ()Ljava/lang/String;
+	public final fun toVec3 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun volume ()F
+	public final fun withDepth (F)Lcom/spatialkit/core/types/Size3D;
+	public final fun withHeight (F)Lcom/spatialkit/core/types/Size3D;
+	public final fun withWidth (F)Lcom/spatialkit/core/types/Size3D;
+}
+
+public final class com/spatialkit/core/types/Size3D$Companion {
+	public final fun from (Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/core/types/Size3D;
+	public final fun getONE ()Lcom/spatialkit/core/types/Size3D;
+	public final fun getZERO ()Lcom/spatialkit/core/types/Size3D;
+	public final fun of (III)Lcom/spatialkit/core/types/Size3D;
+	public final fun uniform (F)Lcom/spatialkit/core/types/Size3D;
+}
+
+public final class com/spatialkit/core/types/SizeKt {
+	public static final fun getSize3D (Ljava/lang/Number;)Lcom/spatialkit/core/types/Size3D;
+	public static final fun getSize3D (Lkotlin/Pair;)Lcom/spatialkit/core/types/Size3D;
+	public static final fun getSize3D (Lkotlin/Triple;)Lcom/spatialkit/core/types/Size3D;
+}
+

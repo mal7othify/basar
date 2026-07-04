@@ -2,7 +2,7 @@ package com.spatialkit.engine.webxr
 
 import kotlin.js.Promise
 
-/**
+/*
  * External declarations for WebXR Device API.
  *
  * Based on: https://immersive-web.github.io/webxr/
@@ -16,7 +16,11 @@ public external interface Navigator {
 
 public external interface XRSystem {
     public fun isSessionSupported(mode: String): Promise<Boolean>
-    public fun requestSession(mode: String, options: dynamic = definedExternally): Promise<XRSession>
+
+    public fun requestSession(
+        mode: String,
+        options: dynamic = definedExternally,
+    ): Promise<XRSession>
 }
 
 // === XR Session ===
@@ -26,10 +30,15 @@ public external interface XRSession {
     public val renderState: XRRenderState
 
     public fun requestReferenceSpace(type: String): Promise<XRReferenceSpace>
+
     public fun requestAnimationFrame(callback: (Double, XRFrame) -> Unit): Int
+
     public fun cancelAnimationFrame(handle: Int)
+
     public fun requestHitTestSource(options: dynamic): Promise<XRHitTestSource>
+
     public fun end(): Promise<Unit>
+
     public fun updateRenderState(state: dynamic)
 
     // Event handlers
@@ -53,7 +62,12 @@ public external interface XRFrame {
     public val session: XRSession
 
     public fun getViewerPose(referenceSpace: XRReferenceSpace): XRViewerPose?
-    public fun getPose(space: XRSpace, referenceSpace: XRReferenceSpace): XRPose?
+
+    public fun getPose(
+        space: XRSpace,
+        referenceSpace: XRReferenceSpace,
+    ): XRPose?
+
     public fun getHitTestResults(source: XRHitTestSource): Array<XRHitTestResult>
 }
 
@@ -81,9 +95,16 @@ public external interface DOMPointReadOnly {
     public val w: Double
 }
 
-public external class Float32Array(length: Int) {
+public external class Float32Array(
+    length: Int,
+) {
     public operator fun get(index: Int): Float
-    public operator fun set(index: Int, value: Float)
+
+    public operator fun set(
+        index: Int,
+        value: Float,
+    )
+
     public val length: Int
 }
 
@@ -126,6 +147,7 @@ public external interface GamepadButton {
 
 public external interface XRHand {
     public fun get(joint: String): XRJointSpace?
+
     public val size: Int
 }
 

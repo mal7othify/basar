@@ -5,7 +5,7 @@ import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.math.degrees
 import com.spatialkit.core.types.Color
 
-/**
+/*
  * Extension functions for convenient DSL syntax.
  *
  * Unit conversions (`10.cm`, `1.5.meters`, `45.degrees`, ...) live in

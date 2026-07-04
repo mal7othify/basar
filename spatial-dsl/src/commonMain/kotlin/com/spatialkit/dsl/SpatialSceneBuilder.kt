@@ -29,8 +29,7 @@ import com.spatialkit.scene.SpatialScene
  * @param build Lambda with SpatialSceneScope receiver to build the scene
  * @return A configured SpatialScene
  */
-public fun spatialScene(build: SpatialSceneScope.() -> Unit): SpatialScene {
-    return SpatialScene().also { scene ->
+public fun spatialScene(build: SpatialSceneScope.() -> Unit): SpatialScene =
+    SpatialScene().also { scene ->
         SpatialSceneScope(scene).build()
     }
-}

@@ -45,13 +45,19 @@ public actual fun SpatialSurface(
                         // otherwise cover the camera feed), and restore it afterwards.
                         var previousBackground: String? = null
                         onEnterXR = {
-                            val composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
+                            val composeCanvas =
+                                document.querySelector(
+                                    "canvas:not(#webxr-canvas)",
+                                ) as? HTMLCanvasElement
                             composeCanvas?.style?.display = "none"
                             previousBackground = document.body?.style?.background
                             document.body?.style?.background = "transparent"
                         }
                         onExitXR = {
-                            val composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
+                            val composeCanvas =
+                                document.querySelector(
+                                    "canvas:not(#webxr-canvas)",
+                                ) as? HTMLCanvasElement
                             composeCanvas?.style?.display = ""
                             document.body?.style?.background = previousBackground ?: ""
                         }
