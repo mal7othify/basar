@@ -48,6 +48,7 @@ import kotlin.math.sin
 @Composable
 fun App() {
     var sessionReady by remember { mutableStateOf(false) }
+    var lastError by remember { mutableStateOf<String?>(null) }
     var lastTapInfo by remember { mutableStateOf("Tap objects to test raycasting") }
     var session: SpatialSession? by remember { mutableStateOf(null) }
     var lastFrameData by remember { mutableStateOf<FrameData?>(null) }
@@ -68,6 +69,13 @@ fun App() {
                         style = MaterialTheme.typography.headlineSmall,
                     )
                     Text("Session: ${if (sessionReady) "✓ Ready" else "⌛ Starting..."}")
+                    lastError?.let { error ->
+                        Text(
+                            "⚠ $error",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                     Text(
                         lastTapInfo,
                         style = MaterialTheme.typography.bodySmall,
@@ -159,6 +167,9 @@ fun App() {
                     onFrame = { frameData ->
                         lastFrameData = frameData
                         animator.update(frameData.deltaTime)
+                    },
+                    onError = { error ->
+                        lastError = error.toString()
                     },
                 ) {
                     // ================================================================

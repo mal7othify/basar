@@ -90,20 +90,22 @@ import platform.darwin.simd_float4x4
 import kotlin.math.sqrt
 
 /**
- * ARSCNView delegate for handling frame updates efficiently.
+ * ARSCNView delegate driving the engine's frame loop.
+ *
+ * Uses `renderer(_:updateAtTime:)` (inherited from SCNSceneRendererDelegate),
+ * which SceneKit calls once per rendered frame. Note that
+ * `renderer(_:didAddNode:forAnchor:)` is NOT a frame callback — it only fires
+ * when ARKit attaches a node for a newly detected anchor.
  */
 @OptIn(ExperimentalForeignApi::class)
 private class ARViewDelegate(
     private val engine: ARKitEngine,
 ) : NSObject(),
     ARSCNViewDelegateProtocol {
-    // Called every frame for smooth updates
     override fun renderer(
         renderer: SCNSceneRendererProtocol,
-        didAddNode: SCNNode,
-        forAnchor: ARAnchor,
+        updateAtTime: Double,
     ) {
-        // Get the current ARFrame from the session
         val arView = renderer as? ARSCNView ?: return
         val frame = arView.session.currentFrame ?: return
 
