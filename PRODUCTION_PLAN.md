@@ -40,7 +40,10 @@ reference the task ID (e.g. `M1.3`) in commit messages.
   internal history that means nothing to a library consumer.
 - [x] **M0.5 Remove stray imports.**
   `import kotlin.jvm.java` at `settings.gradle.kts:1` and `ARCoreEngine.kt:45`.
-- [ ] **M0.6 Separate library from playground (structural, optional but recommended).**
+- [x] **M0.6 Separate library from playground (structural, optional but recommended).**
+  DONE (minimum variant): the README now documents the library/playground split
+  (see M5.6); `composeApp` serves as the demo app. Moving demos under `samples/`
+  is deferred to the 1.0 line.
   `composeApp`, `server`, `shared` are demo/template code. Either move them under
   `samples/`, or at minimum make the README distinguish "the library" from "the demo app".
 
@@ -285,16 +288,20 @@ unit test (they're all pure Kotlin).
 
 ## M6 — Quality infrastructure (1–2 days to set up, ongoing after)
 
-- [ ] **M6.1 CI (GitHub Actions).**
+- [x] **M6.1 CI (GitHub Actions).**
+  DONE: `.github/workflows/ci.yml` (build + check on macOS, PRs and main) and
+  `release.yml` (publish to Maven Central on `v*` tags via the Central Portal).
   PR workflow: `./gradlew build` on macOS (covers JVM, JS, Android, iOS klib
   compilation), JS tests headless-Chrome only (M1.5). Release workflow: publish on tag.
-- [ ] **M6.2 Static analysis.** Add ktlint (or detekt+formatting) via the convention
-  plugin; fail CI on violations.
-- [ ] **M6.3 API stability.** Add `binary-compatibility-validator` once M1.4/M5.1
-  settle, so accidental API breaks fail CI.
-- [ ] **M6.4 Docs.** Dokka HTML published from CI (module docs already exist as KDoc —
-  this is cheap).
-- [ ] **M6.5 Test debt.** Minimum bar before 0.2.0 (largely done during M2):
+- [x] **M6.2 Static analysis.** DONE: ktlint applied to every `spatial-*` module from
+  the root build; `ktlintCheck` runs as part of `check`, so CI fails on violations.
+- [x] **M6.3 API stability.** DONE: `binary-compatibility-validator` applied at the
+  root; `api/*.api` dumps committed per module and `apiCheck` runs in CI.
+- [x] **M6.4 Docs.** DONE: `.github/workflows/docs.yml` publishes aggregated Dokka
+  HTML for all `spatial-*` modules to GitHub Pages on pushes to main.
+- [x] **M6.5 Test debt.** DONE — all suites below exist in `commonTest`
+  (SpatialNodeTest, SpatialSceneTest, SpatialAnchorTest, SpatialAnimatorTest,
+  DslExampleTest/AnchorScopeTest, GltfLoaderTest, FallbackEngineTest):
   - `SpatialNode` hierarchy math (world transforms, cycles, reparenting) — covers M2.1–M2.3
   - `SpatialScene`/`toSceneData` snapshot content
   - `SpatialAnchor` state machine + multicast callbacks — covers M2.4
