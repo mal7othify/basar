@@ -39,6 +39,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
 
         // NOTE: Platform-specific engine modules (arcore, arkit, webxr) are NOT

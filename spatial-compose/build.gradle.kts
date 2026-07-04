@@ -29,9 +29,11 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Compose dependencies (runtime/ui appear in the SpatialView signature)
+            // Compose dependencies (runtime/ui appear in the SpatialView signature,
+            // animation-core types in the animatedSpatial* signatures)
             api(compose.runtime)
             api(compose.ui)
+            api(compose.animation)
             implementation(compose.foundation)
 
             // api: SpatialView exposes SpatialSceneScope, SessionMode, EngineConfig,

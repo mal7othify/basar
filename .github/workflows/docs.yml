@@ -1,0 +1,45 @@
+name: Docs
+
+# Publishes aggregated Dokka HTML for the spatial-* modules to GitHub Pages.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Build & deploy API docs
+    runs-on: macos-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate aggregated Dokka HTML
+        run: ./gradlew :dokkaGenerate --stacktrace
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/dokka/html
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

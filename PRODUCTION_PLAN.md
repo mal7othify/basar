@@ -255,21 +255,33 @@ unit test (they're all pure Kotlin).
   previous session; `ARCoreEngine.initialize` then throws "already initialized" which
   surfaces as `onError`. Tear down (stop + reinit or dispose/recreate) before
   restarting; add support for re-initialization to the engines.
-- [ ] **M5.4 Remove or implement the fake animation APIs**
+- [x] **M5.4 Remove or implement the fake animation APIs**
+  Implemented via `animateValueAsState` with public `Vec3.VectorConverter`
+  (component lerp) and `Quaternion.VectorConverter` (nlerp with renormalization);
+  `animatedSpatialRotation` sign-aligns successive targets so interpolation takes
+  the short arc. Converter unit tests added.
   (`SpatialState.kt:77-111`). `animatedSpatialVec3`/`animatedSpatialRotation` document
   smooth animation but return `rememberUpdatedState(target)`. Implement via
   `animateValueAsState` with a `TwoWayConverter` (Vec3 component lerp; Quaternion via
   slerp) — or delete them until implemented.
-- [ ] **M5.5 Document the DSL update model.**
+- [x] **M5.5 Document the DSL update model.**
+  Documented as build-once + imperative mutation in the `SpatialView` KDoc
+  ("Update model" section, with the node-reference/onFrame pattern) and in the
+  README. True composition remains out of scope (tracked below).
   `SpatialView` rebuilds the scene only when the `content` lambda instance changes
   (`SpatialView.kt:60`); state read inside the DSL does not recompose the scene.
   Document that the DSL is build-once + imperative mutation (and show the
   `rememberSpatialNode` pattern), or redesign toward true composition later — but
   don't leave it ambiguous.
-- [ ] **M5.6 Make the README compile.**
+- [x] **M5.6 Make the README compile.**
   `Color.RED`/`Color.BLUE` → `Color.Red`/`Color.Blue`; `1.5.meters` works only via
   core's `Number` extensions (fine after M2.8); installation snippet per M1.6.
-  Add one end-to-end sample per platform under `samples/`.
+  README rewritten against the real API (verified signatures: `detectedPlanes`,
+  `PlaneType.HORIZONTAL_UP`, `AnchorScope.cube(size=…)`, Android engine wiring
+  via `LocalSpatialEngine`), stale P0-bug warnings removed, library/playground
+  split documented (also closes the M0.6 minimum). Dedicated `samples/` apps
+  deferred to the 1.0 line (see Versioning path) — `composeApp` is the demo
+  meanwhile.
 
 ## M6 — Quality infrastructure (1–2 days to set up, ongoing after)
 
