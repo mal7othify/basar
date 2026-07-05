@@ -389,6 +389,10 @@ public final class com/spatialkit/engine/GeometryType : java/lang/Enum {
 	public static fun values ()[Lcom/spatialkit/engine/GeometryType;
 }
 
+public final class com/spatialkit/engine/GeometryUtilsKt {
+	public static final fun generateVertexNormals ([F[I)[F
+}
+
 public final class com/spatialkit/engine/Hand : java/lang/Enum {
 	public static final field LEFT Lcom/spatialkit/engine/Hand;
 	public static final field RIGHT Lcom/spatialkit/engine/Hand;

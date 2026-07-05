@@ -10,6 +10,7 @@ import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.EngineError
 import com.spatialkit.engine.EngineState
 import com.spatialkit.engine.FrameData
+import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.HitTestResult
 import com.spatialkit.engine.MaterialData
@@ -22,11 +23,13 @@ import com.spatialkit.engine.SceneNode
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.TrackingState
+import com.spatialkit.engine.generateVertexNormals
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.FloatVar
 import kotlinx.cinterop.Vector128
 import kotlinx.cinterop.Vector128Var
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.autoreleasepool
 import kotlinx.cinterop.get
@@ -36,6 +39,7 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
 import kotlinx.cinterop.useContents
+import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,12 +71,20 @@ import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRect
 import platform.CoreGraphics.CGSize
 import platform.CoreGraphics.CGSizeMake
+import platform.Foundation.NSData
 import platform.Foundation.NSNumber
+import platform.Foundation.dataWithBytes
 import platform.Foundation.numberWithFloat
 import platform.QuartzCore.CACurrentMediaTime
 import platform.SceneKit.SCNBox
 import platform.SceneKit.SCNCapsule
 import platform.SceneKit.SCNCylinder
+import platform.SceneKit.SCNGeometry
+import platform.SceneKit.SCNGeometryElement
+import platform.SceneKit.SCNGeometryPrimitiveTypeTriangles
+import platform.SceneKit.SCNGeometrySource
+import platform.SceneKit.SCNGeometrySourceSemanticNormal
+import platform.SceneKit.SCNGeometrySourceSemanticVertex
 import platform.SceneKit.SCNLightingModelPhysicallyBased
 import platform.SceneKit.SCNMaterial
 import platform.SceneKit.SCNNode
@@ -127,6 +139,7 @@ public class ARKitEngine : SpatialEngine {
     // SceneKit node management
     private val contentRoot = SCNNode()
     private val sceneNodeMap = mutableMapOf<String, SCNNode>()
+
     // Last applied material per node id, to skip redundant per-frame
     // SCNMaterial updates (each one invalidates SceneKit's render caches)
     private val materialCache = mutableMapOf<String, MaterialData>()
@@ -715,6 +728,18 @@ public class ARKitEngine : SpatialEngine {
         // Update transform
         updateNodeTransform(scnNode, mesh.transform)
 
+        // Custom meshes keep their vertices in meters, so node scale applies
+        // directly (primitives instead bake scale into geometry dimensions
+        // at creation time). This also makes scale animations work for them.
+        if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+            scnNode.scale =
+                SCNVector3Make(
+                    mesh.transform.scale.x,
+                    mesh.transform.scale.y,
+                    mesh.transform.scale.z,
+                )
+        }
+
         // Update visibility
         scnNode.hidden = !mesh.visible
 
@@ -750,20 +775,27 @@ public class ARKitEngine : SpatialEngine {
     }
 
     private fun createSCNNodeForMesh(mesh: SceneNode.Mesh): SCNNode {
-        val geometry = createGeometry(mesh.geometry.type, mesh.transform.scale)
+        val geometry = createGeometry(mesh.geometry, mesh.transform.scale)
         val node = SCNNode.nodeWithGeometry(geometry)
 
         // Apply material
-        geometry?.firstMaterial = createMaterial(mesh.material)
+        val material = createMaterial(mesh.material)
+        if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+            // The GL-based renderers don't cull back faces, so render custom
+            // meshes double-sided here too for cross-platform parity (flat
+            // meshes like leaves would otherwise vanish from behind).
+            material.doubleSided = true
+        }
+        geometry?.firstMaterial = material
 
         return node
     }
 
     private fun createGeometry(
-        type: GeometryType,
+        data: GeometryData,
         scale: Vec3,
     ): platform.SceneKit.SCNGeometry? =
-        when (type) {
+        when (data.type) {
             GeometryType.CUBE -> {
                 // Unit cube scaled by transform
                 SCNBox.boxWithWidth(
@@ -806,11 +838,73 @@ public class ARKitEngine : SpatialEngine {
                 )
             }
 
-            GeometryType.CUSTOM_MESH -> {
-                // TODO: Implement custom mesh support
-                null
-            }
+            GeometryType.CUSTOM_MESH -> createCustomGeometry(data)
         }
+
+    /**
+     * Build an SCNGeometry from raw vertex/index buffers.
+     *
+     * Vertices are in meters (model space); unlike primitives, node scale is
+     * NOT baked in here — it is applied as `node.scale` in [processMeshNode].
+     */
+    @OptIn(ExperimentalForeignApi::class)
+    private fun createCustomGeometry(data: GeometryData): platform.SceneKit.SCNGeometry? {
+        val vertices = data.vertices ?: return null
+        val indices = data.indices ?: return null
+        if (vertices.isEmpty() || indices.isEmpty()) return null
+
+        val vertexCount = vertices.size / 3
+        val normals =
+            data.normals?.takeIf { it.size == vertices.size }
+                ?: generateVertexNormals(vertices, indices)
+
+        // NSData copies the bytes, so pinning only needs to outlive the call
+        fun FloatArray.toNSData(): NSData =
+            usePinned { pinned ->
+                NSData.dataWithBytes(pinned.addressOf(0), (size * Float.SIZE_BYTES).toULong())
+            }
+
+        val vertexSource =
+            SCNGeometrySource.geometrySourceWithData(
+                data = vertices.toNSData(),
+                semantic = SCNGeometrySourceSemanticVertex,
+                vectorCount = vertexCount.toLong(),
+                floatComponents = true,
+                componentsPerVector = 3,
+                bytesPerComponent = Float.SIZE_BYTES.toLong(),
+                dataOffset = 0,
+                dataStride = (3 * Float.SIZE_BYTES).toLong(),
+            )
+
+        val normalSource =
+            SCNGeometrySource.geometrySourceWithData(
+                data = normals.toNSData(),
+                semantic = SCNGeometrySourceSemanticNormal,
+                vectorCount = vertexCount.toLong(),
+                floatComponents = true,
+                componentsPerVector = 3,
+                bytesPerComponent = Float.SIZE_BYTES.toLong(),
+                dataOffset = 0,
+                dataStride = (3 * Float.SIZE_BYTES).toLong(),
+            )
+
+        val indexData =
+            indices.usePinned { pinned ->
+                NSData.dataWithBytes(pinned.addressOf(0), (indices.size * Int.SIZE_BYTES).toULong())
+            }
+        val element =
+            SCNGeometryElement.geometryElementWithData(
+                data = indexData,
+                primitiveType = SCNGeometryPrimitiveTypeTriangles,
+                primitiveCount = (indices.size / 3).toLong(),
+                bytesPerIndex = Int.SIZE_BYTES.toLong(),
+            )
+
+        return SCNGeometry.geometryWithSources(
+            sources = listOf(vertexSource, normalSource),
+            elements = listOf(element),
+        )
+    }
 
     private fun createMaterial(materialData: MaterialData): SCNMaterial {
         val material = SCNMaterial()
@@ -824,6 +918,7 @@ public class ARKitEngine : SpatialEngine {
                 alpha = materialData.baseColor.w.toDouble(),
             )
         material.diffuse.contents = color
+        material.doubleSided = materialData.doubleSided
 
         // Set PBR properties
         when (materialData.type) {

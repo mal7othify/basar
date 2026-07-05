@@ -4,6 +4,7 @@ import com.spatialkit.core.annotations.ExperimentalSpatialApi
 import com.spatialkit.core.types.Color
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
+import com.spatialkit.engine.generateVertexNormals
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -82,7 +83,9 @@ public class GltfLoader(
         return GeometryData(
             type = GeometryType.CUSTOM_MESH,
             vertices = vertices,
-            normals = normals,
+            // Many minimal GLTF files omit NORMAL; generate normals so the
+            // mesh is lit correctly on every renderer.
+            normals = normals ?: indices?.let { generateVertexNormals(vertices, it) },
             indices = indices,
         )
     }

@@ -526,7 +526,9 @@ public class SimpleRenderer(
         return customMeshCache.getOrPut(nodeId) {
             val vertices = geometry.vertices ?: return null
             val indices = geometry.indices ?: return null
-            val normals = geometry.normals ?: FloatArray(vertices.size) // default zero normals
+            val normals =
+                geometry.normals?.takeIf { it.size == vertices.size }
+                    ?: com.spatialkit.engine.generateVertexNormals(vertices, indices)
 
             val shortIndices = ShortArray(indices.size) { indices[it].toShort() }
             return@getOrPut createGeometryBuffers(vertices, normals, shortIndices)
