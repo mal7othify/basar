@@ -16,7 +16,7 @@ import kotlin.math.min
  * @property origin The starting point of the ray
  * @property direction The direction vector of the ray (should be normalized)
  */
-data class Ray(
+public data class Ray(
     val origin: Vec3,
     val direction: Vec3,
 ) {
@@ -35,7 +35,7 @@ data class Ray(
      * @param distance The distance along the ray from the origin
      * @return The point at that distance
      */
-    fun pointAt(distance: Float): Vec3 = origin + normalizedDirection * distance
+    public fun pointAt(distance: Float): Vec3 = origin + normalizedDirection * distance
 
     /**
      * Tests for intersection between this ray and a bounding box.
@@ -45,7 +45,7 @@ data class Ray(
      * @param box The bounding box to test against
      * @return The distance to the intersection point, or null if no intersection
      */
-    fun intersects(box: BoundingBox): Float? {
+    public fun intersects(box: BoundingBox): Float? {
         val dir = normalizedDirection
         val invDir =
             Vec3(
@@ -85,7 +85,7 @@ data class Ray(
      * @param radius The radius of the sphere
      * @return The distance to the nearest intersection point, or null if no intersection
      */
-    fun intersectsSphere(
+    public fun intersectsSphere(
         center: Vec3,
         radius: Float,
     ): Float? {
@@ -119,7 +119,7 @@ data class Ray(
      * @param planeNormal The normal vector of the plane (should be normalized)
      * @return The distance to the intersection point, or null if no intersection
      */
-    fun intersectsPlane(
+    public fun intersectsPlane(
         planePoint: Vec3,
         planeNormal: Vec3,
     ): Float? {
@@ -147,7 +147,7 @@ data class Ray(
      * @param point The reference point
      * @return The closest point on the ray
      */
-    fun closestPointTo(point: Vec3): Vec3 {
+    public fun closestPointTo(point: Vec3): Vec3 {
         val dir = normalizedDirection
         val toPoint = point - origin
         val distance = toPoint.dot(dir).coerceAtLeast(0f)
@@ -160,7 +160,7 @@ data class Ray(
      * @param point The reference point
      * @return The shortest distance from the point to the ray
      */
-    fun distanceTo(point: Vec3): Float {
+    public fun distanceTo(point: Vec3): Float {
         val closest = closestPointTo(point)
         return (point - closest).length()
     }
@@ -172,7 +172,7 @@ data class Ray(
      * @param point The reference point
      * @return The squared shortest distance from the point to the ray
      */
-    fun distanceSquaredTo(point: Vec3): Float {
+    public fun distanceSquaredTo(point: Vec3): Float {
         val closest = closestPointTo(point)
         return (point - closest).lengthSquared()
     }
@@ -182,7 +182,7 @@ data class Ray(
      *
      * @return A new ray with normalized direction
      */
-    fun normalized(): Ray = Ray(origin, direction.normalized())
+    public fun normalized(): Ray = Ray(origin, direction.normalized())
 
     /**
      * Translates this ray by an offset.
@@ -190,7 +190,7 @@ data class Ray(
      * @param offset The translation offset
      * @return A new translated ray
      */
-    fun translate(offset: Vec3): Ray = Ray(origin + offset, direction)
+    public fun translate(offset: Vec3): Ray = Ray(origin + offset, direction)
 
     /**
      * Transforms this ray by moving the origin and rotating the direction.
@@ -199,12 +199,12 @@ data class Ray(
      * @param newDirection The new direction vector
      * @return A new transformed ray
      */
-    fun transform(
+    public fun transform(
         newOrigin: Vec3,
         newDirection: Vec3,
     ): Ray = Ray(newOrigin, newDirection)
 
-    companion object {
+    public companion object {
         /**
          * Creates a ray from an origin point towards a target point.
          *
@@ -212,7 +212,7 @@ data class Ray(
          * @param to The target point
          * @return A new ray pointing from 'from' to 'to'
          */
-        fun fromTo(
+        public fun fromTo(
             from: Vec3,
             to: Vec3,
         ): Ray =
@@ -228,7 +228,7 @@ data class Ray(
          * @param point2 A point along the ray direction
          * @return A new ray
          */
-        fun throughPoints(
+        public fun throughPoints(
             point1: Vec3,
             point2: Vec3,
         ): Ray = fromTo(point1, point2)
@@ -243,17 +243,17 @@ data class Ray(
  * @property point The intersection point in world space (null if no hit)
  * @property normal The surface normal at the intersection point (null if no hit)
  */
-data class RayHit(
+public data class RayHit(
     val hit: Boolean,
     val distance: Float? = null,
     val point: Vec3? = null,
     val normal: Vec3? = null,
 ) {
-    companion object {
+    public companion object {
         /**
          * A ray hit result indicating no intersection.
          */
-        val MISS = RayHit(hit = false)
+        public val MISS: RayHit = RayHit(hit = false)
 
         /**
          * Creates a ray hit result for a successful intersection.
@@ -263,7 +263,7 @@ data class RayHit(
          * @param normal The surface normal at the intersection
          * @return A new RayHit indicating a hit
          */
-        fun hit(
+        public fun hit(
             distance: Float,
             point: Vec3,
             normal: Vec3,

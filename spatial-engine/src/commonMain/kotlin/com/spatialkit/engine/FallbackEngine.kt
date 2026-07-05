@@ -1,5 +1,10 @@
 package com.spatialkit.engine
 
+import com.spatialkit.core.log.SpatialLog
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 /**
  * Fallback engine implementation for unsupported platforms.
  *
@@ -14,8 +19,8 @@ package com.spatialkit.engine
  * - Testing without AR hardware
  * - Graceful degradation for unsupported devices
  */
-class FallbackEngine : SpatialEngine {
-    private var _state: EngineState = EngineState.Uninitialized
+public class FallbackEngine : SpatialEngine {
+    private val _state = MutableStateFlow<EngineState>(EngineState.Uninitialized)
     private var frameCallback: ((FrameData) -> Unit)? = null
 
     override val capabilities: EngineCapabilities =
@@ -31,51 +36,52 @@ class FallbackEngine : SpatialEngine {
             maxAnchors = 0,
         )
 
-    override val state: EngineState
-        get() = _state
+    override val state: StateFlow<EngineState> = _state.asStateFlow()
 
     override suspend fun initialize(config: EngineConfig) {
-        logWarning("FallbackEngine: initialize() called on unsupported platform")
-        _state =
+        SpatialLog.warn(TAG) { "initialize() called on unsupported platform" }
+        _state.value =
             EngineState.Error(
                 EngineError.NotSupported,
             )
     }
 
-    override fun startSession(mode: SessionMode) {
-        logWarning("FallbackEngine: startSession() called on unsupported platform")
-        _state =
+    override suspend fun startSession(mode: SessionMode) {
+        SpatialLog.warn(TAG) { "startSession() called on unsupported platform" }
+        _state.value =
             EngineState.Error(
                 EngineError.NotSupported,
             )
     }
 
     override fun stopSession() {
-        logWarning("FallbackEngine: stopSession() called")
-        _state = EngineState.Ready
+        SpatialLog.debug(TAG) { "stopSession() called" }
+        // Deliberately stays in Error(NotSupported): this engine can never
+        // reach a usable Ready state.
     }
 
     override fun dispose() {
-        logWarning("FallbackEngine: dispose() called")
-        _state = EngineState.Disposed
+        SpatialLog.debug(TAG) { "dispose() called" }
+        _state.value = EngineState.Disposed
         frameCallback = null
     }
 
     override fun onFrame(callback: (FrameData) -> Unit) {
-        logWarning("FallbackEngine: onFrame() registered but will never be called")
+        SpatialLog.warn(TAG) { "onFrame() registered but will never be called" }
         frameCallback = callback
     }
 
     override fun submitScene(scene: SceneData) {
-        logWarning("FallbackEngine: submitScene() called but nothing will render")
-        // Silently ignore - no rendering to do
+        // No-op: nothing renders on an unsupported platform. Logged at debug
+        // because this can be called every frame.
+        SpatialLog.debug(TAG) { "submitScene() ignored (unsupported platform)" }
     }
 
     override fun performHitTest(
         screenX: Float,
         screenY: Float,
     ): HitTestResult? {
-        logWarning("FallbackEngine: performHitTest() called - returning null")
+        SpatialLog.debug(TAG) { "performHitTest() -> null (unsupported platform)" }
         return null
     }
 
@@ -83,13 +89,11 @@ class FallbackEngine : SpatialEngine {
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? {
-        logWarning("FallbackEngine: performRaycast() called - returning null")
+        SpatialLog.debug(TAG) { "performRaycast() -> null (unsupported platform)" }
         return null
     }
 
-    private fun logWarning(message: String) {
-        // Platform-specific logging would go here
-        // For now, just print
-        println("⚠️ $message")
+    private companion object {
+        const val TAG = "FallbackEngine"
     }
 }

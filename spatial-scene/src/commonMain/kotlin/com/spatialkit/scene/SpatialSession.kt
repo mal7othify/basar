@@ -43,8 +43,8 @@ import com.spatialkit.engine.Vec3
  * )
  * ```
  */
-class SpatialSession(
-    val runtime: SpatialRuntime,
+public class SpatialSession(
+    public val runtime: SpatialRuntime,
 ) {
     /**
      * The mutable scene graph.
@@ -52,7 +52,7 @@ class SpatialSession(
      * Add/remove nodes and anchors from this scene.
      * The session automatically submits the scene to the engine each frame.
      */
-    val scene = SpatialScene()
+    public val scene: SpatialScene = SpatialScene()
 
     private var userFrameCallback: ((FrameData) -> Unit)? = null
     private var errorCallback: ((EngineError) -> Unit)? = null
@@ -60,19 +60,19 @@ class SpatialSession(
     /**
      * Whether the session is currently running.
      */
-    val isRunning: Boolean
+    public val isRunning: Boolean
         get() = runtime.isRunning
 
     /**
      * Current engine state.
      */
-    val state: EngineState?
+    public val state: EngineState?
         get() = runtime.state
 
     /**
      * Engine capabilities.
      */
-    val capabilities: EngineCapabilities?
+    public val capabilities: EngineCapabilities?
         get() = runtime.capabilities
 
     /**
@@ -85,7 +85,7 @@ class SpatialSession(
      * @param onFrame Callback for each frame (for app logic)
      * @param onError Callback for errors
      */
-    suspend fun start(
+    public suspend fun start(
         config: EngineConfig = EngineConfig(),
         onFrame: (FrameData) -> Unit = {},
         onError: (EngineError) -> Unit = {},
@@ -110,7 +110,7 @@ class SpatialSession(
      * Stops tracking and rendering but keeps the engine initialized.
      * Call start() again to resume.
      */
-    fun stop() {
+    public fun stop() {
         runtime.stop()
     }
 
@@ -119,7 +119,7 @@ class SpatialSession(
      *
      * After calling this, create a new SpatialSession to start again.
      */
-    fun dispose() {
+    public fun dispose() {
         runtime.dispose()
         scene.clear()
         userFrameCallback = null
@@ -129,11 +129,13 @@ class SpatialSession(
     /**
      * Perform a hit test from screen coordinates.
      *
-     * @param screenX X coordinate in pixels
-     * @param screenY Y coordinate in pixels
+     * Coordinates are normalized: (0,0) = top-left, (1,1) = bottom-right.
+     *
+     * @param screenX Normalized X coordinate (0-1)
+     * @param screenY Normalized Y coordinate (0-1)
      * @return Hit test result or null
      */
-    fun performHitTest(
+    public fun performHitTest(
         screenX: Float,
         screenY: Float,
     ): HitTestResult? = runtime.performHitTest(screenX, screenY)
@@ -145,7 +147,7 @@ class SpatialSession(
      * @param direction Ray direction (normalized)
      * @return Raycast result or null
      */
-    fun performRaycast(
+    public fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? = runtime.performRaycast(origin, direction)
@@ -158,21 +160,18 @@ class SpatialSession(
      * 3. Submit updated scene to engine
      */
     private fun handleFrame(frameData: FrameData) {
-        try {
-            // Update anchors
-            scene.updateAnchors(frameData.anchors)
+        // Exceptions (including from the user callback) propagate to
+        // SpatialRuntime's frame wrapper, which reports them once as
+        // EngineError.RuntimeError with the original cause attached.
 
-            // User frame logic
-            userFrameCallback?.invoke(frameData)
+        // Update anchors
+        scene.updateAnchors(frameData.anchors)
 
-            // Submit scene to engine
-            val sceneData = scene.toSceneData()
-            runtime.submitScene(sceneData)
-        } catch (e: Exception) {
-            // Catch errors in user code
-            errorCallback?.invoke(
-                EngineError.InitializationFailed("Frame callback error: ${e.message}"),
-            )
-        }
+        // User frame logic
+        userFrameCallback?.invoke(frameData)
+
+        // Submit scene to engine
+        val sceneData = scene.toSceneData()
+        runtime.submitScene(sceneData)
     }
 }

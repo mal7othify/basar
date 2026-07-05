@@ -10,6 +10,7 @@ import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.EngineError
 import com.spatialkit.engine.EngineState
 import com.spatialkit.engine.FrameData
+import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.HitTestResult
 import com.spatialkit.engine.MaterialData
@@ -22,12 +23,15 @@ import com.spatialkit.engine.SceneNode
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.TrackingState
+import com.spatialkit.engine.generateVertexNormals
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.FloatVar
 import kotlinx.cinterop.Vector128
 import kotlinx.cinterop.Vector128Var
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.allocArray
+import kotlinx.cinterop.autoreleasepool
 import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.pointed
@@ -35,7 +39,11 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
 import kotlinx.cinterop.useContents
+import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import platform.ARKit.ARAnchor
 import platform.ARKit.ARCamera
 import platform.ARKit.ARConfiguration
@@ -63,12 +71,20 @@ import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRect
 import platform.CoreGraphics.CGSize
 import platform.CoreGraphics.CGSizeMake
+import platform.Foundation.NSData
 import platform.Foundation.NSNumber
+import platform.Foundation.dataWithBytes
 import platform.Foundation.numberWithFloat
 import platform.QuartzCore.CACurrentMediaTime
 import platform.SceneKit.SCNBox
 import platform.SceneKit.SCNCapsule
 import platform.SceneKit.SCNCylinder
+import platform.SceneKit.SCNGeometry
+import platform.SceneKit.SCNGeometryElement
+import platform.SceneKit.SCNGeometryPrimitiveTypeTriangles
+import platform.SceneKit.SCNGeometrySource
+import platform.SceneKit.SCNGeometrySourceSemanticNormal
+import platform.SceneKit.SCNGeometrySourceSemanticVertex
 import platform.SceneKit.SCNLightingModelPhysicallyBased
 import platform.SceneKit.SCNMaterial
 import platform.SceneKit.SCNNode
@@ -87,29 +103,28 @@ import platform.darwin.simd_float4x4
 import kotlin.math.sqrt
 
 /**
- * ARSCNView delegate for handling frame updates efficiently.
+ * ARSCNView delegate driving the engine's frame loop.
+ *
+ * Uses `renderer(_:updateAtTime:)` (inherited from SCNSceneRendererDelegate),
+ * which SceneKit calls once per rendered frame. Note that
+ * `renderer(_:didAddNode:forAnchor:)` is NOT a frame callback — it only fires
+ * when ARKit attaches a node for a newly detected anchor.
  */
 @OptIn(ExperimentalForeignApi::class)
 private class ARViewDelegate(
     private val engine: ARKitEngine,
 ) : NSObject(),
     ARSCNViewDelegateProtocol {
-    // Called every frame for smooth updates
     override fun renderer(
         renderer: SCNSceneRendererProtocol,
-        didAddNode: SCNNode,
-        forAnchor: ARAnchor,
+        updateAtTime: Double,
     ) {
-        // Get the current ARFrame from the session
-        val arView = renderer as? ARSCNView ?: return
-        val frame = arView.session.currentFrame ?: return
-
-        engine.processFrame(frame)
+        engine.onRenderTick()
     }
 }
 
 @OptIn(ExperimentalForeignApi::class)
-class ARKitEngine : SpatialEngine {
+public class ARKitEngine : SpatialEngine {
     private var arSession: ARSession? = null
     private var arView: ARSCNView? = null
     private var currentConfig: EngineConfig? = null
@@ -124,13 +139,17 @@ class ARKitEngine : SpatialEngine {
     // SceneKit node management
     private val contentRoot = SCNNode()
     private val sceneNodeMap = mutableMapOf<String, SCNNode>()
+
+    // Last applied material per node id, to skip redundant per-frame
+    // SCNMaterial updates (each one invalidates SceneKit's render caches)
+    private val materialCache = mutableMapOf<String, MaterialData>()
     private var currentScene: SceneData? = null
 
     // Delegate for frame updates
     private val viewDelegate = ARViewDelegate(this)
 
-    override var state: EngineState = EngineState.Uninitialized
-        private set
+    private val _state = MutableStateFlow<EngineState>(EngineState.Uninitialized)
+    override val state: StateFlow<EngineState> = _state.asStateFlow()
 
     override val capabilities: EngineCapabilities
         get() =
@@ -159,9 +178,9 @@ class ARKitEngine : SpatialEngine {
             if (arSession == null) {
                 arSession = ARSession()
             }
-            state = EngineState.Ready
+            _state.value = EngineState.Ready
         } catch (e: Exception) {
-            state =
+            _state.value =
                 EngineState.Error(
                     EngineError.InitializationFailed("ARKit initialization failed: ${e.message}"),
                 )
@@ -190,7 +209,7 @@ class ARKitEngine : SpatialEngine {
      * }
      * ```
      */
-    fun setARView(view: ARSCNView) {
+    public fun setARView(view: ARSCNView) {
         arView = view
         arSession = view.session
         viewportSize =
@@ -216,7 +235,7 @@ class ARKitEngine : SpatialEngine {
         view.delegate = viewDelegate
     }
 
-    fun updateViewportSize(
+    public fun updateViewportSize(
         width: Double,
         height: Double,
     ) {
@@ -251,7 +270,7 @@ class ARKitEngine : SpatialEngine {
         }
     }
 
-    override fun startSession(mode: SessionMode) {
+    override suspend fun startSession(mode: SessionMode) {
         val session = arSession ?: throw IllegalStateException("Engine not initialized")
         val config = currentConfig ?: throw IllegalStateException("Engine not initialized")
 
@@ -267,9 +286,9 @@ class ARKitEngine : SpatialEngine {
             if (arConfig == null) return
 
             session.runWithConfiguration(arConfig)
-            state = EngineState.Running(mode)
+            _state.value = EngineState.Running(mode)
         } catch (e: Exception) {
-            state =
+            _state.value =
                 EngineState.Error(
                     EngineError.InitializationFailed("Failed to start session: ${e.message}"),
                 )
@@ -296,12 +315,37 @@ class ARKitEngine : SpatialEngine {
     }
 
     /**
-     * Process a frame update from ARKit.
-     * Called by the ARViewDelegate on each frame.
+     * Per-render-tick frame data that does not require touching an ARFrame.
      */
-    internal fun processFrame(frame: ARFrame) {
+    private class SampledFrameInfo(
+        val trackingState: TrackingState,
+        val detectedPlanes: List<DetectedPlane>,
+        val anchors: List<AnchorState>,
+        val lightEstimate: com.spatialkit.engine.LightEstimate?,
+        val projectionMatrix: FloatArray,
+        val viewMatrix: FloatArray,
+    )
+
+    private var tickCount = 0L
+    private var sampledFrameInfo: SampledFrameInfo? = null
+
+    /**
+     * Drive one frame of the engine. Called by the ARViewDelegate on each
+     * SceneKit render tick (~60 fps).
+     *
+     * IMPORTANT: an ARFrame accessed from Kotlin stays retained until the
+     * Kotlin/Native GC collects its wrapper. Touching `session.currentFrame`
+     * every tick therefore starves ARKit's fixed camera-buffer pool, which
+     * shows up as "No video frame received. Dropping frame!" logs and a
+     * collapsed frame rate. So the ARFrame is sampled only occasionally (for
+     * anchors/planes/light, which change slowly) inside an autorelease pool,
+     * while the per-tick camera pose comes from SceneKit's pointOfView node —
+     * no ARFrame needed.
+     */
+    @OptIn(kotlinx.cinterop.BetaInteropApi::class)
+    internal fun onRenderTick() {
         // Only process frames when session is running
-        if (state !is EngineState.Running) return
+        if (_state.value !is EngineState.Running) return
 
         val currentTime = (CACurrentMediaTime() * 1000).toLong()
         val deltaTime =
@@ -312,20 +356,64 @@ class ARKitEngine : SpatialEngine {
             }
         lastFrameTime = currentTime
 
-        val frameData = convertARFrameToFrameData(frame, currentTime, deltaTime)
-        frameCallback?.invoke(frameData)
+        if (sampledFrameInfo == null || tickCount % FRAME_SAMPLE_INTERVAL == 0L) {
+            autoreleasepool {
+                arSession?.currentFrame?.let { frame ->
+                    sampledFrameInfo = sampleFrameInfo(frame)
+                }
+            }
+        }
+        tickCount++
+
+        val info = sampledFrameInfo ?: return
+        val cameraPose = currentCameraPose() ?: return
+
+        frameCallback?.invoke(
+            FrameData(
+                timestamp = currentTime,
+                deltaTime = deltaTime,
+                cameraPose = cameraPose,
+                projectionMatrix = info.projectionMatrix,
+                viewMatrix = info.viewMatrix,
+                trackingState = info.trackingState,
+                detectedPlanes = info.detectedPlanes,
+                lightEstimate = info.lightEstimate,
+                inputSources = emptyList(),
+                anchors = info.anchors,
+            ),
+        )
+    }
+
+    /**
+     * Camera pose from SceneKit's point-of-view node (kept in sync with the
+     * ARKit camera by ARSCNView). Reading it does not retain an ARFrame.
+     */
+    @OptIn(ExperimentalForeignApi::class)
+    private fun currentCameraPose(): Pose? {
+        val pointOfView = arView?.pointOfView ?: return null
+        return pointOfView.worldTransform.useContents {
+            // SCNMatrix4: basis vectors are rows (m11,m12,m13 = X axis),
+            // translation is (m41,m42,m43) — same memory layout as
+            // simd_float4x4 columns.
+            val position = Vec3(m41, m42, m43)
+            val rotation =
+                quaternionFromRotationElements(
+                    m00 = m11,
+                    m01 = m21,
+                    m02 = m31,
+                    m10 = m12,
+                    m11 = m22,
+                    m12 = m32,
+                    m20 = m13,
+                    m21 = m23,
+                    m22 = m33,
+                )
+            Pose(position, rotation)
+        }
     }
 
     @OptIn(ExperimentalForeignApi::class)
-    private fun convertARFrameToFrameData(
-        frame: ARFrame,
-        timestamp: Long,
-        deltaTime: Float,
-    ): FrameData {
-        // Camera pose
-        val transform: CValue<simd_float4x4> = frame.camera.transform
-        val cameraPose = convertTransform(transform)
-
+    private fun sampleFrameInfo(frame: ARFrame): SampledFrameInfo {
         // Tracking state
         val trackingState =
             when (frame.camera.trackingState) {
@@ -379,17 +467,13 @@ class ARKitEngine : SpatialEngine {
                 )
             }
 
-        return FrameData(
-            timestamp = timestamp,
-            deltaTime = deltaTime,
-            cameraPose = cameraPose,
-            projectionMatrix = projectionMatrix,
-            viewMatrix = viewMatrix,
+        return SampledFrameInfo(
             trackingState = trackingState,
             detectedPlanes = detectedPlanes,
-            lightEstimate = lightEstimate,
-            inputSources = emptyList(),
             anchors = anchorsList,
+            lightEstimate = lightEstimate,
+            projectionMatrix = projectionMatrix,
+            viewMatrix = viewMatrix,
         )
     }
 
@@ -483,16 +567,31 @@ class ARKitEngine : SpatialEngine {
 
         // col[0] = x, col[1] = y, col[2] = z, col[3] = w
         // Matrix diagonal: col0[0], col1[1], col2[2]
-        val m00 = col0[0]
-        val m01 = col1[0]
-        val m02 = col2[0]
-        val m10 = col0[1]
-        val m11 = col1[1]
-        val m12 = col2[1]
-        val m20 = col0[2]
-        val m21 = col1[2]
-        val m22 = col2[2]
+        return quaternionFromRotationElements(
+            m00 = col0[0],
+            m01 = col1[0],
+            m02 = col2[0],
+            m10 = col0[1],
+            m11 = col1[1],
+            m12 = col2[1],
+            m20 = col0[2],
+            m21 = col1[2],
+            m22 = col2[2],
+        )
+    }
 
+    @Suppress("LongParameterList")
+    private fun quaternionFromRotationElements(
+        m00: Float,
+        m01: Float,
+        m02: Float,
+        m10: Float,
+        m11: Float,
+        m12: Float,
+        m20: Float,
+        m21: Float,
+        m22: Float,
+    ): Quaternion {
         val trace = m00 + m11 + m22
 
         return when {
@@ -583,6 +682,7 @@ class ARKitEngine : SpatialEngine {
         toRemove.forEach { id ->
             sceneNodeMap[id]?.removeFromParentNode()
             sceneNodeMap.remove(id)
+            materialCache.remove(id)
         }
 
         // Create or update nodes
@@ -628,11 +728,26 @@ class ARKitEngine : SpatialEngine {
         // Update transform
         updateNodeTransform(scnNode, mesh.transform)
 
+        // Custom meshes keep their vertices in meters, so node scale applies
+        // directly (primitives instead bake scale into geometry dimensions
+        // at creation time). This also makes scale animations work for them.
+        if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+            scnNode.scale =
+                SCNVector3Make(
+                    mesh.transform.scale.x,
+                    mesh.transform.scale.y,
+                    mesh.transform.scale.z,
+                )
+        }
+
         // Update visibility
         scnNode.hidden = !mesh.visible
 
-        // Update material if needed
-        updateNodeMaterial(scnNode, mesh.material)
+        // Update material only when it actually changed
+        if (materialCache[mesh.id] != mesh.material) {
+            updateNodeMaterial(scnNode, mesh.material)
+            materialCache[mesh.id] = mesh.material
+        }
     }
 
     private fun processGroupNode(
@@ -660,20 +775,27 @@ class ARKitEngine : SpatialEngine {
     }
 
     private fun createSCNNodeForMesh(mesh: SceneNode.Mesh): SCNNode {
-        val geometry = createGeometry(mesh.geometry.type, mesh.transform.scale)
+        val geometry = createGeometry(mesh.geometry, mesh.transform.scale)
         val node = SCNNode.nodeWithGeometry(geometry)
 
         // Apply material
-        geometry?.firstMaterial = createMaterial(mesh.material)
+        val material = createMaterial(mesh.material)
+        if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+            // The GL-based renderers don't cull back faces, so render custom
+            // meshes double-sided here too for cross-platform parity (flat
+            // meshes like leaves would otherwise vanish from behind).
+            material.doubleSided = true
+        }
+        geometry?.firstMaterial = material
 
         return node
     }
 
     private fun createGeometry(
-        type: GeometryType,
+        data: GeometryData,
         scale: Vec3,
     ): platform.SceneKit.SCNGeometry? =
-        when (type) {
+        when (data.type) {
             GeometryType.CUBE -> {
                 // Unit cube scaled by transform
                 SCNBox.boxWithWidth(
@@ -716,11 +838,73 @@ class ARKitEngine : SpatialEngine {
                 )
             }
 
-            GeometryType.CUSTOM_MESH -> {
-                // TODO: Implement custom mesh support
-                null
-            }
+            GeometryType.CUSTOM_MESH -> createCustomGeometry(data)
         }
+
+    /**
+     * Build an SCNGeometry from raw vertex/index buffers.
+     *
+     * Vertices are in meters (model space); unlike primitives, node scale is
+     * NOT baked in here — it is applied as `node.scale` in [processMeshNode].
+     */
+    @OptIn(ExperimentalForeignApi::class)
+    private fun createCustomGeometry(data: GeometryData): platform.SceneKit.SCNGeometry? {
+        val vertices = data.vertices ?: return null
+        val indices = data.indices ?: return null
+        if (vertices.isEmpty() || indices.isEmpty()) return null
+
+        val vertexCount = vertices.size / 3
+        val normals =
+            data.normals?.takeIf { it.size == vertices.size }
+                ?: generateVertexNormals(vertices, indices)
+
+        // NSData copies the bytes, so pinning only needs to outlive the call
+        fun FloatArray.toNSData(): NSData =
+            usePinned { pinned ->
+                NSData.dataWithBytes(pinned.addressOf(0), (size * Float.SIZE_BYTES).toULong())
+            }
+
+        val vertexSource =
+            SCNGeometrySource.geometrySourceWithData(
+                data = vertices.toNSData(),
+                semantic = SCNGeometrySourceSemanticVertex,
+                vectorCount = vertexCount.toLong(),
+                floatComponents = true,
+                componentsPerVector = 3,
+                bytesPerComponent = Float.SIZE_BYTES.toLong(),
+                dataOffset = 0,
+                dataStride = (3 * Float.SIZE_BYTES).toLong(),
+            )
+
+        val normalSource =
+            SCNGeometrySource.geometrySourceWithData(
+                data = normals.toNSData(),
+                semantic = SCNGeometrySourceSemanticNormal,
+                vectorCount = vertexCount.toLong(),
+                floatComponents = true,
+                componentsPerVector = 3,
+                bytesPerComponent = Float.SIZE_BYTES.toLong(),
+                dataOffset = 0,
+                dataStride = (3 * Float.SIZE_BYTES).toLong(),
+            )
+
+        val indexData =
+            indices.usePinned { pinned ->
+                NSData.dataWithBytes(pinned.addressOf(0), (indices.size * Int.SIZE_BYTES).toULong())
+            }
+        val element =
+            SCNGeometryElement.geometryElementWithData(
+                data = indexData,
+                primitiveType = SCNGeometryPrimitiveTypeTriangles,
+                primitiveCount = (indices.size / 3).toLong(),
+                bytesPerIndex = Int.SIZE_BYTES.toLong(),
+            )
+
+        return SCNGeometry.geometryWithSources(
+            sources = listOf(vertexSource, normalSource),
+            elements = listOf(element),
+        )
+    }
 
     private fun createMaterial(materialData: MaterialData): SCNMaterial {
         val material = SCNMaterial()
@@ -734,6 +918,7 @@ class ARKitEngine : SpatialEngine {
                 alpha = materialData.baseColor.w.toDouble(),
             )
         material.diffuse.contents = color
+        material.doubleSided = materialData.doubleSided
 
         // Set PBR properties
         when (materialData.type) {
@@ -932,7 +1117,9 @@ class ARKitEngine : SpatialEngine {
 
     override fun stopSession() {
         arSession?.pause()
-        state = EngineState.Ready
+        lastFrameTime = 0L
+        sampledFrameInfo = null
+        _state.value = EngineState.Ready
     }
 
     override fun dispose() {
@@ -942,16 +1129,26 @@ class ARKitEngine : SpatialEngine {
         frameCallback = null
         currentConfig = null
         currentScene = null
+        sampledFrameInfo = null
+        lastFrameTime = 0L
 
         // Clean up SceneKit nodes
         contentRoot.removeFromParentNode()
         sceneNodeMap.values.forEach { it.removeFromParentNode() }
         sceneNodeMap.clear()
+        materialCache.clear()
 
-        state = EngineState.Uninitialized
+        _state.value = EngineState.Uninitialized
+    }
+
+    private companion object {
+        // Render ticks between ARFrame samples (~1 s at 60 fps). Anchors,
+        // planes and light estimates change slowly; the camera pose is
+        // refreshed every tick from pointOfView instead.
+        const val FRAME_SAMPLE_INTERVAL = 60L
     }
 }
 
-fun createARKitEngine(): SpatialEngine = ARKitEngine()
+public fun createARKitEngine(): SpatialEngine = ARKitEngine()
 
-fun isARKitAvailable(): Boolean = ARWorldTrackingConfiguration.isSupported
+public fun isARKitAvailable(): Boolean = ARWorldTrackingConfiguration.isSupported

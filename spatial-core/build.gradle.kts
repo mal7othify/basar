@@ -3,10 +3,14 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
+    explicitApi()
+
     androidTarget {
+        publishLibraryVariants("release")
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
@@ -23,9 +27,6 @@ kotlin {
             testTask {
                 useKarma {
                     useChromeHeadless()
-                    useFirefox()
-                    useChrome()
-                    useSafari()
                 }
             }
         }

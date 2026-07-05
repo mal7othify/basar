@@ -24,38 +24,38 @@ import kotlin.random.Random
  * group.addChild(cube)
  * ```
  */
-abstract class SpatialNode(
-    val id: String = generateId(),
+public abstract class SpatialNode(
+    public val id: String = generateId(),
 ) {
     /**
      * Local position relative to parent.
      * If no parent, this is world position.
      */
-    var position: Vec3 = Vec3.ZERO
+    public var position: Vec3 = Vec3.ZERO
 
     /**
      * Local rotation relative to parent.
      * If no parent, this is world rotation.
      */
-    var rotation: Quaternion = Quaternion.IDENTITY
+    public var rotation: Quaternion = Quaternion.IDENTITY
 
     /**
      * Local scale relative to parent.
      * If no parent, this is world scale.
      */
-    var scale: Vec3 = Vec3.ONE
+    public var scale: Vec3 = Vec3.ONE
 
     /**
      * Whether this node is visible.
      * Invisible nodes are not rendered but still track.
      */
-    var visible: Boolean = true
+    public var visible: Boolean = true
 
     /**
      * Parent node in the scene graph.
      * null if this is a root node.
      */
-    var parent: SpatialNode? = null
+    public var parent: SpatialNode? = null
         private set
 
     /**
@@ -63,17 +63,22 @@ abstract class SpatialNode(
      * Children inherit this node's transform.
      */
     private val _children = mutableListOf<SpatialNode>()
-    val children: List<SpatialNode> get() = _children
+    public val children: List<SpatialNode> get() = _children
 
     /**
      * World-space position (accumulated from parent chain).
+     *
+     * Applies the full parent transform: the local position is scaled by the
+     * parent's world scale, rotated by the parent's world rotation, then offset
+     * by the parent's world position — matching what renderers display.
      */
-    val worldPosition: Vec3
+    public val worldPosition: Vec3
         get() {
             val p = parent
             return if (p != null) {
-                // Transform local position by parent's world transform
-                (p.worldRotation * position) + p.worldPosition
+                val ps = p.worldScale
+                val scaled = Vec3(position.x * ps.x, position.y * ps.y, position.z * ps.z)
+                (p.worldRotation * scaled) + p.worldPosition
             } else {
                 position
             }
@@ -82,7 +87,7 @@ abstract class SpatialNode(
     /**
      * World-space rotation (accumulated from parent chain).
      */
-    val worldRotation: Quaternion
+    public val worldRotation: Quaternion
         get() {
             val p = parent
             return if (p != null) {
@@ -95,7 +100,7 @@ abstract class SpatialNode(
     /**
      * World-space scale (accumulated from parent chain).
      */
-    val worldScale: Vec3
+    public val worldScale: Vec3
         get() {
             val p = parent
             return if (p != null) {
@@ -114,8 +119,19 @@ abstract class SpatialNode(
      * The child will inherit this node's transform.
      *
      * @param child Node to add as child
+     * @throws IllegalArgumentException if [child] is this node or an ancestor
+     *   of it (which would create a cycle in the scene graph)
      */
-    fun addChild(child: SpatialNode) {
+    public fun addChild(child: SpatialNode) {
+        require(child !== this) { "Cannot add a node as a child of itself (id=$id)" }
+        var ancestor = parent
+        while (ancestor != null) {
+            require(ancestor !== child) {
+                "Cannot add ancestor node '${child.id}' as a child of '$id' (cycle)"
+            }
+            ancestor = ancestor.parent
+        }
+
         // Remove from previous parent if any
         child.parent?.removeChild(child)
 
@@ -129,7 +145,7 @@ abstract class SpatialNode(
      * @param child Node to remove
      * @return true if child was removed
      */
-    fun removeChild(child: SpatialNode): Boolean {
+    public fun removeChild(child: SpatialNode): Boolean {
         if (_children.remove(child)) {
             child.parent = null
             return true
@@ -140,14 +156,14 @@ abstract class SpatialNode(
     /**
      * Remove this node from its parent.
      */
-    fun removeFromParent() {
+    public fun removeFromParent() {
         parent?.removeChild(this)
     }
 
     /**
      * Get all descendant nodes (recursive).
      */
-    fun getAllDescendants(): List<SpatialNode> =
+    public fun getAllDescendants(): List<SpatialNode> =
         buildList {
             _children.forEach { child ->
                 add(child)
@@ -161,7 +177,7 @@ abstract class SpatialNode(
      * @param id Node ID to find
      * @return Node with matching ID or null
      */
-    fun findNodeById(id: String): SpatialNode? {
+    public fun findNodeById(id: String): SpatialNode? {
         if (this.id == id) return this
         _children.forEach { child ->
             child.findNodeById(id)?.let { return it }
@@ -177,38 +193,13 @@ abstract class SpatialNode(
      */
     internal abstract fun toSceneNode(): SceneNode
 
-    companion object {
-        private var nodeCounter = 0
-
+    public companion object {
         /**
          * Generate a unique node ID.
+         *
+         * Uses 64 bits of randomness: safe to call from any thread and the
+         * collision probability is negligible.
          */
-        fun generateId(): String = "node-${nodeCounter++}-${Random.nextInt(1000)}"
+        public fun generateId(): String = "node-${Random.nextLong().toULong().toString(16)}"
     }
-}
-
-/**
- * Extension to rotate a Vec3 by a Quaternion.
- */
-fun Quaternion.rotate(v: Vec3): Vec3 {
-    // Quaternion rotation: v' = q * v * q^-1
-    // Optimized version without creating intermediate quaternions
-
-    val qx = this.x
-    val qy = this.y
-    val qz = this.z
-    val qw = this.w
-
-    // First: q * v
-    val ix = qw * v.x + qy * v.z - qz * v.y
-    val iy = qw * v.y + qz * v.x - qx * v.z
-    val iz = qw * v.z + qx * v.y - qy * v.x
-    val iw = -qx * v.x - qy * v.y - qz * v.z
-
-    // Second: result * q^-1 (conjugate for unit quaternion)
-    return Vec3(
-        x = ix * qw + iw * -qx + iy * -qz - iz * -qy,
-        y = iy * qw + iw * -qy + iz * -qx - ix * -qz,
-        z = iz * qw + iw * -qz + ix * -qy - iy * -qx,
-    )
 }

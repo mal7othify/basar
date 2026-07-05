@@ -11,27 +11,27 @@ import com.spatialkit.core.types.Size3D
  * Each shape can calculate its bounding box for efficient culling and
  * collision detection.
  */
-sealed interface ShapeGeometry {
+public sealed interface ShapeGeometry {
     /**
      * Calculates the axis-aligned bounding box for this shape.
      *
      * @return The bounding box encompassing this shape
      */
-    fun boundingBox(): BoundingBox
+    public fun boundingBox(): BoundingBox
 
     /**
      * Estimates the approximate surface area of this shape.
      *
      * @return The surface area
      */
-    fun surfaceArea(): Float
+    public fun surfaceArea(): Float
 
     /**
      * Estimates the approximate volume of this shape.
      *
      * @return The volume
      */
-    fun volume(): Float
+    public fun volume(): Float
 }
 
 /**
@@ -42,7 +42,7 @@ sealed interface ShapeGeometry {
  * @property size The size of the cube. If a single value, creates a uniform cube.
  *               If a Size3D, can have different width, height, and depth.
  */
-data class CubeGeometry(
+public data class CubeGeometry(
     val size: Size3D = Size3D.ONE,
 ) : ShapeGeometry {
     /**
@@ -50,7 +50,7 @@ data class CubeGeometry(
      *
      * @param size The size for all dimensions
      */
-    constructor(size: Float) : this(Size3D.uniform(size))
+    public constructor(size: Float) : this(Size3D.uniform(size))
 
     override fun boundingBox(): BoundingBox {
         val halfSize = size.toVec3() * 0.5f
@@ -79,11 +79,11 @@ data class CubeGeometry(
      */
     val depth: Float get() = size.depth
 
-    companion object {
+    public companion object {
         /**
          * A unit cube with size 1x1x1.
          */
-        val UNIT = CubeGeometry(1f)
+        public val UNIT: CubeGeometry = CubeGeometry(1f)
 
         /**
          * Creates a cube from width, height, and depth.
@@ -93,7 +93,7 @@ data class CubeGeometry(
          * @param depth The depth (Z dimension)
          * @return A new CubeGeometry
          */
-        fun of(
+        public fun of(
             width: Float,
             height: Float,
             depth: Float,
@@ -110,7 +110,7 @@ data class CubeGeometry(
  * @property segments The number of segments used for tessellation (higher = smoother).
  *                    Minimum value is 3. Default is 32.
  */
-data class SphereGeometry(
+public data class SphereGeometry(
     val radius: Float,
     val segments: Int = 32,
 ) : ShapeGeometry {
@@ -136,11 +136,11 @@ data class SphereGeometry(
      */
     val diameter: Float get() = radius * 2f
 
-    companion object {
+    public companion object {
         /**
          * A unit sphere with radius 1.
          */
-        val UNIT = SphereGeometry(1f)
+        public val UNIT: SphereGeometry = SphereGeometry(1f)
 
         /**
          * Creates a sphere from a diameter.
@@ -149,7 +149,7 @@ data class SphereGeometry(
          * @param segments The number of segments
          * @return A new SphereGeometry
          */
-        fun fromDiameter(
+        public fun fromDiameter(
             diameter: Float,
             segments: Int = 32,
         ): SphereGeometry = SphereGeometry(diameter / 2f, segments)
@@ -164,7 +164,7 @@ data class SphereGeometry(
  * @property width The width (X dimension) of the plane
  * @property height The height (Y dimension) of the plane
  */
-data class PlaneGeometry(
+public data class PlaneGeometry(
     val width: Float,
     val height: Float,
 ) : ShapeGeometry {
@@ -191,11 +191,11 @@ data class PlaneGeometry(
      */
     val size: Size3D get() = Size3D(width, height, 0f)
 
-    companion object {
+    public companion object {
         /**
          * A unit plane with size 1x1.
          */
-        val UNIT = PlaneGeometry(1f, 1f)
+        public val UNIT: PlaneGeometry = PlaneGeometry(1f, 1f)
 
         /**
          * Creates a square plane with uniform dimensions.
@@ -203,7 +203,7 @@ data class PlaneGeometry(
          * @param size The size for both width and height
          * @return A new PlaneGeometry
          */
-        fun square(size: Float): PlaneGeometry = PlaneGeometry(size, size)
+        public fun square(size: Float): PlaneGeometry = PlaneGeometry(size, size)
     }
 }
 
@@ -217,7 +217,7 @@ data class PlaneGeometry(
  * @property segments The number of segments around the circumference (higher = smoother).
  *                    Minimum value is 3. Default is 32.
  */
-data class CylinderGeometry(
+public data class CylinderGeometry(
     val radius: Float,
     val height: Float,
     val segments: Int = 32,
@@ -249,11 +249,11 @@ data class CylinderGeometry(
      */
     val diameter: Float get() = radius * 2f
 
-    companion object {
+    public companion object {
         /**
          * A unit cylinder with radius 0.5 and height 1.
          */
-        val UNIT = CylinderGeometry(0.5f, 1f)
+        public val UNIT: CylinderGeometry = CylinderGeometry(0.5f, 1f)
 
         /**
          * Creates a cylinder from diameter and height.
@@ -263,7 +263,7 @@ data class CylinderGeometry(
          * @param segments The number of segments
          * @return A new CylinderGeometry
          */
-        fun fromDiameter(
+        public fun fromDiameter(
             diameter: Float,
             height: Float,
             segments: Int = 32,
@@ -280,7 +280,7 @@ data class CylinderGeometry(
  * @property radius The radius of the capsule
  * @property height The height of the cylindrical part (not including the end caps)
  */
-data class CapsuleGeometry(
+public data class CapsuleGeometry(
     val radius: Float,
     val height: Float,
 ) : ShapeGeometry {
@@ -320,11 +320,11 @@ data class CapsuleGeometry(
      */
     val diameter: Float get() = radius * 2f
 
-    companion object {
+    public companion object {
         /**
          * A unit capsule with radius 0.5 and cylindrical height 1.
          */
-        val UNIT = CapsuleGeometry(0.5f, 1f)
+        public val UNIT: CapsuleGeometry = CapsuleGeometry(0.5f, 1f)
 
         /**
          * Creates a capsule from diameter and height.
@@ -333,7 +333,7 @@ data class CapsuleGeometry(
          * @param height The height of the cylindrical part
          * @return A new CapsuleGeometry
          */
-        fun fromDiameter(
+        public fun fromDiameter(
             diameter: Float,
             height: Float,
         ): CapsuleGeometry = CapsuleGeometry(diameter / 2f, height)
@@ -345,7 +345,7 @@ data class CapsuleGeometry(
          * @param totalHeight The total height including the hemispheres
          * @return A new CapsuleGeometry
          */
-        fun fromTotalHeight(
+        public fun fromTotalHeight(
             radius: Float,
             totalHeight: Float,
         ): CapsuleGeometry = CapsuleGeometry(radius, (totalHeight - radius * 2f).coerceAtLeast(0f))
@@ -363,7 +363,7 @@ data class CapsuleGeometry(
  * @property segments The number of segments around the base (higher = smoother).
  *                    Minimum value is 3. Default is 32.
  */
-data class ConeGeometry(
+public data class ConeGeometry(
     val radius: Float,
     val height: Float,
     val segments: Int = 32,
@@ -401,11 +401,11 @@ data class ConeGeometry(
      */
     val slantHeight: Float get() = kotlin.math.sqrt(radius * radius + height * height)
 
-    companion object {
+    public companion object {
         /**
          * A unit cone with radius 0.5 and height 1.
          */
-        val UNIT = ConeGeometry(0.5f, 1f)
+        public val UNIT: ConeGeometry = ConeGeometry(0.5f, 1f)
 
         /**
          * Creates a cone from diameter and height.
@@ -415,7 +415,7 @@ data class ConeGeometry(
          * @param segments The number of segments
          * @return A new ConeGeometry
          */
-        fun fromDiameter(
+        public fun fromDiameter(
             diameter: Float,
             height: Float,
             segments: Int = 32,

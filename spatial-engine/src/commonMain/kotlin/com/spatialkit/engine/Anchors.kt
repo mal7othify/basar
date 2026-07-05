@@ -9,7 +9,7 @@ package com.spatialkit.engine
  * @property id Unique identifier for this anchor
  * @property type The type of anchor to create
  */
-data class AnchorRequest(
+public data class AnchorRequest(
     val id: String,
     val type: AnchorType,
 )
@@ -17,7 +17,7 @@ data class AnchorRequest(
 /**
  * Types of spatial anchors that can be created.
  */
-sealed interface AnchorType {
+public sealed interface AnchorType {
     /**
      * Attach to a detected plane.
      *
@@ -26,7 +26,7 @@ sealed interface AnchorType {
      * @property planeId ID of the detected plane from FrameData
      * @property offsetFromCenter Offset from the plane's center point
      */
-    data class Plane(
+    public data class Plane(
         val planeId: String,
         val offsetFromCenter: Vec3 = Vec3.ZERO,
     ) : AnchorType
@@ -39,7 +39,7 @@ sealed interface AnchorType {
      * @property hitPoint The 3D position where the ray hit
      * @property hitNormal The surface normal at the hit point
      */
-    data class HitTest(
+    public data class HitTest(
         val hitPoint: Vec3,
         val hitNormal: Vec3,
     ) : AnchorType
@@ -52,7 +52,7 @@ sealed interface AnchorType {
      * @property position World-space position
      * @property rotation World-space rotation
      */
-    data class World(
+    public data class World(
         val position: Vec3,
         val rotation: Quaternion,
     ) : AnchorType
@@ -64,7 +64,7 @@ sealed interface AnchorType {
      *
      * @property cloudId Cloud anchor identifier (platform-specific)
      */
-    data class Persistent(
+    public data class Persistent(
         val cloudId: String,
     ) : AnchorType
 }
@@ -79,7 +79,7 @@ sealed interface AnchorType {
  * @property status Current tracking status
  * @property pose Current pose (null if not yet tracking)
  */
-data class AnchorState(
+public data class AnchorState(
     val id: String,
     val status: AnchorStatus,
     val pose: Pose?,
@@ -88,7 +88,7 @@ data class AnchorState(
 /**
  * Anchor tracking status.
  */
-enum class AnchorStatus {
+public enum class AnchorStatus {
     /** Anchor is being created but not yet tracking */
     PENDING,
 

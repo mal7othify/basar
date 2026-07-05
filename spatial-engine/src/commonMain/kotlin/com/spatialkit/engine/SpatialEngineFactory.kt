@@ -17,7 +17,7 @@ package com.spatialkit.engine
  * Note: Some platforms (Android) require additional context and should use
  * platform-specific factory methods instead.
  */
-expect object SpatialEngineFactory {
+public expect object SpatialEngineFactory {
     /**
      * Check if spatial AR/VR is supported on this platform.
      *
@@ -29,7 +29,7 @@ expect object SpatialEngineFactory {
      *
      * @return true if at least one session mode is available
      */
-    fun isSupported(): Boolean
+    public fun isSupported(): Boolean
 
     /**
      * Get the list of session modes supported on this platform.
@@ -41,7 +41,7 @@ expect object SpatialEngineFactory {
      *
      * @return List of supported SessionMode types
      */
-    fun getSupportedModes(): List<SessionMode>
+    public fun getSupportedModes(): List<SessionMode>
 
     /**
      * Create a SpatialEngine instance for this platform.
@@ -53,7 +53,7 @@ expect object SpatialEngineFactory {
      * @throws IllegalStateException if platform requires additional context
      * @throws UnsupportedOperationException if platform doesn't support spatial
      */
-    fun create(): SpatialEngine
+    public fun create(): SpatialEngine
 
     /**
      * Get the name of the engine implementation for this platform.
@@ -62,5 +62,5 @@ expect object SpatialEngineFactory {
      *
      * @return Engine implementation name
      */
-    fun getEngineName(): String
+    public fun getEngineName(): String
 }

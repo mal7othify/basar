@@ -17,12 +17,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.spatialkit.compose.LocalSpatialEngine
+import com.spatialkit.engine.arcore.createARCoreEngine
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher =
@@ -50,7 +54,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 if (permissionGranted) {
-                    App()
+                    // Android has no default engine (ARCore needs a Context),
+                    // so SpatialView renders nothing unless one is provided here.
+                    val engine = remember { createARCoreEngine(this@MainActivity) }
+                    CompositionLocalProvider(LocalSpatialEngine provides engine) {
+                        App()
+                    }
                 } else {
                     PermissionScreen {
                         requestPermissionLauncher.launch(Manifest.permission.CAMERA)

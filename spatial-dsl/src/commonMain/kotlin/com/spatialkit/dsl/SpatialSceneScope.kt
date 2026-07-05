@@ -39,7 +39,7 @@ import com.spatialkit.scene.SphereNode
  * ```
  */
 @SpatialDsl
-class SpatialSceneScope(
+public class SpatialSceneScope(
     private val scene: SpatialScene,
 ) {
     /**
@@ -51,7 +51,7 @@ class SpatialSceneScope(
      * @param configure Lambda to configure the cube
      * @return The created cube node
      */
-    fun cube(
+    public fun cube(
         size: Float = 0.1f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
@@ -67,7 +67,7 @@ class SpatialSceneScope(
      * @param configure Lambda to configure the sphere
      * @return The created sphere node
      */
-    fun sphere(
+    public fun sphere(
         radius: Float = 0.05f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
@@ -84,7 +84,7 @@ class SpatialSceneScope(
      * @param configure Lambda to configure the plane
      * @return The created plane node
      */
-    fun plane(
+    public fun plane(
         width: Float = 1f,
         height: Float = 1f,
         color: Color = Color.White,
@@ -102,7 +102,7 @@ class SpatialSceneScope(
      * @param configure Lambda to configure the cylinder
      * @return The created cylinder node
      */
-    fun cylinder(
+    public fun cylinder(
         radius: Float = 0.05f,
         height: Float = 0.2f,
         color: Color = Color.White,
@@ -120,7 +120,7 @@ class SpatialSceneScope(
      * @param configure Lambda to configure the capsule
      * @return The created capsule node
      */
-    fun capsule(
+    public fun capsule(
         radius: Float = 0.05f,
         height: Float = 0.2f,
         color: Color = Color.White,
@@ -139,7 +139,7 @@ class SpatialSceneScope(
      * @param configure Lambda to configure the mesh
      * @return The created custom mesh node
      */
-    fun customMesh(
+    public fun customMesh(
         geometry: GeometryData,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
@@ -156,7 +156,7 @@ class SpatialSceneScope(
      * @param configure Lambda to configure the group and add children
      * @return The created group node
      */
-    fun group(
+    public fun group(
         id: String = SpatialNode.generateId(),
         configure: GroupScope.() -> Unit,
     ): GroupNode {
@@ -178,7 +178,7 @@ class SpatialSceneScope(
      * @param content Lambda to create content attached to the anchor
      * @return The created spatial anchor
      */
-    fun anchorToPlane(
+    public fun anchorToPlane(
         planeId: String,
         offset: Vec3 = Vec3.ZERO,
         id: String = SpatialAnchor.generateId(),
@@ -203,7 +203,7 @@ class SpatialSceneScope(
      * @param content Lambda to create content attached to the anchor
      * @return The created spatial anchor
      */
-    fun anchorAtPosition(
+    public fun anchorAtPosition(
         position: Vec3,
         rotation: com.spatialkit.core.math.Quaternion = com.spatialkit.core.math.Quaternion.IDENTITY,
         id: String = SpatialAnchor.generateId(),

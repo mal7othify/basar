@@ -8,13 +8,13 @@ import kotlin.math.PI
  *
  * @return This number as a Float representing meters
  */
-val Number.meters: Float
+public val Number.meters: Float
     get() = this.toFloat()
 
 /**
  * Alias for meters.
  */
-val Number.m: Float
+public val Number.m: Float
     get() = meters
 
 /**
@@ -22,13 +22,13 @@ val Number.m: Float
  *
  * @return This number converted to meters
  */
-val Number.centimeters: Float
+public val Number.centimeters: Float
     get() = this.toFloat() / 100f
 
 /**
  * Alias for centimeters.
  */
-val Number.cm: Float
+public val Number.cm: Float
     get() = centimeters
 
 /**
@@ -36,13 +36,13 @@ val Number.cm: Float
  *
  * @return This number converted to meters
  */
-val Number.millimeters: Float
+public val Number.millimeters: Float
     get() = this.toFloat() / 1000f
 
 /**
  * Alias for millimeters.
  */
-val Number.mm: Float
+public val Number.mm: Float
     get() = millimeters
 
 /**
@@ -50,13 +50,13 @@ val Number.mm: Float
  *
  * @return This number converted to meters
  */
-val Number.kilometers: Float
+public val Number.kilometers: Float
     get() = this.toFloat() * 1000f
 
 /**
  * Alias for kilometers.
  */
-val Number.km: Float
+public val Number.km: Float
     get() = kilometers
 
 /**
@@ -64,13 +64,13 @@ val Number.km: Float
  *
  * @return This number converted to meters
  */
-val Number.inches: Float
+public val Number.inches: Float
     get() = this.toFloat() * 0.0254f
 
 /**
  * Alias for inches.
  */
-val Number.inch: Float
+public val Number.inch: Float
     get() = inches
 
 /**
@@ -78,13 +78,13 @@ val Number.inch: Float
  *
  * @return This number converted to meters
  */
-val Number.feet: Float
+public val Number.feet: Float
     get() = this.toFloat() * 0.3048f
 
 /**
  * Alias for feet.
  */
-val Number.ft: Float
+public val Number.ft: Float
     get() = feet
 
 // ===== Angle Units =====
@@ -95,13 +95,13 @@ val Number.ft: Float
  *
  * @return This number converted to radians
  */
-val Number.degrees: Float
+public val Number.degrees: Float
     get() = this.toFloat() * (PI.toFloat() / 180f)
 
 /**
  * Alias for degrees.
  */
-val Number.deg: Float
+public val Number.deg: Float
     get() = degrees
 
 /**
@@ -110,13 +110,13 @@ val Number.deg: Float
  *
  * @return This number as a Float representing radians
  */
-val Number.radians: Float
+public val Number.radians: Float
     get() = this.toFloat()
 
 /**
  * Alias for radians.
  */
-val Number.rad: Float
+public val Number.rad: Float
     get() = radians
 
 // ===== Time Units =====
@@ -127,13 +127,13 @@ val Number.rad: Float
  *
  * @return This number as a Float representing seconds
  */
-val Number.seconds: Float
+public val Number.seconds: Float
     get() = this.toFloat()
 
 /**
  * Alias for seconds.
  */
-val Number.s: Float
+public val Number.s: Float
     get() = seconds
 
 /**
@@ -141,13 +141,13 @@ val Number.s: Float
  *
  * @return This number converted to seconds
  */
-val Number.milliseconds: Float
+public val Number.milliseconds: Float
     get() = this.toFloat() / 1000f
 
 /**
  * Alias for milliseconds.
  */
-val Number.ms: Float
+public val Number.ms: Float
     get() = milliseconds
 
 /**
@@ -155,13 +155,13 @@ val Number.ms: Float
  *
  * @return This number converted to seconds
  */
-val Number.minutes: Float
+public val Number.minutes: Float
     get() = this.toFloat() * 60f
 
 /**
  * Alias for minutes.
  */
-val Number.min: Float
+public val Number.min: Float
     get() = minutes
 
 // ===== Utility Functions =====
@@ -172,7 +172,7 @@ val Number.min: Float
  * @param radians The angle in radians
  * @return The angle in degrees
  */
-fun radiansToDegrees(radians: Float): Float = radians * (180f / PI.toFloat())
+public fun radiansToDegrees(radians: Float): Float = radians * (180f / PI.toFloat())
 
 /**
  * Converts degrees to radians.
@@ -180,7 +180,7 @@ fun radiansToDegrees(radians: Float): Float = radians * (180f / PI.toFloat())
  * @param degrees The angle in degrees
  * @return The angle in radians
  */
-fun degreesToRadians(degrees: Float): Float = degrees * (PI.toFloat() / 180f)
+public fun degreesToRadians(degrees: Float): Float = degrees * (PI.toFloat() / 180f)
 
 /**
  * Converts meters to centimeters.
@@ -188,7 +188,7 @@ fun degreesToRadians(degrees: Float): Float = degrees * (PI.toFloat() / 180f)
  * @param meters The distance in meters
  * @return The distance in centimeters
  */
-fun metersToCentimeters(meters: Float): Float = meters * 100f
+public fun metersToCentimeters(meters: Float): Float = meters * 100f
 
 /**
  * Converts centimeters to meters.
@@ -196,7 +196,7 @@ fun metersToCentimeters(meters: Float): Float = meters * 100f
  * @param centimeters The distance in centimeters
  * @return The distance in meters
  */
-fun centimetersToMeters(centimeters: Float): Float = centimeters / 100f
+public fun centimetersToMeters(centimeters: Float): Float = centimeters / 100f
 
 /**
  * Converts meters to feet.
@@ -204,7 +204,7 @@ fun centimetersToMeters(centimeters: Float): Float = centimeters / 100f
  * @param meters The distance in meters
  * @return The distance in feet
  */
-fun metersToFeet(meters: Float): Float = meters / 0.3048f
+public fun metersToFeet(meters: Float): Float = meters / 0.3048f
 
 /**
  * Converts feet to meters.
@@ -212,7 +212,7 @@ fun metersToFeet(meters: Float): Float = meters / 0.3048f
  * @param feet The distance in feet
  * @return The distance in meters
  */
-fun feetToMeters(feet: Float): Float = feet * 0.3048f
+public fun feetToMeters(feet: Float): Float = feet * 0.3048f
 
 /**
  * Clamps a value between a minimum and maximum.
@@ -222,7 +222,7 @@ fun feetToMeters(feet: Float): Float = feet * 0.3048f
  * @param max The maximum value
  * @return The clamped value
  */
-fun clamp(
+public fun clamp(
     value: Float,
     min: Float,
     max: Float,
@@ -241,7 +241,7 @@ fun clamp(
  * @param t The interpolation factor (0.0 returns a, 1.0 returns b)
  * @return The interpolated value
  */
-fun lerp(
+public fun lerp(
     a: Float,
     b: Float,
     t: Float,
@@ -257,7 +257,7 @@ fun lerp(
  * @param outMax The maximum of the output range
  * @return The mapped value
  */
-fun mapRange(
+public fun mapRange(
     value: Float,
     inMin: Float,
     inMax: Float,

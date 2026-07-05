@@ -2,7 +2,6 @@ package com.spatialkit.core.types
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ColorTest {
     private fun assertColorEquals(

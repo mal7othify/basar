@@ -2,13 +2,9 @@ package com.spatialkit.compose
 
 import android.opengl.GLSurfaceView
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import com.spatialkit.engine.arcore.ARCoreEngine
+import com.spatialkit.engine.GLSurfaceDrivenEngine
 import com.spatialkit.scene.SpatialScene
 import com.spatialkit.scene.SpatialSession
 import javax.microedition.khronos.egl.EGLConfig
@@ -17,109 +13,67 @@ import javax.microedition.khronos.opengles.GL10
 /**
  * Android implementation of SpatialSurface.
  *
- * Creates a GLSurfaceView for ARCore rendering and connects it to the ARCoreEngine.
- * The engine handles all OpenGL rendering and AR camera integration.
- *
- * Architecture:
+ * Engine selection happens in [SpatialView] (via its `engine` parameter or
+ * [LocalSpatialEngine]); this surface has no engine of its own. If the
+ * provided engine renders through a GL surface (implements
+ * [GLSurfaceDrivenEngine], like the ARCore engine), a [GLSurfaceView] is
+ * created and its lifecycle forwarded to the engine:
  * - GLSurfaceView provides the OpenGL context and rendering thread
- * - ARCoreEngine.onDrawFrame() renders the camera background + 3D scene
+ * - `engine.onDrawFrame()` renders the camera background + 3D scene
  * - Scene updates are submitted automatically each frame
+ *
+ * Without an engine (or with one that renders elsewhere) nothing is drawn;
+ * the session start path reports the error (e.g. [FallbackEngine] →
+ * `EngineError.NotSupported`) through `SpatialView.onError`.
  */
 @Composable
-actual fun SpatialSurface(
+public actual fun SpatialSurface(
     modifier: Modifier,
     session: SpatialSession,
     scene: SpatialScene,
 ) {
-    // Get Android context
-    val context = LocalContext.current
+    // Set by SpatialView (parameter or LocalSpatialEngine) before this
+    // composable runs; null when the app provided no engine.
+    val engine = session.runtime.getEngine() as? GLSurfaceDrivenEngine ?: return
 
-    // Create the ARCoreEngine early (during composition)
-    // This ensures it exists before session.start() is called
-    val arcoreEngine = remember(context) {
-        android.util.Log.d("SpatialSurface", "Creating ARCoreEngine")
-        ARCoreEngine(context).also {
-            android.util.Log.d("SpatialSurface", "ARCoreEngine created")
-        }
-    }
-
-    // Set the engine on the runtime SYNCHRONOUSLY during composition
-    // This ensures the engine is available BEFORE session.start() is called in SpatialView
-    SideEffect {
-        android.util.Log.d("SpatialSurface", "SideEffect: Setting engine on runtime")
-        if (session.runtime.getEngine() == null) {
-            android.util.Log.d("SpatialSurface", "Setting engine (was null)")
-            session.runtime.setEngine(arcoreEngine)
-            android.util.Log.d("SpatialSurface", "Engine set successfully")
-        } else {
-            android.util.Log.d("SpatialSurface", "Engine already set")
-        }
-    }
-
-    // Create a native GLSurfaceView for spatial rendering
     AndroidView(
         modifier = modifier,
-        factory = {
+        factory = { context ->
             GLSurfaceView(context).apply {
-                // Set EGL context version (OpenGL ES 3.0)
+                // OpenGL ES 3.0
                 setEGLContextClientVersion(3)
 
                 // Preserve the EGL context when paused (better for AR)
                 preserveEGLContextOnPause = true
 
-                // Set the renderer
-                setRenderer(ARCoreSurfaceRenderer(arcoreEngine, scene))
+                setRenderer(GLSurfaceRendererAdapter(engine))
 
                 // Render continuously (60 FPS for AR)
                 renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
             }
         },
-        update = { glSurfaceView ->
-            // Scene updates are handled automatically in onDrawFrame
-            // No explicit update needed here - the renderer will pick up changes
-        },
     )
-
-    // Cleanup on dispose
-    DisposableEffect(session) {
-        onDispose {
-            // Engine cleanup is handled by SpatialSession.dispose()
-            // GLSurfaceView cleanup is automatic
-        }
-    }
 }
 
 /**
- * GLSurfaceView.Renderer implementation that bridges to ARCoreEngine.
- *
- * This adapter connects the OpenGL rendering lifecycle to the ARCore engine:
+ * Bridges the [GLSurfaceView.Renderer] lifecycle to a [GLSurfaceDrivenEngine]:
  * - onSurfaceCreated: OpenGL context is ready
  * - onSurfaceChanged: Surface size changed (rotation, resize)
  * - onDrawFrame: Render a frame (called continuously at ~60 FPS)
  */
-private class ARCoreSurfaceRenderer(
-    private val engine: ARCoreEngine,
-    private val scene: SpatialScene,
+private class GLSurfaceRendererAdapter(
+    private val engine: GLSurfaceDrivenEngine,
 ) : GLSurfaceView.Renderer {
+    override fun onSurfaceCreated(
+        gl: GL10?,
+        config: EGLConfig?,
+    ) = engine.onSurfaceCreated()
 
-    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        android.util.Log.d("ARCoreSurfaceRenderer", "onSurfaceCreated called")
-        // OpenGL context is ready - initialize the renderer NOW
-        // This ensures the camera texture is created before ARCore needs it
-        engine.onSurfaceCreated()
-        android.util.Log.d("ARCoreSurfaceRenderer", "onSurfaceCreated complete")
-    }
+    override fun onSurfaceChanged(
+        gl: GL10?,
+        width: Int,
+        height: Int,
+    ) = engine.onSurfaceChanged(width, height)
 
-    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-        // Surface size changed - update ARCore display geometry
-        engine.onSurfaceChanged(width, height)
-    }
-
-    override fun onDrawFrame(gl: GL10?) {
-        // Render a frame:
-        // 1. ARCore updates camera pose and tracking
-        // 2. Converts to FrameData and invokes callbacks
-        // 3. Renders camera background + 3D scene
-        engine.onDrawFrame()
-    }
+    override fun onDrawFrame(gl: GL10?) = engine.onDrawFrame()
 }

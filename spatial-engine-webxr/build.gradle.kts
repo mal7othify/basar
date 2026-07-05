@@ -1,23 +1,20 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
+    explicitApi()
+
     js(IR) {
-        browser {
-            commonWebpackConfig {
-                cssSupport {
-                    enabled.set(true)
-                }
-            }
-        }
-        binaries.executable()
+        browser()
     }
 
     sourceSets {
         jsMain.dependencies {
-            implementation(project(":spatial-engine"))
-            implementation(project(":spatial-core"))
+            // api: createWebXREngine() returns SpatialEngine
+            api(project(":spatial-engine"))
+            api(project(":spatial-core"))
             implementation(npm("three", "0.160.0"))
             implementation(libs.kotlinx.coroutines.core)
         }

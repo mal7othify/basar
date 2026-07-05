@@ -3,13 +3,17 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
+    explicitApi()
+
     // Enable default hierarchy for shared source sets (iosMain, etc.)
     applyDefaultHierarchyTemplate()
 
     androidTarget {
+        publishLibraryVariants("release")
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
@@ -27,11 +31,15 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Depend on core for math types (Vec3, Quaternion, etc.)
-            implementation(project(":spatial-core"))
+            // api: the engine contract exposes spatial-core types
+            // (Math.kt typealiases, Transform in SceneData, Vec3/Quaternion in Pose)
+            api(project(":spatial-core"))
+            // api: SpatialEngine.state is a StateFlow
+            api(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
 
         // NOTE: Platform-specific engine modules (arcore, arkit, webxr) are NOT

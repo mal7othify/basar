@@ -8,8 +8,8 @@ package com.spatialkit.engine
  * all modules and provides implementations with access to full math operations.
  */
 
-typealias Vec2 = com.spatialkit.core.math.Vec2
-typealias Vec3 = com.spatialkit.core.math.Vec3
-typealias Vec4 = com.spatialkit.core.math.Vec4
-typealias Quaternion = com.spatialkit.core.math.Quaternion
-typealias Transform = com.spatialkit.core.math.Transform
+public typealias Vec2 = com.spatialkit.core.math.Vec2
+public typealias Vec3 = com.spatialkit.core.math.Vec3
+public typealias Vec4 = com.spatialkit.core.math.Vec4
+public typealias Quaternion = com.spatialkit.core.math.Quaternion
+public typealias Transform = com.spatialkit.core.math.Transform

@@ -7,4 +7,4 @@ package com.spatialkit.dsl
  * in nested DSL scopes.
  */
 @DslMarker
-annotation class SpatialDsl
+public annotation class SpatialDsl

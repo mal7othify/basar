@@ -1,9 +1,15 @@
 package com.spatialkit.dsl
 
-import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
 import com.spatialkit.engine.GeometryData
-import com.spatialkit.scene.*
+import com.spatialkit.scene.CapsuleNode
+import com.spatialkit.scene.CubeNode
+import com.spatialkit.scene.CustomMeshNode
+import com.spatialkit.scene.CylinderNode
+import com.spatialkit.scene.GroupNode
+import com.spatialkit.scene.PlaneNode
+import com.spatialkit.scene.SpatialNode
+import com.spatialkit.scene.SphereNode
 
 /**
  * DSL scope for building group node hierarchies.
@@ -12,88 +18,76 @@ import com.spatialkit.scene.*
  * Child transforms are relative to the parent group's transform.
  */
 @SpatialDsl
-class GroupScope(
+public class GroupScope(
     private val group: GroupNode,
 ) {
     /**
      * Creates a cube node and adds it as a child of this group.
      */
-    fun cube(
+    public fun cube(
         size: Float = 0.1f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CubeNode.() -> Unit = {},
-    ): CubeNode {
-        return CubeNode(size, color, id).apply(configure).also { group.addChild(it) }
-    }
+    ): CubeNode = CubeNode(size, color, id).apply(configure).also { group.addChild(it) }
 
     /**
      * Creates a sphere node and adds it as a child of this group.
      */
-    fun sphere(
+    public fun sphere(
         radius: Float = 0.05f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: SphereNode.() -> Unit = {},
-    ): SphereNode {
-        return SphereNode(radius, color, id).apply(configure).also { group.addChild(it) }
-    }
+    ): SphereNode = SphereNode(radius, color, id).apply(configure).also { group.addChild(it) }
 
     /**
      * Creates a plane node and adds it as a child of this group.
      */
-    fun plane(
+    public fun plane(
         width: Float = 1f,
         height: Float = 1f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: PlaneNode.() -> Unit = {},
-    ): PlaneNode {
-        return PlaneNode(width, height, color, id).apply(configure).also { group.addChild(it) }
-    }
+    ): PlaneNode = PlaneNode(width, height, color, id).apply(configure).also { group.addChild(it) }
 
     /**
      * Creates a cylinder node and adds it as a child of this group.
      */
-    fun cylinder(
+    public fun cylinder(
         radius: Float = 0.05f,
         height: Float = 0.2f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CylinderNode.() -> Unit = {},
-    ): CylinderNode {
-        return CylinderNode(radius, height, color, id).apply(configure).also { group.addChild(it) }
-    }
+    ): CylinderNode = CylinderNode(radius, height, color, id).apply(configure).also { group.addChild(it) }
 
     /**
      * Creates a capsule node and adds it as a child of this group.
      */
-    fun capsule(
+    public fun capsule(
         radius: Float = 0.05f,
         height: Float = 0.2f,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CapsuleNode.() -> Unit = {},
-    ): CapsuleNode {
-        return CapsuleNode(radius, height, color, id).apply(configure).also { group.addChild(it) }
-    }
+    ): CapsuleNode = CapsuleNode(radius, height, color, id).apply(configure).also { group.addChild(it) }
 
     /**
      * Creates a custom mesh node and adds it as a child of this group.
      */
-    fun customMesh(
+    public fun customMesh(
         geometry: GeometryData,
         color: Color = Color.White,
         id: String = SpatialNode.generateId(),
         configure: CustomMeshNode.() -> Unit = {},
-    ): CustomMeshNode {
-        return CustomMeshNode(geometry, color, id).apply(configure).also { group.addChild(it) }
-    }
+    ): CustomMeshNode = CustomMeshNode(geometry, color, id).apply(configure).also { group.addChild(it) }
 
     /**
      * Creates a nested group node.
      */
-    fun group(
+    public fun group(
         id: String = SpatialNode.generateId(),
         configure: GroupScope.() -> Unit,
     ): GroupNode {

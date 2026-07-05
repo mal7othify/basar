@@ -1,5 +1,7 @@
 package com.spatialkit.engine
 
+import kotlinx.coroutines.flow.StateFlow
+
 /**
  * The core AR/VR engine interface.
  *
@@ -16,22 +18,22 @@ package com.spatialkit.engine
  * 6. Call stopSession() to pause
  * 7. Call dispose() when done
  */
-interface SpatialEngine {
+public interface SpatialEngine {
     /**
      * What features this engine implementation supports.
      *
      * Check this before attempting to use optional features like
      * plane detection or hand tracking.
      */
-    val capabilities: EngineCapabilities
+    public val capabilities: EngineCapabilities
 
     /**
-     * Current state of the engine.
+     * Current state of the engine, observable as a [StateFlow].
      *
-     * Use this to determine if the engine is ready for session start,
-     * currently running, or in an error state.
+     * Read `state.value` for the current state, or collect the flow to react
+     * to transitions (Ready, Running, Error, ...).
      */
-    val state: EngineState
+    public val state: StateFlow<EngineState>
 
     /**
      * Initialize the engine with the given configuration.
@@ -42,18 +44,19 @@ interface SpatialEngine {
      * @param config Engine configuration
      * @throws IllegalStateException if already initialized
      */
-    suspend fun initialize(config: EngineConfig)
+    public suspend fun initialize(config: EngineConfig)
 
     /**
      * Start an AR/VR session.
      *
-     * Engine must be in Ready state. After starting, the engine will
-     * begin calling registered onFrame() callbacks.
+     * Engine must be in Ready state. Suspends until the session is actually
+     * running (or has failed): when this returns, `state.value` is either
+     * [EngineState.Running] or [EngineState.Error].
      *
      * @param mode The session mode (AR, VR, or Passthrough)
      * @throws IllegalStateException if not initialized or already running
      */
-    fun startSession(mode: SessionMode)
+    public suspend fun startSession(mode: SessionMode)
 
     /**
      * Stop the current session.
@@ -61,7 +64,7 @@ interface SpatialEngine {
      * Pauses rendering and tracking. Can call startSession() again to resume.
      * Engine returns to Ready state.
      */
-    fun stopSession()
+    public fun stopSession()
 
     /**
      * Clean up engine resources.
@@ -69,7 +72,7 @@ interface SpatialEngine {
      * After calling this, the engine returns to Uninitialized state.
      * Must call initialize() again before starting a new session.
      */
-    fun dispose()
+    public fun dispose()
 
     /**
      * Register a callback for each rendered frame.
@@ -83,7 +86,7 @@ interface SpatialEngine {
      *
      * @param callback Function to call each frame with FrameData
      */
-    fun onFrame(callback: (FrameData) -> Unit)
+    public fun onFrame(callback: (FrameData) -> Unit)
 
     /**
      * Submit a complete scene to render.
@@ -94,7 +97,7 @@ interface SpatialEngine {
      *
      * @param scene Complete scene description
      */
-    fun submitScene(scene: SceneData)
+    public fun submitScene(scene: SceneData)
 
     /**
      * Perform a hit test from screen coordinates (AR).
@@ -108,7 +111,7 @@ interface SpatialEngine {
      * @param screenY Normalized Y coordinate (0-1)
      * @return Hit result, or null if no hit
      */
-    fun performHitTest(
+    public fun performHitTest(
         screenX: Float,
         screenY: Float,
     ): HitTestResult?
@@ -123,7 +126,7 @@ interface SpatialEngine {
      * @param direction Ray direction (should be normalized)
      * @return Raycast result, or null if no hit
      */
-    fun performRaycast(
+    public fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult?
@@ -143,9 +146,10 @@ interface SpatialEngine {
  * @property supportsHandTracking Can track hand/finger poses
  * @property supportsDepthOcclusion Can occlude virtual objects with real world
  * @property supportsSpatialAnchors Can create persistent spatial anchors
- * @property maxAnchors Maximum number of simultaneous anchors (0 = unlimited)
+ * @property maxAnchors Maximum number of simultaneous anchors
+ *   (null = no engine-imposed limit, 0 = anchors unsupported)
  */
-data class EngineCapabilities(
+public data class EngineCapabilities(
     val supportsAR: Boolean,
     val supportsVR: Boolean,
     val supportsPlaneDetection: Boolean,
@@ -154,7 +158,7 @@ data class EngineCapabilities(
     val supportsHandTracking: Boolean,
     val supportsDepthOcclusion: Boolean,
     val supportsSpatialAnchors: Boolean,
-    val maxAnchors: Int,
+    val maxAnchors: Int? = null,
 )
 
 /**
@@ -162,22 +166,22 @@ data class EngineCapabilities(
  *
  * The engine transitions through these states during its lifecycle.
  */
-sealed interface EngineState {
+public sealed interface EngineState {
     /** Engine has not been initialized yet */
-    data object Uninitialized : EngineState
+    public data object Uninitialized : EngineState
 
     /** Engine is currently initializing (async operation in progress) */
-    data object Initializing : EngineState
+    public data object Initializing : EngineState
 
     /** Engine is initialized and ready to start a session */
-    data object Ready : EngineState
+    public data object Ready : EngineState
 
     /**
      * Engine is running an active session.
      *
      * @property sessionMode The current session mode
      */
-    data class Running(
+    public data class Running(
         val sessionMode: SessionMode,
     ) : EngineState
 
@@ -186,30 +190,30 @@ sealed interface EngineState {
      *
      * @property error The error that occurred
      */
-    data class Error(
+    public data class Error(
         val error: EngineError,
     ) : EngineState
 
     /** Engine has been disposed and must be reinitialized */
-    data object Disposed : EngineState
+    public data object Disposed : EngineState
 }
 
 /**
  * AR/VR session modes.
  */
-sealed interface SessionMode {
+public sealed interface SessionMode {
     /** Augmented Reality - real world with virtual overlay */
-    data object AR : SessionMode
+    public data object AR : SessionMode
 
     /** Virtual Reality - fully immersive virtual environment */
-    data object VR : SessionMode
+    public data object VR : SessionMode
 
     /**
      * Passthrough VR - VR with camera passthrough of real world.
      *
      * @property opacity Passthrough opacity (0=full VR, 1=full AR)
      */
-    data class Passthrough(
+    public data class Passthrough(
         val opacity: Float = 1f,
     ) : SessionMode
 }
@@ -220,11 +224,13 @@ sealed interface SessionMode {
  * @property preferredMode Preferred session mode (engine may fall back)
  * @property enablePlaneDetection Enable plane detection (AR)
  * @property enableLightEstimation Enable light estimation (AR)
- * @property targetFrameRate Desired frame rate (actual may differ)
+ * @property nearPlane Near clipping plane distance in meters
+ * @property farPlane Far clipping plane distance in meters
  */
-data class EngineConfig(
+public data class EngineConfig(
     val preferredMode: SessionMode = SessionMode.AR,
     val enablePlaneDetection: Boolean = true,
     val enableLightEstimation: Boolean = false,
-    val targetFrameRate: Int = 60,
+    val nearPlane: Float = 0.1f,
+    val farPlane: Float = 100f,
 )

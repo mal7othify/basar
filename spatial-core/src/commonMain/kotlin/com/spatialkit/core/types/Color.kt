@@ -12,7 +12,7 @@ package com.spatialkit.core.types
  * @property b The blue component (0.0 to 1.0)
  * @property a The alpha (opacity) component (0.0 to 1.0), defaults to 1.0 (fully opaque)
  */
-data class Color(
+public data class Color(
     val r: Float,
     val g: Float,
     val b: Float,
@@ -32,7 +32,7 @@ data class Color(
      * @param fraction The interpolation factor (0.0 returns this, 1.0 returns other)
      * @return A new interpolated color
      */
-    fun lerp(
+    public fun lerp(
         other: Color,
         fraction: Float,
     ): Color {
@@ -51,7 +51,7 @@ data class Color(
      * @param alpha The new alpha value (0.0 to 1.0)
      * @return A new color with the updated alpha
      */
-    fun withAlpha(alpha: Float): Color = copy(a = alpha.coerceIn(0f, 1f))
+    public fun withAlpha(alpha: Float): Color = copy(a = alpha.coerceIn(0f, 1f))
 
     /**
      * Returns a new color with the specified red value.
@@ -59,7 +59,7 @@ data class Color(
      * @param red The new red value (0.0 to 1.0)
      * @return A new color with the updated red component
      */
-    fun withRed(red: Float): Color = copy(r = red.coerceIn(0f, 1f))
+    public fun withRed(red: Float): Color = copy(r = red.coerceIn(0f, 1f))
 
     /**
      * Returns a new color with the specified green value.
@@ -67,7 +67,7 @@ data class Color(
      * @param green The new green value (0.0 to 1.0)
      * @return A new color with the updated green component
      */
-    fun withGreen(green: Float): Color = copy(g = green.coerceIn(0f, 1f))
+    public fun withGreen(green: Float): Color = copy(g = green.coerceIn(0f, 1f))
 
     /**
      * Returns a new color with the specified blue value.
@@ -75,7 +75,7 @@ data class Color(
      * @param blue The new blue value (0.0 to 1.0)
      * @return A new color with the updated blue component
      */
-    fun withBlue(blue: Float): Color = copy(b = blue.coerceIn(0f, 1f))
+    public fun withBlue(blue: Float): Color = copy(b = blue.coerceIn(0f, 1f))
 
     /**
      * Multiplies this color by a scalar value.
@@ -84,7 +84,7 @@ data class Color(
      * @param scalar The scalar multiplier
      * @return A new color with scaled RGB components (alpha unchanged)
      */
-    operator fun times(scalar: Float): Color =
+    public operator fun times(scalar: Float): Color =
         Color(
             r = (r * scalar).coerceIn(0f, 1f),
             g = (g * scalar).coerceIn(0f, 1f),
@@ -98,7 +98,7 @@ data class Color(
      * @param other The color to add
      * @return A new color with summed components
      */
-    operator fun plus(other: Color): Color =
+    public operator fun plus(other: Color): Color =
         Color(
             r = (r + other.r).coerceIn(0f, 1f),
             g = (g + other.g).coerceIn(0f, 1f),
@@ -119,7 +119,7 @@ data class Color(
             .padStart(2, '0')
             .uppercase()
 
-    fun toHex(includeAlpha: Boolean = false): String {
+    public fun toHex(includeAlpha: Boolean = false): String {
         val rInt = (r * 255).toInt()
         val gInt = (g * 255).toInt()
         val bInt = (b * 255).toInt()
@@ -137,7 +137,7 @@ data class Color(
      *
      * @return A Triple of (hue: 0-360, saturation: 0-1, lightness: 0-1)
      */
-    fun toHSL(): Triple<Float, Float, Float> {
+    public fun toHSL(): Triple<Float, Float, Float> {
         val max = maxOf(r, g, b)
         val min = minOf(r, g, b)
         val delta = max - min
@@ -175,7 +175,7 @@ data class Color(
      *
      * @return An integer in ARGB format (0xAARRGGBB)
      */
-    fun toArgb(): Int {
+    public fun toArgb(): Int {
         val aInt = (a * 255).toInt().coerceIn(0, 255)
         val rInt = (r * 255).toInt().coerceIn(0, 255)
         val gInt = (g * 255).toInt().coerceIn(0, 255)
@@ -183,66 +183,66 @@ data class Color(
         return (aInt shl 24) or (rInt shl 16) or (gInt shl 8) or bInt
     }
 
-    companion object {
+    public companion object {
         /**
          * Pure red color (1.0, 0.0, 0.0, 1.0)
          */
-        val Red = Color(1f, 0f, 0f, 1f)
+        public val Red: Color = Color(1f, 0f, 0f, 1f)
 
         /**
          * Pure green color (0.0, 1.0, 0.0, 1.0)
          */
-        val Green = Color(0f, 1f, 0f, 1f)
+        public val Green: Color = Color(0f, 1f, 0f, 1f)
 
         /**
          * Pure blue color (0.0, 0.0, 1.0, 1.0)
          */
-        val Blue = Color(0f, 0f, 1f, 1f)
+        public val Blue: Color = Color(0f, 0f, 1f, 1f)
 
         /**
          * White color (1.0, 1.0, 1.0, 1.0)
          */
-        val White = Color(1f, 1f, 1f, 1f)
+        public val White: Color = Color(1f, 1f, 1f, 1f)
 
         /**
          * Black color (0.0, 0.0, 0.0, 1.0)
          */
-        val Black = Color(0f, 0f, 0f, 1f)
+        public val Black: Color = Color(0f, 0f, 0f, 1f)
 
         /**
          * Transparent color (0.0, 0.0, 0.0, 0.0)
          */
-        val Transparent = Color(0f, 0f, 0f, 0f)
+        public val Transparent: Color = Color(0f, 0f, 0f, 0f)
 
         /**
          * Yellow color (1.0, 1.0, 0.0, 1.0)
          */
-        val Yellow = Color(1f, 1f, 0f, 1f)
+        public val Yellow: Color = Color(1f, 1f, 0f, 1f)
 
         /**
          * Cyan color (0.0, 1.0, 1.0, 1.0)
          */
-        val Cyan = Color(0f, 1f, 1f, 1f)
+        public val Cyan: Color = Color(0f, 1f, 1f, 1f)
 
         /**
          * Magenta color (1.0, 0.0, 1.0, 1.0)
          */
-        val Magenta = Color(1f, 0f, 1f, 1f)
+        public val Magenta: Color = Color(1f, 0f, 1f, 1f)
 
         /**
          * Gray color (0.5, 0.5, 0.5, 1.0)
          */
-        val Gray = Color(0.5f, 0.5f, 0.5f, 1f)
+        public val Gray: Color = Color(0.5f, 0.5f, 0.5f, 1f)
 
         /**
          * Dark gray color (0.25, 0.25, 0.25, 1.0)
          */
-        val DarkGray = Color(0.25f, 0.25f, 0.25f, 1f)
+        public val DarkGray: Color = Color(0.25f, 0.25f, 0.25f, 1f)
 
         /**
          * Light gray color (0.75, 0.75, 0.75, 1.0)
          */
-        val LightGray = Color(0.75f, 0.75f, 0.75f, 1f)
+        public val LightGray: Color = Color(0.75f, 0.75f, 0.75f, 1f)
 
         /**
          * Creates a color from a hexadecimal string.
@@ -257,7 +257,7 @@ data class Color(
          * @return A new Color instance
          * @throws IllegalArgumentException if the hex string is invalid
          */
-        fun fromHex(hex: String): Color {
+        public fun fromHex(hex: String): Color {
             val cleanHex = hex.trim().removePrefix("#")
 
             return when (cleanHex.length) {
@@ -301,7 +301,7 @@ data class Color(
          * @param alpha The alpha value (0.0 to 1.0), defaults to 1.0
          * @return A new Color instance
          */
-        fun fromHSL(
+        public fun fromHSL(
             hue: Float,
             saturation: Float,
             lightness: Float,
@@ -354,7 +354,7 @@ data class Color(
          * @param a The alpha component (0 to 255), defaults to 255
          * @return A new Color instance
          */
-        fun fromRGB(
+        public fun fromRGB(
             r: Int,
             g: Int,
             b: Int,
@@ -373,7 +373,7 @@ data class Color(
          * @param argb The ARGB value (0xAARRGGBB)
          * @return A new Color instance
          */
-        fun fromArgb(argb: Int): Color =
+        public fun fromArgb(argb: Int): Color =
             Color(
                 r = ((argb shr 16) and 0xFF) / 255f,
                 g = ((argb shr 8) and 0xFF) / 255f,

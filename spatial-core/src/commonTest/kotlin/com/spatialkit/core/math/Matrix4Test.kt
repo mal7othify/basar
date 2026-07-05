@@ -206,4 +206,45 @@ class Matrix4Test {
         assertEquals(18f, result.z, 0.0001f)
         assertEquals(1f, result.w, 0.0001f)
     }
+
+    @Test
+    fun testConstructorCopiesInputArray() {
+        val values =
+            floatArrayOf(
+                1f,
+                0f,
+                0f,
+                0f,
+                0f,
+                1f,
+                0f,
+                0f,
+                0f,
+                0f,
+                1f,
+                0f,
+                0f,
+                0f,
+                0f,
+                1f,
+            )
+        val matrix = Matrix4(values)
+
+        // Mutating the source array must not affect the matrix
+        values[12] = 99f
+        assertEquals(0f, matrix[12], 0.0001f)
+
+        // And the array returned by toFloatArray is a copy too
+        val out = matrix.toFloatArray()
+        out[0] = 42f
+        assertEquals(1f, matrix[0], 0.0001f)
+    }
+
+    @Test
+    fun testIndexedAccess() {
+        val translation = Matrix4.translation(5f, 10f, 15f)
+        assertEquals(5f, translation[12], 0.0001f)
+        assertEquals(5f, translation[0, 3], 0.0001f)
+        assertEquals(1f, translation[0, 0], 0.0001f)
+    }
 }

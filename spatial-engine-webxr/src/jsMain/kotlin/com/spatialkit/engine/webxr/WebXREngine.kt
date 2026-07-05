@@ -1,5 +1,6 @@
 package com.spatialkit.engine.webxr
 
+import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.engine.Axis
 import com.spatialkit.engine.Button
 import com.spatialkit.engine.ButtonState
@@ -27,6 +28,9 @@ import com.spatialkit.engine.Vec3
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.await
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.w3c.dom.HTMLCanvasElement
 import com.spatialkit.engine.Hand as ControllerHand
 
@@ -37,7 +41,7 @@ import com.spatialkit.engine.Hand as ControllerHand
  * Delegates all XR rendering to Three.js's built-in WebXR manager, which
  * handles framebuffer binding, camera matrix updates, and viewport management.
  */
-class WebXREngine : SpatialEngine {
+public class WebXREngine : SpatialEngine {
     // Three.js components
     private var scene: Scene? = null
     private var camera: PerspectiveCamera? = null
@@ -49,21 +53,31 @@ class WebXREngine : SpatialEngine {
     private var hitTestSource: XRHitTestSource? = null
 
     // State management
-    private var _state: EngineState = EngineState.Uninitialized
+    private val _state = MutableStateFlow<EngineState>(EngineState.Uninitialized)
     private var _capabilities: EngineCapabilities? = null
     private var currentConfig: EngineConfig? = null
     private var frameCallback: ((FrameData) -> Unit)? = null
 
     // Scene management
     private val nodeMap = mutableMapOf<String, Object3D>()
+    private val appliedMaterials = mutableMapOf<String, MaterialData>()
+    private val appliedGeometry = mutableMapOf<String, GeometryData>()
     private var lastFrameTime = 0.0
-    private var frameCount = 0
 
-    // Reference to Compose canvas so we can hide/show it
-    private var composeCanvas: HTMLCanvasElement? = null
+    /**
+     * Invoked when an immersive XR session starts. The hosting UI should hide
+     * any overlay content (e.g. its 2D canvas) so the camera feed is visible.
+     * The engine itself never mutates host-page styling.
+     */
+    public var onEnterXR: (() -> Unit)? = null
 
-    override val state: EngineState
-        get() = _state
+    /**
+     * Invoked when the immersive XR session ends and the hosting UI should be
+     * restored.
+     */
+    public var onExitXR: (() -> Unit)? = null
+
+    override val state: StateFlow<EngineState> = _state.asStateFlow()
 
     override val capabilities: EngineCapabilities
         get() =
@@ -80,18 +94,14 @@ class WebXREngine : SpatialEngine {
             )
 
     override suspend fun initialize(config: EngineConfig) {
-        if (_state != EngineState.Uninitialized) {
+        if (_state.value != EngineState.Uninitialized && _state.value != EngineState.Disposed) {
             throw IllegalStateException("Engine already initialized")
         }
 
-        _state = EngineState.Initializing
+        _state.value = EngineState.Initializing
         currentConfig = config
 
         try {
-            // Find and store reference to the existing Compose canvas
-            // so we can hide it when entering XR (it would otherwise cover the camera feed)
-            composeCanvas = document.querySelector("canvas:not(#webxr-canvas)") as? HTMLCanvasElement
-
             // Create Three.js scene with lighting
             scene =
                 Scene().apply {
@@ -132,16 +142,16 @@ class WebXREngine : SpatialEngine {
             // where session.onend + setSession(null) would null out Three.js's
             // internal reference before its removeEventListener call.
             renderer?.xr.asDynamic().addEventListener("sessionend") {
-                console.log("WebXR: Session ended (via Three.js XR manager).")
+                SpatialLog.debug(TAG) { "session ended (via Three.js XR manager)" }
                 handleSessionEnded()
             }
 
             // Check WebXR capabilities
             _capabilities = checkCapabilities()
 
-            _state = EngineState.Ready
+            _state.value = EngineState.Ready
         } catch (e: Exception) {
-            _state =
+            _state.value =
                 EngineState.Error(
                     EngineError.InitializationFailed("Failed to initialize WebXR: ${e.message}"),
                 )
@@ -149,20 +159,20 @@ class WebXREngine : SpatialEngine {
         }
     }
 
-    override fun startSession(mode: SessionMode) {
+    override suspend fun startSession(mode: SessionMode) {
         // Allow retry from Error state if the error was due to missing user activation
-        if (_state != EngineState.Ready) {
-            val currentState = _state
+        if (_state.value != EngineState.Ready) {
+            val currentState = _state.value
             if (currentState is EngineState.Error) {
                 val errorMessage = currentState.error.toString()
                 if (errorMessage.contains("user activation", ignoreCase = true)) {
-                    _state = EngineState.Ready
-                    console.log("WebXR: Retrying session start with user gesture")
+                    _state.value = EngineState.Ready
+                    SpatialLog.debug(TAG) { "retrying session start with user gesture" }
                 } else {
-                    throw IllegalStateException("Engine not ready. Current state: $_state")
+                    throw IllegalStateException("Engine not ready. Current state: ${_state.value}")
                 }
             } else {
-                throw IllegalStateException("Engine not ready. Current state: $_state")
+                throw IllegalStateException("Engine not ready. Current state: ${_state.value}")
             }
         }
 
@@ -176,45 +186,15 @@ class WebXREngine : SpatialEngine {
         val navigator = window.asDynamic().navigator as Navigator
         val xr =
             navigator.xr ?: run {
-                _state = EngineState.Error(EngineError.NotSupported)
+                _state.value = EngineState.Error(EngineError.NotSupported)
                 return
             }
 
-        if (mode is SessionMode.AR) {
-            console.log("WebXR: Requesting camera permission...")
-            val mediaDevices = navigator.asDynamic().mediaDevices
-            if (mediaDevices != null) {
-                val constraints = js("{video: true}")
-                mediaDevices
-                    .getUserMedia(constraints)
-                    .then { stream ->
-                        console.log("WebXR: Camera permission granted!")
-                        stream.getTracks().forEach { track ->
-                            track.stop()
-                        }
-                        requestXRSession(xr, xrMode, mode)
-                    }.catch { error ->
-                        console.error("WebXR: Camera permission denied: $error")
-                        _state =
-                            EngineState.Error(
-                                EngineError.SessionFailed("Camera permission denied: $error"),
-                            )
-                    }
-            } else {
-                console.warn("WebXR: MediaDevices API not available, trying XR session anyway...")
-                requestXRSession(xr, xrMode, mode)
-            }
-        } else {
-            requestXRSession(xr, xrMode, mode)
+        if (mode is SessionMode.AR && !requestCameraPermission(navigator)) {
+            return
         }
-    }
 
-    private fun requestXRSession(
-        xr: dynamic,
-        xrMode: String,
-        mode: SessionMode,
-    ) {
-        console.log("WebXR: Requesting $xrMode session...")
+        SpatialLog.debug(TAG) { "requesting $xrMode session" }
 
         // Build required/optional features based on mode
         val requiredFeatures =
@@ -235,27 +215,54 @@ class WebXREngine : SpatialEngine {
         sessionOptions.requiredFeatures = requiredFeatures
         sessionOptions.optionalFeatures = optionalFeatures
 
-        xr
-            .requestSession(
-                xrMode,
-                sessionOptions,
-            ).then { session ->
-                console.log("WebXR: Session granted! Configuring...")
-                handleSessionStarted(session, mode)
-            }.catch { error ->
-                console.error("WebXR: Session request failed: $error")
-                _state =
+        val session =
+            try {
+                xr.requestSession(xrMode, sessionOptions).await()
+            } catch (e: Throwable) {
+                SpatialLog.error(TAG, e) { "session request failed" }
+                _state.value =
                     EngineState.Error(
-                        EngineError.SessionFailed("Failed to start session: $error"),
+                        EngineError.SessionFailed("Failed to start session: ${e.message}"),
                     )
+                return
             }
+
+        SpatialLog.debug(TAG) { "session granted, configuring" }
+        handleSessionStarted(session, mode)
     }
 
-    private fun handleSessionStarted(
+    /**
+     * Requests (and immediately releases) camera access so the XR session
+     * request runs with the permission already granted.
+     *
+     * @return false if permission was denied (state is set to Error)
+     */
+    private suspend fun requestCameraPermission(navigator: Navigator): Boolean {
+        val mediaDevices = navigator.asDynamic().mediaDevices
+        if (mediaDevices == null) {
+            SpatialLog.warn(TAG) { "MediaDevices API not available, trying XR session anyway" }
+            return true
+        }
+        SpatialLog.debug(TAG) { "requesting camera permission" }
+        return try {
+            val stream = mediaDevices.getUserMedia(js("{video: true}")).unsafeCast<kotlin.js.Promise<dynamic>>().await()
+            SpatialLog.debug(TAG) { "camera permission granted" }
+            stream.getTracks().unsafeCast<Array<dynamic>>().forEach { track ->
+                track.stop()
+            }
+            true
+        } catch (e: Throwable) {
+            SpatialLog.error(TAG, e) { "camera permission denied" }
+            _state.value = EngineState.Error(EngineError.PermissionDenied)
+            false
+        }
+    }
+
+    private suspend fun handleSessionStarted(
         session: XRSession,
         mode: SessionMode,
     ) {
-        console.log("WebXR: handleSessionStarted() entered")
+        SpatialLog.debug(TAG) { "handleSessionStarted()" }
         xrSession = session
 
         // Configure Three.js XR reference space type BEFORE setting session
@@ -263,35 +270,36 @@ class WebXREngine : SpatialEngine {
         renderer?.xr?.setReferenceSpaceType(referenceSpaceType)
 
         // Also request our own reference space for building FrameData
-        session
-            .requestReferenceSpace(referenceSpaceType)
-            .then { referenceSpace ->
-                console.log("WebXR: Reference space acquired: $referenceSpaceType")
-                xrReferenceSpace = referenceSpace
+        try {
+            xrReferenceSpace = session.requestReferenceSpace(referenceSpaceType).await()
+            SpatialLog.debug(TAG) { "reference space acquired: $referenceSpaceType" }
+        } catch (e: Throwable) {
+            SpatialLog.error(TAG, e) { "failed to get reference space" }
+            _state.value =
+                EngineState.Error(
+                    EngineError.SessionFailed("Failed to get reference space: ${e.message}"),
+                )
+            session.end()
+            return
+        }
 
-                // Set up hit test source for AR
-                if (mode is SessionMode.AR) {
-                    val hitTestOptions = js("{}")
-                    hitTestOptions.space = referenceSpace
-                    session
-                        .requestHitTestSource(
-                            hitTestOptions,
-                        ).then { source ->
-                            hitTestSource = source
-                        }.catch { }
-                }
-            }.catch { error ->
-                console.error("WebXR: Failed to get reference space: $error")
-            }
+        // Set up hit test source for AR (fire-and-forget; optional feature)
+        if (mode is SessionMode.AR) {
+            val hitTestOptions = js("{}")
+            hitTestOptions.space = xrReferenceSpace
+            session
+                .requestHitTestSource(hitTestOptions)
+                .then { source -> hitTestSource = source }
+                .catch { null }
+        }
 
-        // === KEY FIX: Let Three.js manage the XR session ===
+        // === Let Three.js manage the XR session ===
         // This tells Three.js to handle framebuffer binding, camera matrices,
         // viewport setup, and all the WebGL/XR plumbing internally.
         renderer?.xr?.setSession(session)
 
-        // Hide the Compose canvas so the camera feed is visible behind Three.js
-        composeCanvas?.style?.display = "none"
-        document.body?.style?.background = "transparent"
+        // Let the hosting UI hide overlay content (see [onEnterXR])
+        onEnterXR?.invoke()
 
         // Start the Three.js animation loop.
         // When an XR session is active, Three.js automatically:
@@ -304,8 +312,8 @@ class WebXREngine : SpatialEngine {
             onFrame(time, xrFrame)
         }
 
-        _state = EngineState.Running(mode)
-        console.log("WebXR: Session running via Three.js XR manager")
+        _state.value = EngineState.Running(mode)
+        SpatialLog.debug(TAG) { "session running via Three.js XR manager" }
     }
 
     /**
@@ -325,11 +333,6 @@ class WebXREngine : SpatialEngine {
         time: Double,
         xrFrame: dynamic,
     ) {
-        frameCount++
-        if (frameCount <= 3) {
-            console.log("WebXR: onFrame #$frameCount")
-        }
-
         val threeScene = scene ?: return
         val threeCamera = camera ?: return
         val threeRenderer = renderer ?: return
@@ -356,27 +359,21 @@ class WebXREngine : SpatialEngine {
 
         // Render — Three.js handles all XR-specific GL state
         threeRenderer.render(threeScene, threeCamera)
-
-        if (frameCount % 120 == 0) {
-            console.log("WebXR: Frame $frameCount, scene objects: ${threeScene.children.size}")
-        }
     }
 
     private fun handleSessionEnded() {
         xrSession = null
         xrReferenceSpace = null
         hitTestSource = null
-        frameCount = 0
         lastFrameTime = 0.0
 
         // Stop the animation loop
         renderer?.setAnimationLoop(null)
 
-        // Show the Compose canvas again
-        composeCanvas?.style?.display = ""
-        document.body?.style?.background = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+        // Let the hosting UI restore itself (see [onExitXR])
+        onExitXR?.invoke()
 
-        _state = EngineState.Ready
+        _state.value = EngineState.Ready
     }
 
     override fun stopSession() {
@@ -386,13 +383,18 @@ class WebXREngine : SpatialEngine {
     override fun dispose() {
         stopSession()
 
+        // Release GPU resources held by cached meshes
+        nodeMap.values.forEach { disposeObject(it) }
+        nodeMap.clear()
+        appliedMaterials.clear()
+        appliedGeometry.clear()
+
         scene = null
         camera = null
         renderer?.domElement?.remove()
         renderer = null
 
-        nodeMap.clear()
-        _state = EngineState.Disposed
+        _state.value = EngineState.Disposed
     }
 
     override fun onFrame(callback: (FrameData) -> Unit) {
@@ -402,14 +404,18 @@ class WebXREngine : SpatialEngine {
     override fun submitScene(scene: SceneData) {
         val threeScene = this.scene ?: return
 
-        // Remove old nodes that aren't in new scene
+        // Remove old nodes that aren't in new scene and free their GPU resources
         val newNodeIds = collectNodeIds(scene.nodes)
         val toRemove = nodeMap.keys.filter { it !in newNodeIds }
         toRemove.forEach { id ->
             nodeMap[id]?.let { obj ->
+                obj.asDynamic().parent?.remove(obj)
                 threeScene.remove(obj)
+                disposeObject(obj)
             }
             nodeMap.remove(id)
+            appliedMaterials.remove(id)
+            appliedGeometry.remove(id)
         }
 
         // Add or update nodes
@@ -422,35 +428,9 @@ class WebXREngine : SpatialEngine {
         node: SceneNode,
         scene: Scene,
     ) {
-        when (node) {
-            is SceneNode.Mesh -> {
-                val mesh =
-                    nodeMap.getOrPut(node.id) {
-                        createMesh(node)
-                    }
-                updateTransform(mesh, node.transform)
-                mesh.visible = node.visible
-
-                if (mesh.asDynamic().parent == null) {
-                    scene.add(mesh)
-                }
-            }
-
-            is SceneNode.Group -> {
-                val group =
-                    nodeMap.getOrPut(node.id) {
-                        Group().also { it.name = node.id }
-                    }
-                updateTransform(group, node.transform)
-                group.visible = node.visible
-
-                if (group.asDynamic().parent == null) {
-                    scene.add(group)
-                }
-
-                node.children.forEach { child ->
-                    processSceneNode(child, group)
-                }
+        processSceneNode(node) { obj ->
+            if (obj.asDynamic().parent == null) {
+                scene.add(obj)
             }
         }
     }
@@ -458,7 +438,27 @@ class WebXREngine : SpatialEngine {
     override fun performHitTest(
         screenX: Float,
         screenY: Float,
-    ): HitTestResult? = null
+    ): HitTestResult? {
+        // WebXR does not expose synchronous real-world hit testing from
+        // arbitrary screen points (that requires transient-input hit-test
+        // sources). This casts a camera ray through the normalized screen
+        // point against scene content instead.
+        val threeScene = scene ?: return null
+        val threeCamera = camera ?: return null
+
+        // Normalized (0..1, top-left origin) -> NDC (-1..1, bottom-left origin)
+        val ndc = Vector2((screenX * 2f - 1f).toDouble(), (1f - screenY * 2f).toDouble())
+        val raycaster = Raycaster()
+        raycaster.setFromCamera(ndc, threeCamera)
+
+        val hit = raycaster.intersectObjects(threeScene.children, recursive = true).firstOrNull() ?: return null
+        return HitTestResult(
+            position = Vec3(hit.point.x.toFloat(), hit.point.y.toFloat(), hit.point.z.toFloat()),
+            normal = hit.worldNormal(),
+            distance = hit.distance.toFloat(),
+            planeId = null,
+        )
+    }
 
     override fun performRaycast(
         origin: Vec3,
@@ -477,31 +477,47 @@ class WebXREngine : SpatialEngine {
         return intersections.firstOrNull()?.let { hit ->
             RaycastResult(
                 position = Vec3(hit.point.x.toFloat(), hit.point.y.toFloat(), hit.point.z.toFloat()),
-                normal = Vec3(0f, 1f, 0f),
+                normal = hit.worldNormal(),
                 distance = hit.distance.toFloat(),
                 nodeId = hit.`object`.name.takeIf { it.isNotEmpty() },
             )
         }
     }
 
+    /**
+     * Extracts the intersected face normal in world space, falling back to +Y.
+     */
+    private fun Intersection.worldNormal(): Vec3 {
+        val face = this.face ?: return Vec3(0f, 1f, 0f)
+        val normal =
+            Vector3(
+                (face.normal.x as Number).toDouble(),
+                (face.normal.y as Number).toDouble(),
+                (face.normal.z as Number).toDouble(),
+            )
+        // Face normals are in object space; rotate into world space
+        val worldQuaternion = Quaternion()
+        this.`object`.asDynamic().getWorldQuaternion(worldQuaternion)
+        normal.asDynamic().applyQuaternion(worldQuaternion)
+        return Vec3(normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
+    }
+
     // === Private Implementation ===
 
     private fun processSceneNode(
         node: SceneNode,
-        parent: Object3D,
+        attach: (Object3D) -> Unit,
     ) {
         when (node) {
             is SceneNode.Mesh -> {
                 val mesh =
                     nodeMap.getOrPut(node.id) {
                         createMesh(node)
-                    }
+                    } as Mesh
+                updateMeshData(node, mesh)
                 updateTransform(mesh, node.transform)
                 mesh.visible = node.visible
-
-                if (mesh.asDynamic().parent == null) {
-                    parent.add(mesh)
-                }
+                attach(mesh)
             }
 
             is SceneNode.Group -> {
@@ -511,21 +527,61 @@ class WebXREngine : SpatialEngine {
                     }
                 updateTransform(group, node.transform)
                 group.visible = node.visible
-
-                if (group.asDynamic().parent == null) {
-                    parent.add(group)
-                }
+                attach(group)
 
                 node.children.forEach { child ->
-                    processSceneNode(child, group)
+                    processSceneNode(child) { obj ->
+                        if (obj.asDynamic().parent == null) {
+                            group.add(obj)
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    /**
+     * Applies material/geometry changes to an already-created mesh, disposing
+     * the replaced GPU resources.
+     */
+    private fun updateMeshData(
+        node: SceneNode.Mesh,
+        mesh: Mesh,
+    ) {
+        val previousMaterial = appliedMaterials[node.id]
+        if (previousMaterial != node.material) {
+            if (previousMaterial != null) {
+                mesh.material.dispose()
+            }
+            mesh.material = createMaterial(node.material)
+            appliedMaterials[node.id] = node.material
+        }
+
+        val previousGeometry = appliedGeometry[node.id]
+        if (previousGeometry != node.geometry) {
+            if (previousGeometry != null) {
+                mesh.geometry.dispose()
+            }
+            mesh.geometry = createGeometry(node.geometry)
+            appliedGeometry[node.id] = node.geometry
+        }
+    }
+
+    /**
+     * Releases GPU resources of a cached object (geometry + material of meshes).
+     */
+    private fun disposeObject(obj: Object3D) {
+        if (obj is Mesh) {
+            obj.geometry.dispose()
+            obj.material.dispose()
         }
     }
 
     private fun createMesh(node: SceneNode.Mesh): Mesh {
         val geometry = createGeometry(node.geometry)
         val material = createMaterial(node.material)
+        appliedMaterials[node.id] = node.material
+        appliedGeometry[node.id] = node.geometry
         return Mesh(geometry, material).also { it.name = node.id }
     }
 
@@ -564,7 +620,14 @@ class WebXREngine : SpatialEngine {
                     geometry.setAttribute("normal", BufferAttribute(normalsArray, 3))
                 }
                 data.indices?.let { indices ->
-                    val indicesArray = js("new Uint16Array(indices)")
+                    // Uint16 only addresses 65535 vertices; switch to Uint32 beyond that
+                    val needsWideIndices = indices.any { it > 0xFFFF }
+                    val indicesArray =
+                        if (needsWideIndices) {
+                            js("new Uint32Array(indices)")
+                        } else {
+                            js("new Uint16Array(indices)")
+                        }
                     geometry.setIndex(BufferAttribute(indicesArray, 1))
                 }
                 geometry
@@ -574,7 +637,7 @@ class WebXREngine : SpatialEngine {
     /**
      * Creates a Three.js material from MaterialData.
      *
-     * FIX: Three.js expects color as a hex integer (e.g. 0xFF0000 for red),
+     * Three.js expects color as a hex integer (e.g. 0xFF0000 for red),
      * not as an {r, g, b} object. We convert the float RGB components (0.0-1.0)
      * to a single packed integer.
      */
@@ -588,6 +651,7 @@ class WebXREngine : SpatialEngine {
             MaterialType.UNLIT -> {
                 val params = js("{}")
                 params.color = colorHex
+                if (data.doubleSided) params.side = 2 // THREE.DoubleSide
                 MeshBasicMaterial(params)
             }
 
@@ -596,6 +660,7 @@ class WebXREngine : SpatialEngine {
                 params.color = colorHex
                 params.metalness = data.metallic.toDouble()
                 params.roughness = data.roughness.toDouble()
+                if (data.doubleSided) params.side = 2 // THREE.DoubleSide
                 MeshStandardMaterial(params)
             }
         }
@@ -633,6 +698,13 @@ class WebXREngine : SpatialEngine {
             }
         }
 
+    /**
+     * Builds [FrameData] from the viewer pose.
+     *
+     * Note: the projection matrix is taken from the first XR view. For
+     * stereo (immersive VR) rendering Three.js manages per-eye cameras
+     * internally; per-view data is not yet exposed through [FrameData].
+     */
     private fun convertToFrameData(
         time: Double,
         deltaTime: Float,
@@ -785,7 +857,7 @@ class WebXREngine : SpatialEngine {
                 supportsHandTracking = true,
                 supportsDepthOcclusion = false,
                 supportsSpatialAnchors = supportsAR,
-                maxAnchors = 0,
+                maxAnchors = null, // WebXR imposes no fixed anchor limit
             )
         } else {
             EngineCapabilities(
@@ -800,6 +872,10 @@ class WebXREngine : SpatialEngine {
                 maxAnchors = 0,
             )
         }
+    }
+
+    private companion object {
+        const val TAG = "WebXREngine"
     }
 }
 

@@ -12,7 +12,7 @@ import kotlin.math.sqrt
  * @property x The x component of the vector
  * @property y The y component of the vector
  */
-data class Vec2(
+public data class Vec2(
     val x: Float,
     val y: Float,
 ) {
@@ -22,7 +22,7 @@ data class Vec2(
      * @param other The vector to add
      * @return A new vector representing the sum
      */
-    operator fun plus(other: Vec2): Vec2 = Vec2(x + other.x, y + other.y)
+    public operator fun plus(other: Vec2): Vec2 = Vec2(x + other.x, y + other.y)
 
     /**
      * Subtracts another vector from this vector.
@@ -30,7 +30,7 @@ data class Vec2(
      * @param other The vector to subtract
      * @return A new vector representing the difference
      */
-    operator fun minus(other: Vec2): Vec2 = Vec2(x - other.x, y - other.y)
+    public operator fun minus(other: Vec2): Vec2 = Vec2(x - other.x, y - other.y)
 
     /**
      * Multiplies this vector by a scalar value.
@@ -38,7 +38,7 @@ data class Vec2(
      * @param scalar The scalar value to multiply by
      * @return A new scaled vector
      */
-    operator fun times(scalar: Float): Vec2 = Vec2(x * scalar, y * scalar)
+    public operator fun times(scalar: Float): Vec2 = Vec2(x * scalar, y * scalar)
 
     /**
      * Divides this vector by a scalar value.
@@ -47,7 +47,7 @@ data class Vec2(
      * @return A new scaled vector
      * @throws ArithmeticException if scalar is zero
      */
-    operator fun div(scalar: Float): Vec2 = Vec2(x / scalar, y / scalar)
+    public operator fun div(scalar: Float): Vec2 = Vec2(x / scalar, y / scalar)
 
     /**
      * Computes the dot product of this vector and another vector.
@@ -55,14 +55,14 @@ data class Vec2(
      * @param other The other vector
      * @return The dot product (scalar value)
      */
-    fun dot(other: Vec2): Float = x * other.x + y * other.y
+    public fun dot(other: Vec2): Float = x * other.x + y * other.y
 
     /**
      * Calculates the length (magnitude) of this vector.
      *
      * @return The length of the vector
      */
-    fun length(): Float = sqrt(x * x + y * y)
+    public fun length(): Float = sqrt(x * x + y * y)
 
     /**
      * Calculates the squared length of this vector.
@@ -70,7 +70,7 @@ data class Vec2(
      *
      * @return The squared length of the vector
      */
-    fun lengthSquared(): Float = x * x + y * y
+    public fun lengthSquared(): Float = x * x + y * y
 
     /**
      * Returns a normalized (unit length) version of this vector.
@@ -78,7 +78,7 @@ data class Vec2(
      *
      * @return A new normalized vector
      */
-    fun normalized(): Vec2 {
+    public fun normalized(): Vec2 {
         val len = length()
         return if (len > 0f) this / len else ZERO
     }
@@ -90,7 +90,7 @@ data class Vec2(
      * @param t The interpolation factor (0.0 returns this, 1.0 returns other)
      * @return A new interpolated vector
      */
-    fun lerp(
+    public fun lerp(
         other: Vec2,
         t: Float,
     ): Vec2 =
@@ -105,7 +105,7 @@ data class Vec2(
      * @param other The other vector
      * @return The distance between the two vectors
      */
-    fun distance(other: Vec2): Float = (this - other).length()
+    public fun distance(other: Vec2): Float = (this - other).length()
 
     /**
      * Calculates the squared distance between this vector and another vector.
@@ -114,45 +114,45 @@ data class Vec2(
      * @param other The other vector
      * @return The squared distance between the two vectors
      */
-    fun distanceSquared(other: Vec2): Float = (this - other).lengthSquared()
+    public fun distanceSquared(other: Vec2): Float = (this - other).lengthSquared()
 
     /**
      * Negates this vector.
      *
      * @return A new vector with negated components
      */
-    operator fun unaryMinus(): Vec2 = Vec2(-x, -y)
+    public operator fun unaryMinus(): Vec2 = Vec2(-x, -y)
 
-    companion object {
+    public companion object {
         /**
          * A zero vector (0, 0).
          */
-        val ZERO = Vec2(0f, 0f)
+        public val ZERO: Vec2 = Vec2(0f, 0f)
 
         /**
          * A unit vector (1, 1).
          */
-        val ONE = Vec2(1f, 1f)
+        public val ONE: Vec2 = Vec2(1f, 1f)
 
         /**
          * A unit vector pointing right (1, 0).
          */
-        val RIGHT = Vec2(1f, 0f)
+        public val RIGHT: Vec2 = Vec2(1f, 0f)
 
         /**
          * A unit vector pointing left (-1, 0).
          */
-        val LEFT = Vec2(-1f, 0f)
+        public val LEFT: Vec2 = Vec2(-1f, 0f)
 
         /**
          * A unit vector pointing up (0, 1).
          */
-        val UP = Vec2(0f, 1f)
+        public val UP: Vec2 = Vec2(0f, 1f)
 
         /**
          * A unit vector pointing down (0, -1).
          */
-        val DOWN = Vec2(0f, -1f)
+        public val DOWN: Vec2 = Vec2(0f, -1f)
 
         /**
          * Creates a vector from integer components.
@@ -161,7 +161,7 @@ data class Vec2(
          * @param y The y component
          * @return A new Vec2
          */
-        fun of(
+        public fun of(
             x: Int,
             y: Int,
         ): Vec2 = Vec2(x.toFloat(), y.toFloat())
@@ -173,7 +173,7 @@ data class Vec2(
          * @param y The y component
          * @return A new Vec2
          */
-        fun of(
+        public fun of(
             x: Double,
             y: Double,
         ): Vec2 = Vec2(x.toFloat(), y.toFloat())
@@ -183,9 +183,9 @@ data class Vec2(
 /**
  * Extension to allow scalar * vector multiplication.
  */
-operator fun Float.times(vec: Vec2): Vec2 = vec * this
+public operator fun Float.times(vec: Vec2): Vec2 = vec * this
 
 /**
  * Extension to allow scalar * vector multiplication with Int.
  */
-operator fun Int.times(vec: Vec2): Vec2 = vec * this.toFloat()
+public operator fun Int.times(vec: Vec2): Vec2 = vec * this.toFloat()

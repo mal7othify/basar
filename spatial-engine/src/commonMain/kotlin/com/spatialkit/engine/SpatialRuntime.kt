@@ -1,5 +1,8 @@
 package com.spatialkit.engine
 
+import com.spatialkit.core.log.SpatialLog
+import kotlinx.coroutines.flow.StateFlow
+
 /**
  * High-level convenience wrapper for SpatialEngine.
  *
@@ -27,7 +30,7 @@ package com.spatialkit.engine
  * runtime.stop()
  * ```
  */
-class SpatialRuntime {
+public class SpatialRuntime {
     private var engine: SpatialEngine? = null
     private var errorCallback: ((EngineError) -> Unit)? = null
 
@@ -37,7 +40,7 @@ class SpatialRuntime {
      * Use this to configure platform-specific features like setting an ARView on iOS.
      * Returns null if the engine hasn't been created yet.
      */
-    fun getEngine(): SpatialEngine? = engine
+    public fun getEngine(): SpatialEngine? = engine
 
     /**
      * Set a custom engine instance.
@@ -47,7 +50,7 @@ class SpatialRuntime {
      *
      * Must be called before start() if you want to use a custom engine.
      */
-    fun setEngine(customEngine: SpatialEngine) {
+    public fun setEngine(customEngine: SpatialEngine) {
         engine = customEngine
     }
 
@@ -57,31 +60,38 @@ class SpatialRuntime {
      * NOTE: On Android, this may return false until you call
      * start() with a Context. Use the Android-specific check instead.
      */
-    val isSupported: Boolean
+    public val isSupported: Boolean
         get() = SpatialEngineFactory.isSupported()
 
     /**
      * Get the list of session modes supported on this platform.
      */
-    val supportedModes: List<SessionMode>
+    public val supportedModes: List<SessionMode>
         get() = SpatialEngineFactory.getSupportedModes()
 
     /**
      * Get the current engine state.
      */
-    val state: EngineState?
+    public val state: EngineState?
+        get() = engine?.state?.value
+
+    /**
+     * Observe engine state transitions. Null until an engine exists
+     * (after [setEngine] or [start]).
+     */
+    public val stateFlow: StateFlow<EngineState>?
         get() = engine?.state
 
     /**
      * Get the engine capabilities (available after start()).
      */
-    val capabilities: EngineCapabilities?
+    public val capabilities: EngineCapabilities?
         get() = engine?.capabilities
 
     /**
      * Get the name of the engine implementation.
      */
-    val engineName: String
+    public val engineName: String
         get() = SpatialEngineFactory.getEngineName()
 
     /**
@@ -94,34 +104,46 @@ class SpatialRuntime {
      * @param onError Callback invoked when errors occur
      * @throws IllegalStateException if platform doesn't support spatial
      */
-    suspend fun start(
+    public suspend fun start(
         config: EngineConfig = EngineConfig(),
         onFrame: (FrameData) -> Unit,
         onError: (EngineError) -> Unit = {},
     ) {
-        println("SpatialRuntime: === START CALLED ===")
+        SpatialLog.debug(TAG) { "start() called" }
         errorCallback = onError
 
         // Skip isSupported check if an engine was already set (e.g., via setEngine())
         if (engine == null && !isSupported) {
-            println("SpatialRuntime: ERROR - Platform not supported!")
+            SpatialLog.warn(TAG) { "start() failed: platform not supported" }
             onError(EngineError.NotSupported)
             return
         }
 
         try {
             // Create and initialize engine (use existing if already set)
-            println("SpatialRuntime: Creating/getting engine...")
             val spatialEngine = engine ?: SpatialEngineFactory.create()
             engine = spatialEngine
-            println("SpatialRuntime: Engine acquired: ${spatialEngine::class.simpleName}")
+            SpatialLog.debug(TAG) { "engine acquired: ${spatialEngine::class.simpleName}" }
 
-            println("SpatialRuntime: Calling engine.initialize()...")
-            spatialEngine.initialize(config)
-            println("SpatialRuntime: Engine initialized")
+            // Restart support: stop a running session, initialize only when the
+            // engine hasn't been initialized yet (or was disposed).
+            when (spatialEngine.state.value) {
+                is EngineState.Running -> {
+                    SpatialLog.debug(TAG) { "restarting: stopping current session" }
+                    spatialEngine.stopSession()
+                }
+
+                else -> {}
+            }
+            if (spatialEngine.state.value is EngineState.Uninitialized ||
+                spatialEngine.state.value is EngineState.Disposed
+            ) {
+                spatialEngine.initialize(config)
+                SpatialLog.debug(TAG) { "engine initialized" }
+            }
 
             // Check if initialization succeeded
-            when (val engineState = spatialEngine.state) {
+            when (val engineState = spatialEngine.state.value) {
                 is EngineState.Error -> {
                     onError(engineState.error)
                     return
@@ -146,19 +168,15 @@ class SpatialRuntime {
                 try {
                     onFrame(frameData)
                 } catch (e: Exception) {
-                    onError(
-                        EngineError.InitializationFailed(
-                            "Frame callback error: ${e.message}",
-                        ),
-                    )
+                    SpatialLog.error(TAG, e) { "frame callback threw" }
+                    onError(EngineError.RuntimeError("Frame callback error: ${e.message}", e))
                 }
             }
 
-            // Start session
+            // Start session — suspends until Running or Error
             spatialEngine.startSession(config.preferredMode)
 
-            // Check if session started
-            when (val engineState = spatialEngine.state) {
+            when (val engineState = spatialEngine.state.value) {
                 is EngineState.Running -> {
                     // Success!
                 }
@@ -176,8 +194,7 @@ class SpatialRuntime {
                 }
             }
         } catch (e: Exception) {
-            println("SpatialRuntime: EXCEPTION during start: ${e.message}")
-            e.printStackTrace()
+            SpatialLog.error(TAG, e) { "exception during start" }
             onError(
                 EngineError.InitializationFailed(
                     "Failed to start runtime: ${e.message}",
@@ -193,10 +210,10 @@ class SpatialRuntime {
      *
      * @param scene Scene description
      */
-    fun submitScene(scene: SceneData) {
+    public fun submitScene(scene: SceneData) {
         engine?.submitScene(scene) ?: run {
             errorCallback?.invoke(
-                EngineError.InitializationFailed("Engine not started"),
+                EngineError.RuntimeError("submitScene() called before the engine was started"),
             )
         }
     }
@@ -204,11 +221,13 @@ class SpatialRuntime {
     /**
      * Perform a hit test from screen coordinates.
      *
-     * @param screenX X coordinate in pixels
-     * @param screenY Y coordinate in pixels
+     * Coordinates are normalized: (0,0) = top-left, (1,1) = bottom-right.
+     *
+     * @param screenX Normalized X coordinate (0-1)
+     * @param screenY Normalized Y coordinate (0-1)
      * @return Hit test result or null if no hit
      */
-    fun performHitTest(
+    public fun performHitTest(
         screenX: Float,
         screenY: Float,
     ): HitTestResult? = engine?.performHitTest(screenX, screenY)
@@ -220,7 +239,7 @@ class SpatialRuntime {
      * @param direction Ray direction (normalized)
      * @return Raycast result or null if no hit
      */
-    fun performRaycast(
+    public fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? = engine?.performRaycast(origin, direction)
@@ -231,7 +250,7 @@ class SpatialRuntime {
      * Stops rendering and tracking. The engine remains initialized.
      * Call start() again to resume, or dispose() to fully clean up.
      */
-    fun stop() {
+    public fun stop() {
         engine?.stopSession()
     }
 
@@ -241,7 +260,7 @@ class SpatialRuntime {
      * After calling this, you must create a new SpatialRuntime
      * instance to start again.
      */
-    fun dispose() {
+    public fun dispose() {
         engine?.dispose()
         engine = null
         errorCallback = null
@@ -250,6 +269,10 @@ class SpatialRuntime {
     /**
      * Check if the runtime is currently running.
      */
-    val isRunning: Boolean
-        get() = engine?.state is EngineState.Running
+    public val isRunning: Boolean
+        get() = engine?.state?.value is EngineState.Running
+
+    private companion object {
+        const val TAG = "SpatialRuntime"
+    }
 }

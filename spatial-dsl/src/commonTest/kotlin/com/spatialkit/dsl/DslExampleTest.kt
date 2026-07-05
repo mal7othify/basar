@@ -1,7 +1,11 @@
 package com.spatialkit.dsl
 
 import com.spatialkit.core.math.Vec3
+import com.spatialkit.core.math.cm
+import com.spatialkit.core.math.meters
+import com.spatialkit.core.math.mm
 import com.spatialkit.core.types.Color
+import com.spatialkit.scene.CubeNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -17,7 +21,7 @@ class DslExampleTest {
     fun testSimpleScene() {
         val scene =
             spatialScene {
-                cube(size = 0.1f, color = Color.RED) {
+                cube(size = 0.1f, color = Color.Red) {
                     position = vec3(0f, 0f, -1f)
                 }
             }
@@ -34,8 +38,8 @@ class DslExampleTest {
                 }
             }
 
-        val cube = scene.nodes.first()
-        assertEquals(0.1f, cube.scale.x, 0.001f) // 10cm = 0.1m
+        val cube = scene.nodes.first() as CubeNode
+        assertEquals(0.1f, cube.size, 0.001f) // 10cm = 0.1m
         assertEquals(1.5f, cube.position.y, 0.001f)
         assertEquals(-0.1f, cube.position.z, 0.001f) // -100mm = -0.1m
     }
@@ -127,7 +131,7 @@ class DslExampleTest {
     fun testConfigureBlock() {
         val scene =
             spatialScene {
-                cube(size = 0.1f, color = Color.RED) {
+                cube(size = 0.1f, color = Color.Red) {
                     position = vec3(1f, 2f, 3f)
                     scale = Vec3(2f, 2f, 2f)
                     visible = false

@@ -3,12 +3,11 @@ package com.spatialkit.scene
 import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.Vec3
 import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 
 /**
- * Animation system for spatial nodes (P2 bug #8 fix).
+ * Animation system for spatial nodes.
  *
  * Provides a simple but functional animation API for animating node transforms.
  * Animations are updated each frame by calling update(deltaTime).
@@ -33,8 +32,9 @@ import kotlin.math.sin
  * }
  * ```
  */
-class SpatialAnimator {
+public class SpatialAnimator {
     private val activeAnimations = mutableListOf<Animation>()
+    private val lock = SpatialLock()
 
     /**
      * Animate a node's position.
@@ -47,7 +47,7 @@ class SpatialAnimator {
      * @param onComplete Optional callback when animation finishes
      * @return The created animation
      */
-    fun animatePosition(
+    public fun animatePosition(
         node: SpatialNode,
         from: Vec3,
         to: Vec3,
@@ -65,7 +65,7 @@ class SpatialAnimator {
                 easing = easing,
                 onComplete = onComplete,
             )
-        activeAnimations.add(animation)
+        lock.withLock { activeAnimations.add(animation) }
         return animation
     }
 
@@ -80,7 +80,7 @@ class SpatialAnimator {
      * @param onComplete Optional callback when animation finishes
      * @return The created animation
      */
-    fun animateRotation(
+    public fun animateRotation(
         node: SpatialNode,
         from: Quaternion,
         to: Quaternion,
@@ -98,7 +98,7 @@ class SpatialAnimator {
                 easing = easing,
                 onComplete = onComplete,
             )
-        activeAnimations.add(animation)
+        lock.withLock { activeAnimations.add(animation) }
         return animation
     }
 
@@ -113,7 +113,7 @@ class SpatialAnimator {
      * @param onComplete Optional callback when animation finishes
      * @return The created animation
      */
-    fun animateScale(
+    public fun animateScale(
         node: SpatialNode,
         from: Vec3,
         to: Vec3,
@@ -131,7 +131,7 @@ class SpatialAnimator {
                 easing = easing,
                 onComplete = onComplete,
             )
-        activeAnimations.add(animation)
+        lock.withLock { activeAnimations.add(animation) }
         return animation
     }
 
@@ -139,18 +139,27 @@ class SpatialAnimator {
      * Update all active animations.
      * Call this each frame with the frame's deltaTime.
      *
+     * Safe to call while animations are being added from other threads (e.g.
+     * a UI tap handler racing the render thread), and safe for [Animation.onComplete]
+     * callbacks to start new animations: completions are collected first and
+     * invoked only after the list is done being iterated.
+     *
      * @param deltaTime Time elapsed since last frame in seconds
      */
-    fun update(deltaTime: Float) {
-        val iterator = activeAnimations.iterator()
-        while (iterator.hasNext()) {
-            val animation = iterator.next()
-            animation.update(deltaTime)
+    public fun update(deltaTime: Float) {
+        val snapshot = lock.withLock { if (activeAnimations.isEmpty()) return else activeAnimations.toList() }
 
+        var completed: MutableList<Animation>? = null
+        for (animation in snapshot) {
+            animation.update(deltaTime)
             if (animation.isComplete) {
-                animation.onComplete?.invoke()
-                iterator.remove()
+                (completed ?: mutableListOf<Animation>().also { completed = it }).add(animation)
             }
+        }
+
+        completed?.let { done ->
+            lock.withLock { activeAnimations.removeAll(done) }
+            done.forEach { it.onComplete?.invoke() }
         }
     }
 
@@ -159,38 +168,38 @@ class SpatialAnimator {
      *
      * @param animation The animation to cancel
      */
-    fun cancel(animation: Animation) {
-        activeAnimations.remove(animation)
+    public fun cancel(animation: Animation) {
+        lock.withLock { activeAnimations.remove(animation) }
     }
 
     /**
      * Stop all animations.
      */
-    fun cancelAll() {
-        activeAnimations.clear()
+    public fun cancelAll() {
+        lock.withLock { activeAnimations.clear() }
     }
 
     /**
      * Get the number of active animations.
      */
-    val animationCount: Int
-        get() = activeAnimations.size
+    public val animationCount: Int
+        get() = lock.withLock { activeAnimations.size }
 }
 
 /**
  * Base class for animations.
  */
-sealed class Animation {
-    abstract val duration: Float
-    abstract val easing: Easing
-    abstract val onComplete: (() -> Unit)?
+public sealed class Animation {
+    public abstract val duration: Float
+    public abstract val easing: Easing
+    public abstract val onComplete: (() -> Unit)?
 
     internal var elapsedTime: Float = 0f
 
-    val isComplete: Boolean
+    public val isComplete: Boolean
         get() = elapsedTime >= duration
 
-    val progress: Float
+    public val progress: Float
         get() = (elapsedTime / duration).coerceIn(0f, 1f)
 
     internal abstract fun update(deltaTime: Float)
@@ -255,7 +264,7 @@ internal class ScaleAnimation(
  *
  * Transform the linear progress (0-1) into eased progress.
  */
-enum class Easing {
+public enum class Easing {
     /** No easing - constant speed */
     Linear {
         override fun apply(t: Float): Float = t
@@ -327,5 +336,5 @@ enum class Easing {
     },
     ;
 
-    abstract fun apply(t: Float): Float
+    public abstract fun apply(t: Float): Float
 }

@@ -1,8 +1,10 @@
 package com.spatialkit.scene
 
+import com.spatialkit.core.annotations.ExperimentalSpatialApi
 import com.spatialkit.core.types.Color
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
+import com.spatialkit.engine.generateVertexNormals
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -14,7 +16,14 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * - Basic mesh primitives (POSITION, NORMAL, indices)
  * - Single mesh extraction
  *
- * For production use, consider a full GLTF library.
+ * Known limitations (this loader scans the JSON textually rather than parsing
+ * it): accessor `byteOffset` and bufferView `byteStride` are ignored, POSITION
+ * and NORMAL accessors are assumed to be tightly packed VEC3 floats, and only
+ * the first mesh primitive is read. Files produced by exporters that use
+ * interleaved or offset buffer layouts will load incorrectly.
+ *
+ * For production assets, use a full glTF library and feed the result into
+ * [CustomMeshNode] via [GeometryData].
  *
  * Usage:
  * ```kotlin
@@ -23,8 +32,10 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * val meshNode = loader.loadFirstMesh()
  * ```
  */
-class GltfLoader(private val json: String) {
-
+@ExperimentalSpatialApi
+public class GltfLoader(
+    private val json: String,
+) {
     private val buffers = mutableMapOf<Int, ByteArray>()
 
     /**
@@ -33,7 +44,7 @@ class GltfLoader(private val json: String) {
      * @param color Color to apply to the mesh
      * @return CustomMeshNode or null if no mesh found
      */
-    fun loadFirstMesh(color: Color = Color.White): CustomMeshNode? {
+    public fun loadFirstMesh(color: Color = Color.White): CustomMeshNode? {
         val geometry = parseGeometry() ?: return null
         return CustomMeshNode(geometry, color)
     }
@@ -41,7 +52,7 @@ class GltfLoader(private val json: String) {
     /**
      * Parses geometry data from the GLTF.
      */
-    fun parseGeometry(): GeometryData? {
+    public fun parseGeometry(): GeometryData? {
         // Parse buffers first
         parseBuffers()
 
@@ -72,8 +83,10 @@ class GltfLoader(private val json: String) {
         return GeometryData(
             type = GeometryType.CUSTOM_MESH,
             vertices = vertices,
-            normals = normals,
-            indices = indices
+            // Many minimal GLTF files omit NORMAL; generate normals so the
+            // mesh is lit correctly on every renderer.
+            normals = normals ?: indices?.let { generateVertexNormals(vertices, it) },
+            indices = indices,
         )
     }
 
@@ -105,7 +118,10 @@ class GltfLoader(private val json: String) {
         }
     }
 
-    private fun findAttributeAccessor(name: String, startIndex: Int): Int? {
+    private fun findAttributeAccessor(
+        name: String,
+        startIndex: Int,
+    ): Int? {
         val pattern = "\"$name\""
         val attrStart = json.indexOf(pattern, startIndex)
         if (attrStart == -1) return null
@@ -113,7 +129,7 @@ class GltfLoader(private val json: String) {
         val colonPos = json.indexOf(":", attrStart + pattern.length)
         if (colonPos == -1) return null
 
-        return parseIntAfter(colonPos)
+        return parseIntAfter(json, colonPos)
     }
 
     private fun findIndicesAccessor(startIndex: Int): Int? {
@@ -124,18 +140,23 @@ class GltfLoader(private val json: String) {
         val colonPos = json.indexOf(":", indicesStart + pattern.length)
         if (colonPos == -1) return null
 
-        return parseIntAfter(colonPos)
+        return parseIntAfter(json, colonPos)
     }
 
-    private fun parseIntAfter(colonPos: Int): Int? {
+    // Positions must be interpreted against the string they were found in —
+    // extractInt() passes object substrings, not the full document.
+    private fun parseIntAfter(
+        source: String,
+        colonPos: Int,
+    ): Int? {
         var i = colonPos + 1
-        while (i < json.length && json[i].isWhitespace()) i++
+        while (i < source.length && source[i].isWhitespace()) i++
 
         val numStart = i
-        while (i < json.length && json[i].isDigit()) i++
+        while (i < source.length && source[i].isDigit()) i++
 
         if (i == numStart) return null
-        return json.substring(numStart, i).toIntOrNull()
+        return source.substring(numStart, i).toIntOrNull()
     }
 
     private fun extractFloatData(accessorIndex: Int): FloatArray? {
@@ -170,11 +191,12 @@ class GltfLoader(private val json: String) {
         for (i in 0 until accessor.count) {
             val byteIndex = offset + i * bytesPerElement
             if (byteIndex + bytesPerElement > buffer.size) break
-            ints[i] = if (bytesPerElement == 2) {
-                bytesToUShort(buffer, byteIndex)
-            } else {
-                bytesToInt(buffer, byteIndex)
-            }
+            ints[i] =
+                if (bytesPerElement == 2) {
+                    bytesToUShort(buffer, byteIndex)
+                } else {
+                    bytesToInt(buffer, byteIndex)
+                }
         }
 
         return ints
@@ -183,13 +205,13 @@ class GltfLoader(private val json: String) {
     private data class AccessorInfo(
         val bufferView: Int,
         val componentType: Int,
-        val count: Int
+        val count: Int,
     )
 
     private data class BufferViewInfo(
         val buffer: Int,
         val byteOffset: Int,
-        val byteLength: Int
+        val byteLength: Int,
     )
 
     private fun findAccessor(index: Int): AccessorInfo? {
@@ -250,14 +272,17 @@ class GltfLoader(private val json: String) {
         return null
     }
 
-    private fun extractInt(json: String, key: String): Int? {
+    private fun extractInt(
+        json: String,
+        key: String,
+    ): Int? {
         val keyStart = json.indexOf("\"$key\"")
         if (keyStart == -1) return null
 
         val colonPos = json.indexOf(":", keyStart)
         if (colonPos == -1) return null
 
-        return parseIntAfter(colonPos)
+        return parseIntAfter(json, colonPos)
     }
 
     private fun findMatchingBrace(openPos: Int): Int {
@@ -273,23 +298,31 @@ class GltfLoader(private val json: String) {
         return i - 1
     }
 
-    private fun bytesToFloat(bytes: ByteArray, offset: Int): Float {
-        val bits = (bytes[offset].toInt() and 0xFF) or
+    private fun bytesToFloat(
+        bytes: ByteArray,
+        offset: Int,
+    ): Float {
+        val bits =
+            (bytes[offset].toInt() and 0xFF) or
                 ((bytes[offset + 1].toInt() and 0xFF) shl 8) or
                 ((bytes[offset + 2].toInt() and 0xFF) shl 16) or
                 ((bytes[offset + 3].toInt() and 0xFF) shl 24)
         return Float.fromBits(bits)
     }
 
-    private fun bytesToUShort(bytes: ByteArray, offset: Int): Int {
-        return (bytes[offset].toInt() and 0xFF) or
-                ((bytes[offset + 1].toInt() and 0xFF) shl 8)
-    }
+    private fun bytesToUShort(
+        bytes: ByteArray,
+        offset: Int,
+    ): Int =
+        (bytes[offset].toInt() and 0xFF) or
+            ((bytes[offset + 1].toInt() and 0xFF) shl 8)
 
-    private fun bytesToInt(bytes: ByteArray, offset: Int): Int {
-        return (bytes[offset].toInt() and 0xFF) or
-                ((bytes[offset + 1].toInt() and 0xFF) shl 8) or
-                ((bytes[offset + 2].toInt() and 0xFF) shl 16) or
-                ((bytes[offset + 3].toInt() and 0xFF) shl 24)
-    }
+    private fun bytesToInt(
+        bytes: ByteArray,
+        offset: Int,
+    ): Int =
+        (bytes[offset].toInt() and 0xFF) or
+            ((bytes[offset + 1].toInt() and 0xFF) shl 8) or
+            ((bytes[offset + 2].toInt() and 0xFF) shl 16) or
+            ((bytes[offset + 3].toInt() and 0xFF) shl 24)
 }

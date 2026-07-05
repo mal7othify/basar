@@ -120,10 +120,10 @@ class QuaternionTest {
         val v = Vec3.RIGHT
         val rotated = halfway * v
 
-        // Should be rotated 45 degrees, which is about (0.707, 0, 0.707)
+        // 45 degrees around +Y (right-handed): +X rotates toward -Z
         assertEquals(0.707f, rotated.x, 0.01f)
         assertEquals(0f, rotated.y, 0.01f)
-        assertEquals(0.707f, rotated.z, 0.01f)
+        assertEquals(-0.707f, rotated.z, 0.01f)
     }
 
     @Test
@@ -139,13 +139,35 @@ class QuaternionTest {
 
     @Test
     fun testLookRotation() {
-        val forward = Vec3.FORWARD
-        val q = Quaternion.lookRotation(forward)
+        // Looking along the default forward is the identity rotation
+        assertQuaternionEquals(Quaternion.IDENTITY, Quaternion.lookRotation(Vec3.FORWARD), 0.001f)
 
-        // lookRotation should rotate the default Z-forward (0,0,1) to point in the target direction
-        val defaultForward = Vec3(0f, 0f, 1f)
-        val rotatedForward = q * defaultForward
-        assertVec3Equals(Vec3.FORWARD, rotatedForward, 0.001f)
+        // lookRotation maps local FORWARD (0,0,-1) onto the target direction
+        val target = Vec3(1f, 0f, -1f).normalized()
+        val q = Quaternion.lookRotation(target)
+        assertVec3Equals(target, q * Vec3.FORWARD, 0.001f)
+    }
+
+    @Test
+    fun testLookRotationRespectsUp() {
+        val forward = Vec3(1f, 0f, -1f).normalized()
+        val q = Quaternion.lookRotation(forward, Vec3.UP)
+
+        // With up = +Y the rotation must not roll: local RIGHT stays horizontal
+        val right = q * Vec3.RIGHT
+        assertEquals(0f, right.y, 0.001f, "lookRotation introduced roll")
+
+        // Local UP stays in the plane spanned by world up and forward
+        val up = q * Vec3.UP
+        assertTrue(up.y > 0.9f, "local up should stay close to world up, got $up")
+    }
+
+    @Test
+    fun testLookRotationParallelToUpDoesNotCollapse() {
+        val q = Quaternion.lookRotation(Vec3.UP, Vec3.UP)
+        val rotated = q * Vec3.FORWARD
+        assertVec3Equals(Vec3.UP, rotated, 0.001f)
+        assertEquals(1f, q.length(), 0.001f)
     }
 
     @Test
@@ -158,5 +180,23 @@ class QuaternionTest {
         assertEquals(euler.x, result.x, 0.01f)
         assertEquals(euler.y, result.y, 0.01f)
         assertEquals(euler.z, result.z, 0.01f)
+    }
+
+    @Test
+    fun testEulerRoundTripCombined() {
+        // A rotation with all three axes involved must survive the round trip
+        val euler = Vec3(0.3f, 0.5f, 0.2f)
+        val q = Quaternion.fromEuler(euler)
+        val result = q.toEulerAngles()
+
+        assertEquals(euler.x, result.x, 0.001f)
+        assertEquals(euler.y, result.y, 0.001f)
+        assertEquals(euler.z, result.z, 0.001f)
+
+        // And per-axis round trips
+        listOf(Vec3(0.7f, 0f, 0f), Vec3(0f, 0.7f, 0f), Vec3(0f, 0f, 0.7f)).forEach { e ->
+            val back = Quaternion.fromEuler(e).toEulerAngles()
+            assertVec3Equals(e, back, 0.001f)
+        }
     }
 }

@@ -31,9 +31,9 @@ import kotlin.random.Random
  * }
  * ```
  */
-class SpatialAnchor(
-    val id: String,
-    val type: AnchorType,
+public class SpatialAnchor(
+    public val id: String,
+    public val type: AnchorType,
 ) {
     /**
      * Current tracking status of the anchor.
@@ -44,7 +44,7 @@ class SpatialAnchor(
      * - LOST: Tracking permanently lost
      * - ERROR: Anchor creation failed
      */
-    var status: AnchorStatus = AnchorStatus.PENDING
+    public var status: AnchorStatus = AnchorStatus.PENDING
         private set
 
     /**
@@ -52,96 +52,107 @@ class SpatialAnchor(
      *
      * null if anchor is not tracking (PENDING or FAILED state).
      */
-    var pose: Pose? = null
+    public var pose: Pose? = null
         private set
 
     /**
      * Whether the anchor is currently tracking.
      */
-    val isTracking: Boolean
+    public val isTracking: Boolean
         get() = status == AnchorStatus.TRACKING
 
     /**
      * Whether the anchor has failed.
      */
-    val hasFailed: Boolean
+    public val hasFailed: Boolean
         get() = status == AnchorStatus.ERROR
 
     /**
      * Whether the anchor is pending creation.
      */
-    val isPending: Boolean
+    public val isPending: Boolean
         get() = status == AnchorStatus.PENDING
 
-    private var onTrackingCallback: ((SpatialAnchor) -> Unit)? = null
-    private var onLostCallback: ((SpatialAnchor) -> Unit)? = null
-    private var onFailedCallback: ((SpatialAnchor) -> Unit)? = null
+    private val onTrackingCallbacks = mutableListOf<(SpatialAnchor) -> Unit>()
+    private val onLostCallbacks = mutableListOf<(SpatialAnchor) -> Unit>()
+    private val onFailedCallbacks = mutableListOf<(SpatialAnchor) -> Unit>()
 
     /**
      * Register a callback for when anchor starts tracking.
      *
-     * Called when status changes to TRACKING.
+     * Called when status changes to TRACKING. Multiple callbacks can be
+     * registered; each registration is independent.
      *
      * @param callback Function to call when tracking starts
+     * @return A handle that unregisters this callback when invoked
      */
-    fun onTrack(callback: (SpatialAnchor) -> Unit) {
-        onTrackingCallback = callback
+    public fun onTrack(callback: (SpatialAnchor) -> Unit): () -> Unit {
+        onTrackingCallbacks.add(callback)
         // If already tracking, call immediately
         if (isTracking) {
             callback(this)
         }
+        return { onTrackingCallbacks.remove(callback) }
     }
 
     /**
      * Register a callback for when anchor loses tracking.
      *
-     * Called when status changes to PAUSED or LOST.
+     * Called when status changes to PAUSED or LOST. Multiple callbacks can be
+     * registered; each registration is independent.
      *
      * @param callback Function to call when tracking is lost
+     * @return A handle that unregisters this callback when invoked
      */
-    fun onLost(callback: (SpatialAnchor) -> Unit) {
-        onLostCallback = callback
+    public fun onLost(callback: (SpatialAnchor) -> Unit): () -> Unit {
+        onLostCallbacks.add(callback)
+        return { onLostCallbacks.remove(callback) }
     }
 
     /**
      * Register a callback for when anchor creation fails.
      *
-     * Called when status changes to ERROR.
+     * Called when status changes to ERROR. Multiple callbacks can be
+     * registered; each registration is independent.
      *
      * @param callback Function to call on failure
+     * @return A handle that unregisters this callback when invoked
      */
-    fun onFailed(callback: (SpatialAnchor) -> Unit) {
-        onFailedCallback = callback
+    public fun onFailed(callback: (SpatialAnchor) -> Unit): () -> Unit {
+        onFailedCallbacks.add(callback)
         // If already failed, call immediately
         if (hasFailed) {
             callback(this)
         }
+        return { onFailedCallbacks.remove(callback) }
     }
 
     /**
-     * Update anchor state from engine.
+     * Update anchor state from an engine-provided [AnchorState].
      *
-     * Called internally by SpatialScene.
+     * Called by the session each frame for tracked anchors. Only call this
+     * directly when integrating a custom engine that manages anchors itself.
      */
-    internal fun update(state: AnchorState) {
+    public fun update(state: AnchorState) {
         val previousStatus = status
 
         status = state.status
         pose = state.pose
 
-        // Trigger callbacks on state changes
+        // Trigger callbacks on state changes (snapshot the list so a callback
+        // may unregister itself without breaking iteration)
         when {
             status == AnchorStatus.TRACKING && previousStatus != AnchorStatus.TRACKING -> {
-                onTrackingCallback?.invoke(this)
+                onTrackingCallbacks.toList().forEach { it(this) }
             }
 
             (status == AnchorStatus.PAUSED || status == AnchorStatus.LOST) &&
                 previousStatus == AnchorStatus.TRACKING -> {
-                onLostCallback?.invoke(this)
+                onLostCallbacks.toList().forEach { it(this) }
             }
 
             status == AnchorStatus.ERROR && previousStatus != AnchorStatus.ERROR -> {
-                onFailedCallback?.invoke(this)
+                onFailedCallbacks.toList().forEach { it(this) }
             }
         }
     }
@@ -159,12 +170,13 @@ class SpatialAnchor(
 
     override fun toString(): String = "SpatialAnchor(id=$id, type=$type, status=$status, tracking=$isTracking)"
 
-    companion object {
-        private var anchorCounter = 0
-
+    public companion object {
         /**
          * Generate a unique anchor ID.
+         *
+         * Uses 64 bits of randomness: safe to call from any thread and the
+         * collision probability is negligible.
          */
-        fun generateId(): String = "anchor-${anchorCounter++}-${Random.nextInt(1000)}"
+        public fun generateId(): String = "anchor-${Random.nextLong().toULong().toString(16)}"
     }
 }

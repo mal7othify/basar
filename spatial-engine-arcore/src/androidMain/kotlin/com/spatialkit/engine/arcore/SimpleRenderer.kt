@@ -7,9 +7,9 @@ import android.opengl.Matrix
 import com.google.ar.core.Camera
 import com.google.ar.core.Coordinates2d
 import com.google.ar.core.Frame
+import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
-import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SceneNode
@@ -21,7 +21,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Data class to hold VBO/VAO resources for a geometry (P0.1 fix).
+ * Data class to hold VBO/VAO resources for a geometry.
  */
 private data class GeometryBuffers(
     val vao: Int,
@@ -36,18 +36,13 @@ private data class GeometryBuffers(
  *
  * Renders the AR camera background as a fullscreen texture, then renders 3D scene nodes on top.
  * This is a minimal implementation - a production app would use Filament or SceneView.
- *
- * P0 FIX STATUS:
- * - P0.1: VBO/VAO caching implemented to prevent memory leaks ✅
- * - P0.2: Resource cleanup in destroy() completed ✅
- * - P0.3: Thread safety added for scene mutations ✅
  */
-class SimpleRenderer(
+public class SimpleRenderer(
     private val context: Context,
 ) {
     private var cameraTextureId: Int = 0
 
-    // P0.3 FIX: Thread-safe scene node list
+    // Thread-safe scene node list
     private val sceneNodes = mutableListOf<SceneNode>()
     private val sceneLock = ReentrantLock()
 
@@ -67,13 +62,13 @@ class SimpleRenderer(
     // Display rotation handling
     private val transformedUvs = FloatArray(8)
 
-    // P0.1 FIX: VBO/VAO caching to prevent memory leaks
+    // VBO/VAO caching to prevent memory leaks
     private val geometryCache = mutableMapOf<GeometryType, GeometryBuffers>()
 
     // Custom mesh cache keyed by node ID (each custom mesh has unique geometry)
     private val customMeshCache = mutableMapOf<String, GeometryBuffers>()
 
-    // P0.2 FIX: Store shader references for cleanup
+    // Store shader references for cleanup
     private var vertexShader: Int = 0
     private var fragmentShader: Int = 0
     private var backgroundVertexShader: Int = 0
@@ -209,7 +204,7 @@ class SimpleRenderer(
             throw RuntimeException("Program link failed: $error")
         }
 
-        // P0.2 FIX: Save shader references for cleanup
+        // Save shader references for cleanup
         if (saveShaders) {
             if (program == backgroundProgram || backgroundProgram == 0) {
                 backgroundVertexShader = vShader
@@ -243,25 +238,25 @@ class SimpleRenderer(
         return shader
     }
 
-    fun getCameraTextureId(): Int = cameraTextureId
+    public fun getCameraTextureId(): Int = cameraTextureId
 
     /**
      * Initialize OpenGL resources (must be called from GL thread)
      */
-    fun initialize() {
+    public fun initialize() {
         if (isInitialized) return
 
-        println("SimpleRenderer: Initializing OpenGL resources")
+        SpatialLog.debug(TAG) { "initializing OpenGL resources" }
         initializeCameraTexture()
         initializeBackgroundShader()
         initialize3DShader()
         isInitialized = true
-        println("SimpleRenderer: backgroundProgram = $backgroundProgram, cameraTextureId = $cameraTextureId")
-        println("SimpleRenderer: sceneProgram = $sceneProgram")
-        println("SimpleRenderer: Initialization complete")
+        SpatialLog.debug(TAG) { "backgroundProgram=$backgroundProgram cameraTextureId=$cameraTextureId" }
+        SpatialLog.debug(TAG) { "sceneProgram=$sceneProgram" }
+        SpatialLog.debug(TAG) { "initialization complete" }
     }
 
-    fun resize(
+    public fun resize(
         width: Int,
         height: Int,
     ) {
@@ -269,22 +264,22 @@ class SimpleRenderer(
     }
 
     /**
-     * Update the scene with new data (P0.3 fix: thread-safe).
+     * Update the scene with new data.
      */
-    fun updateScene(sceneData: SceneData) {
+    public fun updateScene(sceneData: SceneData) {
         sceneLock.withLock {
             sceneNodes.clear()
             sceneNodes.addAll(sceneData.nodes)
         }
     }
 
-    fun render(
+    public fun render(
         frame: Frame,
         arCamera: Camera,
     ) {
         // Ensure initialization happened (should be done in onSurfaceCreated)
         if (!isInitialized) {
-            println("SimpleRenderer: WARNING - render() called before initialize()!")
+            SpatialLog.warn(TAG) { "render() called before initialize()" }
             initialize()
         }
 
@@ -311,7 +306,7 @@ class SimpleRenderer(
      * Render only the camera background (used when camera isn't tracking yet).
      * This prevents the brown screen during initialization.
      */
-    fun renderCameraOnly(
+    public fun renderCameraOnly(
         frame: Frame,
         arCamera: Camera,
     ) {
@@ -385,7 +380,7 @@ class SimpleRenderer(
 
     private fun renderBackground(frame: Frame) {
         if (backgroundProgram == 0) {
-            println("SimpleRenderer: ERROR - backgroundProgram is 0!")
+            SpatialLog.error(TAG) { "backgroundProgram is 0" }
             return
         }
 
@@ -433,10 +428,10 @@ class SimpleRenderer(
         GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
     }
 
-    // ===== P0.1 FIX: VBO/VAO Caching Implementation =====
+    // ===== VBO/VAO Caching Implementation =====
 
     /**
-     * Create and upload geometry to GPU buffers (P0.1 fix).
+     * Create and upload geometry to GPU buffers.
      * Called once per geometry type and reused across all frames.
      */
     private fun createGeometryBuffers(
@@ -524,11 +519,16 @@ class SimpleRenderer(
     /**
      * Get or create cached geometry buffers for a custom mesh, keyed by node ID.
      */
-    private fun getOrCreateCustomMeshBuffers(nodeId: String, geometry: GeometryData): GeometryBuffers? {
+    private fun getOrCreateCustomMeshBuffers(
+        nodeId: String,
+        geometry: GeometryData,
+    ): GeometryBuffers? {
         return customMeshCache.getOrPut(nodeId) {
             val vertices = geometry.vertices ?: return null
             val indices = geometry.indices ?: return null
-            val normals = geometry.normals ?: FloatArray(vertices.size) // default zero normals
+            val normals =
+                geometry.normals?.takeIf { it.size == vertices.size }
+                    ?: com.spatialkit.engine.generateVertexNormals(vertices, indices)
 
             val shortIndices = ShortArray(indices.size) { indices[it].toShort() }
             return@getOrPut createGeometryBuffers(vertices, normals, shortIndices)
@@ -787,7 +787,7 @@ class SimpleRenderer(
     }
 
     /**
-     * Delete geometry buffers (P0.2 fix).
+     * Delete geometry buffers.
      */
     private fun deleteGeometryBuffers(buffers: GeometryBuffers) {
         val vaoIds = intArrayOf(buffers.vao)
@@ -797,13 +797,11 @@ class SimpleRenderer(
         GLES30.glDeleteBuffers(3, vboIds, 0)
     }
 
-    // ===== End P0.1 FIX =====
-
     private fun render3DScene(
         frame: Frame,
         arCamera: Camera,
     ) {
-        // P0.3 FIX: Copy scene nodes under lock to avoid race conditions
+        // Copy scene nodes under lock to avoid race conditions
         val nodesToRender =
             sceneLock.withLock {
                 if (sceneNodes.isEmpty()) {
@@ -894,12 +892,13 @@ class SimpleRenderer(
             mesh.material.baseColor.z,
         )
 
-        // P0.1 FIX: Use cached geometry buffers instead of creating new ones every frame
-        val buffers = if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
-            getOrCreateCustomMeshBuffers(mesh.id, mesh.geometry)
-        } else {
-            getOrCreateGeometryBuffers(mesh.geometry.type)
-        }
+        // Use cached geometry buffers instead of creating new ones every frame
+        val buffers =
+            if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+                getOrCreateCustomMeshBuffers(mesh.id, mesh.geometry)
+            } else {
+                getOrCreateGeometryBuffers(mesh.geometry.type)
+            }
         if (buffers != null) {
             // Bind VAO and draw
             GLES30.glBindVertexArray(buffers.vao)
@@ -908,12 +907,8 @@ class SimpleRenderer(
         }
     }
 
-    // P0.1 FIX: Old renderCube(), renderSphere(), renderCylinder(), and drawGeometry()
-    // functions removed. They were creating new ByteBuffers every frame causing memory leaks.
-    // Replaced with VBO/VAO caching implemented above.
-
     /**
-     * Perform world-space raycasting against scene meshes (P2 bug #11 fix).
+     * Perform world-space raycasting against scene meshes.
      *
      * Tests a ray against all visible mesh nodes in the scene and returns
      * the closest intersection point.
@@ -922,7 +917,7 @@ class SimpleRenderer(
      * @param direction Ray direction (should be normalized)
      * @return Closest intersection or null if no hit
      */
-    fun performRaycast(
+    public fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? {
@@ -1122,11 +1117,11 @@ class SimpleRenderer(
         }
 
     /**
-     * Clean up all OpenGL resources (P0.2 fix).
+     * Clean up all OpenGL resources.
      * Must be called when the renderer is no longer needed.
      */
-    fun destroy() {
-        // P0.2 FIX: Delete all OpenGL resources to prevent GPU memory leaks
+    public fun destroy() {
+        // Delete all OpenGL resources to prevent GPU memory leaks
 
         // Delete textures
         if (cameraTextureId != 0) {
@@ -1163,18 +1158,22 @@ class SimpleRenderer(
             fragmentShader = 0
         }
 
-        // P0.1 FIX: Delete all cached VBOs/VAOs
+        // Delete all cached VBOs/VAOs
         geometryCache.values.forEach { deleteGeometryBuffers(it) }
         geometryCache.clear()
         customMeshCache.values.forEach { deleteGeometryBuffers(it) }
         customMeshCache.clear()
 
-        // P0.3 FIX: Clear scene data under lock
+        // Clear scene data under lock
         sceneLock.withLock {
             sceneNodes.clear()
         }
 
         // Reset initialization flag
         isInitialized = false
+    }
+
+    private companion object {
+        const val TAG = "SimpleRenderer"
     }
 }

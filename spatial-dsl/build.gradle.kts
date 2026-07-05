@@ -1,10 +1,14 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
+    explicitApi()
+
     androidTarget {
+        publishLibraryVariants("release")
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
@@ -22,10 +26,11 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // DSL layer depends on scene graph
-            implementation(project(":spatial-scene"))
-            implementation(project(":spatial-engine"))
-            implementation(project(":spatial-core"))
+            // api: DSL scope functions return scene node types and accept
+            // core types (Color, Vec3, GeometryData, ...)
+            api(project(":spatial-scene"))
+            api(project(":spatial-engine"))
+            api(project(":spatial-core"))
         }
 
         commonTest.dependencies {

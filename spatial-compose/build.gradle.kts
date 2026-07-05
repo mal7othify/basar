@@ -4,10 +4,14 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
+    explicitApi()
+
     androidTarget {
+        publishLibraryVariants("release")
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
@@ -25,23 +29,25 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Compose dependencies
-            implementation(compose.runtime)
+            // Compose dependencies (runtime/ui appear in the SpatialView signature,
+            // animation-core types in the animatedSpatial* signatures)
+            api(compose.runtime)
+            api(compose.ui)
+            api(compose.animation)
             implementation(compose.foundation)
-            implementation(compose.ui)
 
-            // Spatial modules
-            implementation(project(":spatial-dsl"))
-            implementation(project(":spatial-scene"))
-            implementation(project(":spatial-engine"))
-            implementation(project(":spatial-core"))
+            // api: SpatialView exposes SpatialSceneScope, SessionMode, EngineConfig,
+            // SpatialSession, FrameData, EngineError
+            api(project(":spatial-dsl"))
+            api(project(":spatial-scene"))
+            api(project(":spatial-engine"))
+            api(project(":spatial-core"))
         }
 
-        androidMain.dependencies {
-            implementation(libs.androidx.activity.compose)
-            // ARCore engine for Android
-            implementation(project(":spatial-engine-arcore"))
-        }
+        // No Android engine dependency on purpose: ARCore needs a Context the
+        // library can't supply, and bundling it would force it on every consumer.
+        // Apps provide an engine via SpatialView's `engine` parameter or
+        // LocalSpatialEngine (see spatial-engine-arcore).
 
         iosMain.dependencies {
             // ARKit engine for iOS
