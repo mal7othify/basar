@@ -1,0 +1,59 @@
+name: Claude Code Review
+
+# Automated code review by Claude on every pull request. Claude posts its
+# findings as a review comment; it does not block merges (advisory only).
+#
+# Setup required once per repo (Settings → Secrets and variables → Actions):
+#   - ANTHROPIC_API_KEY  — an Anthropic API key
+# and install the Claude GitHub App on the repo:
+#   https://github.com/apps/claude
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          track_progress: true
+          prompt: |
+            Review this pull request as an experienced Kotlin Multiplatform
+            reviewer. Basar is a KMP AR/VR library with a strict layered
+            architecture (spatial-core → spatial-engine → platform engines /
+            spatial-scene → spatial-dsl → spatial-compose).
+
+            Focus on, in priority order:
+            1. Correctness bugs — especially in shared commonMain code, which
+               runs on every platform.
+            2. Layering / architecture violations — a lower module must never
+               depend on a higher one; platform engines must not depend on
+               scene/dsl.
+            3. KMP hygiene — expect/actual pairing, target parity, code that
+               belongs in commonMain leaking into a platform source set.
+            4. Public API changes — anything touching a module's `api/*.api`
+               dump is a binary-compatibility change; call it out.
+            5. Concurrency, resource leaks (GPU buffers, native handles), and
+               per-frame allocations on the render path.
+
+            Be concise. Report only issues worth acting on; if the PR looks
+            good, say so briefly. Post findings as inline comments where they
+            apply.
