@@ -34,7 +34,7 @@ This module defines **THE CONTRACT** between the Spatial-KMP library and platfor
 - **Input.kt** - Unified input abstraction (controllers, hands, touch, gaze)
 
 ### Foundation
-- **Math.kt** - Minimal math types (Vec3, Vec4, Quaternion, Transform)
+- **Math.kt** - Typealiases re-exporting `spatial-core` math types (Vec3, Vec4, Quaternion, Transform)
 
 ## Engine Lifecycle
 
@@ -42,25 +42,29 @@ This module defines **THE CONTRACT** between the Spatial-KMP library and platfor
 // 1. Create platform-specific engine
 val engine: SpatialEngine = createPlatformEngine()
 
-// 2. Initialize
-engine.initialize(
-    EngineConfig(
-        preferredMode = SessionMode.AR,
-        enablePlaneDetection = true
+suspend fun run() {
+    // 2. Initialize (suspends until the engine is Ready or fails)
+    engine.initialize(
+        EngineConfig(
+            preferredMode = SessionMode.AR,
+            enablePlaneDetection = true
+        )
     )
-)
 
-// 3. Start session
-engine.startSession(SessionMode.AR)
+    // 3. Register frame callback
+    engine.onFrame { frameData ->
+        // Update your app based on tracking, input, detected planes
+        updateScene(frameData)
 
-// 4. Register frame callback
-engine.onFrame { frameData ->
-    // Update your app based on tracking, input, detected planes
-    updateScene(frameData)
+        // Submit updated scene
+        engine.submitScene(buildScene())
+    }
 
-    // Submit updated scene
-    engine.submitScene(buildScene())
+    // 4. Start session (suspends until Running or Error)
+    engine.startSession(SessionMode.AR)
 }
+
+// Engine state is observable: engine.state is a StateFlow<EngineState>
 
 // 5. Stop when done
 engine.stopSession()
@@ -71,13 +75,15 @@ engine.dispose()
 
 ## Platform Implementations
 
-This contract will be implemented by:
+This contract is implemented by:
 
 - `spatial-engine-webxr` - WebXR implementation (Kotlin/JS + Three.js)
 - `spatial-engine-arcore` - ARCore implementation (Android)
-- `spatial-engine-arkit` - ARKit implementation (iOS)
+- `spatial-engine-arkit` - ARKit implementation (iOS, SceneKit-backed)
 
 Each implementation converts between native platform APIs and this contract.
+A `FallbackEngine` (reports `NotSupported`) backs unsupported platforms so
+shared code never crashes.
 
 ## Design Principles
 
@@ -123,11 +129,10 @@ Each implementation converts between native platform APIs and this contract.
 
 ❌ **Don't remove or rename** existing fields, methods, or types without a major version bump
 
-## Next Steps
+## Status
 
-After this contract is stable:
-1. Build first implementation (`spatial-engine-webxr`)
-2. Validate contract works in practice
-3. Iterate if needed (before 1.0)
-4. Build scene graph on top of validated contract
-5. Build Compose DSL as final layer
+The contract is implemented and validated by all three platform renderers, and
+the scene graph (`spatial-scene`), DSL (`spatial-dsl`), and Compose integration
+(`spatial-compose`) are built on top of it. Binary compatibility is enforced by
+`binary-compatibility-validator` (`api/*.api` dumps). See
+[PRODUCTION_PLAN.md](../PRODUCTION_PLAN.md) for the roadmap.

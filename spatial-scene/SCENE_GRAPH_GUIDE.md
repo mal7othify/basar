@@ -27,19 +27,19 @@ val runtime = SpatialRuntime()
 val session = SpatialSession(runtime)
 
 // Add a cube
-val cube = CubeNode(size = 0.1f, color = Color.RED)
+val cube = CubeNode(size = 0.1f, color = Color.Red)
 cube.position = Vec3(0f, 0f, -1f)  // 1 meter in front
 session.scene.add(cube)
 
-// Start session
+// Start session (suspend function — call from a coroutine)
 session.start(
     config = EngineConfig(preferredMode = SessionMode.AR),
     onFrame = { frameData ->
-        // Animate cube
+        // Animate cube (fromEuler takes radians; .degrees converts)
         cube.rotation = Quaternion.fromEuler(
-            x = 0f,
-            y = (frameData.timestamp / 1000f) * 45f,  // Rotate 45°/sec
-            z = 0f
+            pitch = 0f,
+            yaw = ((frameData.timestamp / 1000f) * 45f).degrees,  // 45°/sec
+            roll = 0f
         )
     },
     onError = { error ->
@@ -56,9 +56,9 @@ session.start(
 
 ```kotlin
 // Basic shapes
-val cube = CubeNode(size = 0.1f, color = Color.RED)
-val sphere = SphereNode(radius = 0.05f, color = Color.BLUE)
-val plane = PlaneNode(width = 0.5f, height = 0.5f, color = Color.GREEN)
+val cube = CubeNode(size = 0.1f, color = Color.Red)
+val sphere = SphereNode(radius = 0.05f, color = Color.Blue)
+val plane = PlaneNode(width = 0.5f, height = 0.5f, color = Color.Green)
 val cylinder = CylinderNode(radius = 0.05f, height = 0.2f)
 val capsule = CapsuleNode(radius = 0.05f, height = 0.2f)
 
@@ -70,7 +70,7 @@ val custom = CustomMeshNode(
         normals = floatArrayOf(...),
         indices = intArrayOf(...)
     ),
-    color = Color.CYAN
+    color = Color.Cyan
 )
 
 // Group (container for other nodes)
@@ -83,8 +83,8 @@ val group = GroupNode()
 // Position (local space)
 cube.position = Vec3(x = 1f, y = 0f, z = -2f)
 
-// Rotation (quaternion)
-cube.rotation = Quaternion.fromEuler(x = 0f, y = 45f, z = 0f)
+// Rotation (quaternion; fromEuler takes radians — use .degrees to convert)
+cube.rotation = Quaternion.fromEuler(pitch = 0f, yaw = 45.degrees, roll = 0f)
 
 // Scale
 cube.scale = Vec3(2f, 1f, 1f)  // Stretch on X axis
@@ -97,7 +97,7 @@ cube.visible = false
 
 ```kotlin
 cube.materialType = MaterialType.PBR
-cube.color = Color.RED
+cube.color = Color.Red
 cube.metallic = 0.8f  // More metal-like
 cube.roughness = 0.2f  // Smooth
 ```
@@ -111,8 +111,8 @@ cube.roughness = 0.2f  // Smooth
 ```kotlin
 // Create hierarchy
 val ship = GroupNode()  // Root
-val body = CubeNode(size = 0.2f, color = Color.GRAY)
-val engine = CylinderNode(radius = 0.05f, height = 0.1f, color = Color.ORANGE)
+val body = CubeNode(size = 0.2f, color = Color.Gray)
+val engine = CylinderNode(radius = 0.05f, height = 0.1f, color = Color.fromHex("#FFA500"))
 
 ship.addChild(body)
 ship.addChild(engine)
@@ -123,7 +123,7 @@ engine.position = Vec3(0f, 0f, -0.15f)  // Behind body
 
 // Move entire ship
 ship.position = Vec3(0f, 0f, -1f)  // Children move with it
-ship.rotation = Quaternion.fromEuler(0f, 90f, 0f)  // Children rotate with it
+ship.rotation = Quaternion.fromEuler(0f, 90.degrees, 0f)  // Children rotate with it
 
 // Add to scene
 session.scene.add(ship)
@@ -160,8 +160,9 @@ session.start(
                 )
             )
 
-            // Attach cube to anchor
-            anchor.onTrack {
+            // Attach cube to anchor. Callbacks are multicast; each
+            // registration returns an unsubscribe handle.
+            val unsubscribe = anchor.onTrack {
                 cube.position = anchor.pose!!.position
                 cube.rotation = anchor.pose!!.rotation
             }
@@ -173,6 +174,8 @@ session.start(
             anchor.onFailed {
                 println("Anchor creation failed")
             }
+
+            // Later: unsubscribe() to stop listening
         }
     }
 )
@@ -189,13 +192,13 @@ val worldAnchor = scene.createAnchor(
     )
 )
 
-// Hit test anchor (from touch)
+// Hit test anchor (from touch; coordinates are normalized 0–1)
 val hitResult = session.performHitTest(screenX, screenY)
 hitResult?.let {
     val hitAnchor = scene.createAnchor(
         type = AnchorType.HitTest(
             hitPoint = it.position,
-            hitNormal = it.normal
+            hitNormal = it.normal ?: Vec3.UP
         )
     )
 }
@@ -273,9 +276,9 @@ session.start(
 
         // Rotate cube
         cube.rotation = Quaternion.fromEuler(
-            x = 0f,
-            y = time * 45f,  // 45°/sec
-            z = 0f
+            pitch = 0f,
+            yaw = (time * 45f).degrees,  // 45°/sec
+            roll = 0f
         )
 
         // Bob sphere up and down
@@ -304,23 +307,20 @@ session.start(
             .forEach { screen ->
                 screen.touches.forEach { touch ->
                     if (touch.phase == TouchPhase.BEGAN) {
-                        handleTap(touch.position)
+                        handleTap(touch.screenX, touch.screenY)
                     }
                 }
             }
     }
 )
 
-fun handleTap(position: Vec2) {
-    // Perform hit test
-    val hit = session.performHitTest(
-        screenX = position.x,
-        screenY = position.y
-    )
+fun handleTap(screenX: Float, screenY: Float) {
+    // Perform hit test (normalized 0–1 coordinates)
+    val hit = session.performHitTest(screenX, screenY)
 
     hit?.let {
         // Place object at hit position
-        val cube = CubeNode(size = 0.05f, color = Color.random())
+        val cube = CubeNode(size = 0.05f, color = Color.Cyan)
         cube.position = it.position
         session.scene.add(cube)
     }
@@ -334,25 +334,25 @@ session.start(
     onFrame = { frameData ->
         // Visualize detected planes
         frameData.detectedPlanes.forEach { plane ->
-            // Create/update plane visualization
+            // Create/update plane visualization (node id is set at construction)
             var planeNode = session.scene.findNodeById("plane-${plane.id}") as? PlaneNode
 
             if (planeNode == null) {
                 planeNode = PlaneNode(
                     width = plane.extentX,
                     height = plane.extentZ,
-                    color = Color.WHITE.copy(a = 0.5f)  // Semi-transparent
+                    color = Color.White.withAlpha(0.5f),  // Semi-transparent
+                    id = "plane-${plane.id}"
                 )
-                planeNode.id = "plane-${plane.id}"
-                planeNode.position = plane.pose.position
-                planeNode.rotation = plane.pose.rotation
+                planeNode.position = plane.centerPose.position
+                planeNode.rotation = plane.centerPose.rotation
                 session.scene.add(planeNode)
             } else {
                 // Update existing
                 planeNode.width = plane.extentX
                 planeNode.height = plane.extentZ
-                planeNode.position = plane.pose.position
-                planeNode.rotation = plane.pose.rotation
+                planeNode.position = plane.centerPose.position
+                planeNode.rotation = plane.centerPose.rotation
             }
         }
     }
@@ -370,7 +370,7 @@ session.start(
         if (frameData.timestamp - lastSpawnTime > 1000) {
             val cube = CubeNode(
                 size = 0.05f,
-                color = Color.random()
+                color = Color.fromHSL(Random.nextFloat() * 360f, 0.8f, 0.5f)
             )
             cube.position = Vec3(
                 x = Random.nextFloat() * 0.5f - 0.25f,
@@ -407,7 +407,7 @@ session.start(
 ```kotlin
 ✅ GOOD:
 val cubes = List(10) { CubeNode() }
-session.scene.nodes.forEach { session.scene.add(it) }
+cubes.forEach { session.scene.add(it) }
 
 // Update existing cubes
 onFrame {
@@ -470,7 +470,7 @@ class SpatialSession(runtime: SpatialRuntime) {
 
     fun stop()
     fun dispose()
-    fun performHitTest(screenX: Float, screenY: Float): HitTestResult?
+    fun performHitTest(screenX: Float, screenY: Float): HitTestResult?  // normalized 0–1
     fun performRaycast(origin: Vec3, direction: Vec3): RaycastResult?
 }
 ```
@@ -540,9 +540,10 @@ class SpatialAnchor(id: String, type: AnchorType) {
     val hasFailed: Boolean
     val isPending: Boolean
 
-    fun onTrack(callback: (SpatialAnchor) -> Unit)
-    fun onLost(callback: (SpatialAnchor) -> Unit)
-    fun onFailed(callback: (SpatialAnchor) -> Unit)
+    // Callbacks are multicast; each call returns an unsubscribe handle
+    fun onTrack(callback: (SpatialAnchor) -> Unit): () -> Unit
+    fun onLost(callback: (SpatialAnchor) -> Unit): () -> Unit
+    fun onFailed(callback: (SpatialAnchor) -> Unit): () -> Unit
 }
 ```
 
@@ -570,7 +571,8 @@ class SpatialAnchor(id: String, type: AnchorType) {
    - Call `session.dispose()` when done
    - Remove anchors you're not using
 
----
-
-**Last Updated**: January 15, 2026
-**Module Version**: spatial-scene v1.0
+6. **Respect the Threading Model**
+   - Structural operations (`add`/`remove`/anchor management/`toSceneData()`) are
+     synchronized internally
+   - Node-level state (transforms, colors, child lists) must only be mutated from
+     the frame callback — it runs on the render thread

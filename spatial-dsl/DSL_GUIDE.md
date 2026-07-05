@@ -17,11 +17,11 @@ import com.spatialkit.dsl.*
 import com.spatialkit.core.types.Color
 
 val scene = spatialScene {
-    cube(size = 0.1f, color = Color.RED) {
+    cube(size = 0.1f, color = Color.Red) {
         position = vec3(0f, 1.5f, -1f)
     }
 
-    sphere(radius = 0.05f, color = Color.BLUE) {
+    sphere(radius = 0.05f, color = Color.Blue) {
         position = vec3(0.2f, 1.5f, -1f)
     }
 }
@@ -31,7 +31,7 @@ val scene = spatialScene {
 
 ```kotlin
 val scene = spatialScene {
-    cube(size = 10.cm, color = Color.RED) {
+    cube(size = 10.cm, color = Color.Red) {
         position = vec3(0f, 1.5.meters, -1.meters)
         rotation = eulerDegrees(0, 45, 0)
     }
@@ -47,7 +47,7 @@ val scene = spatialScene {
 ```kotlin
 cube(
     size = 0.1f,              // Size on all axes (meters)
-    color = Color.RED,        // Color
+    color = Color.Red,        // Color
     id = "my-cube"            // Optional unique ID
 ) {
     position = vec3(0f, 0f, -1f)
@@ -67,7 +67,7 @@ cube(
 ```kotlin
 sphere(
     radius = 0.05f,
-    color = Color.BLUE
+    color = Color.Blue
 ) {
     position = vec3(0f, 1f, -1f)
 }
@@ -79,7 +79,7 @@ sphere(
 plane(
     width = 1f,
     height = 1f,
-    color = Color.GREEN
+    color = Color.Green
 ) {
     position = vec3(0f, 0f, -1f)
     rotation = eulerDegrees(90, 0, 0)  // Horizontal
@@ -92,7 +92,7 @@ plane(
 cylinder(
     radius = 0.05f,
     height = 0.2f,
-    color = Color.YELLOW
+    color = Color.Yellow
 ) {
     position = vec3(0f, 0f, -1f)
 }
@@ -104,7 +104,7 @@ cylinder(
 capsule(
     radius = 0.05f,
     height = 0.2f,
-    color = Color.CYAN
+    color = Color.Cyan
 ) {
     position = vec3(0f, 0f, -1f)
 }
@@ -121,23 +121,23 @@ spatialScene {
     // Create a robot
     group {
         // Body (center of robot)
-        cube(size = 0.1f, color = Color.BLUE) {
+        cube(size = 0.1f, color = Color.Blue) {
             position = vec3(0f, 0f, 0f)
         }
 
         // Head (above body)
-        sphere(radius = 0.05f, color = Color.GRAY) {
+        sphere(radius = 0.05f, color = Color.Gray) {
             position = vec3(0f, 0.15f, 0f)
         }
 
         // Left arm
-        cylinder(radius = 0.02f, height = 0.1f, color = Color.GRAY) {
+        cylinder(radius = 0.02f, height = 0.1f, color = Color.Gray) {
             position = vec3(-0.08f, 0.05f, 0f)
             rotation = eulerDegrees(0, 0, 90)
         }
 
         // Right arm
-        cylinder(radius = 0.02f, height = 0.1f, color = Color.GRAY) {
+        cylinder(radius = 0.02f, height = 0.1f, color = Color.Gray) {
             position = vec3(0.08f, 0.05f, 0f)
             rotation = eulerDegrees(0, 0, -90)
         }
@@ -181,7 +181,7 @@ spatialScene {
         planeId = "detected-plane-1",
         offset = vec3(0f, 0.1f, 0f)  // 10cm above plane
     ) {
-        cube(size = 0.2f, color = Color.RED)
+        cube(size = 0.2f, color = Color.Red)
 
         group {
             sphere { position = vec3(0.1f, 0f, 0f) }
@@ -199,12 +199,15 @@ spatialScene {
         position = vec3(0f, 0f, -1f),
         rotation = Quaternion.IDENTITY
     ) {
-        sphere(radius = 0.1f, color = Color.BLUE)
+        sphere(radius = 0.1f, color = Color.Blue)
     }
 }
 ```
 
 ### Dynamic Anchoring
+
+`SpatialSceneScope` can wrap an existing scene, so you can keep building into
+it after construction:
 
 ```kotlin
 val scene = spatialScene {
@@ -213,8 +216,8 @@ val scene = spatialScene {
 
 // Later, in onFrame callback:
 frameData.detectedPlanes.firstOrNull()?.let { plane ->
-    scene.anchorToPlane(planeId = plane.id) {
-        cube(size = 0.2f, color = Color.GREEN)
+    SpatialSceneScope(scene).anchorToPlane(planeId = plane.id) {
+        cube(size = 0.2f, color = Color.Green)
     }
 }
 ```
@@ -310,9 +313,10 @@ suspend fun createARScene() {
     val runtime = SpatialRuntime()
     val session = SpatialSession(runtime)
 
-    // Build scene with DSL
-    session.scene = spatialScene {
-        cube(size = 10.cm, color = Color.RED) {
+    // Build into the session's scene with the DSL
+    // (session.scene is a val — wrap it in a scope rather than replacing it)
+    SpatialSceneScope(session.scene).apply {
+        cube(size = 10.cm, color = Color.Red) {
             position = vec3(0f, 0f, -1.meters)
         }
     }
@@ -327,19 +331,19 @@ suspend fun createARScene() {
 
 ```kotlin
 val scene = spatialScene {
-    // Create a row of cubes
+    // Create a row of cubes (id is a constructor parameter, not settable later)
     repeat(5) { i ->
         cube(
             size = 5.cm,
-            color = rgb(0xFF0000 + i * 0x003300)
+            color = rgb(0xFF0000 + i * 0x003300),
+            id = "cube-$i"
         ) {
             position = vec3(i * 0.1f - 0.2f, 1.5f, -1f)
-            id = "cube-$i"
         }
     }
 }
 
-// Later, modify specific cubes
+// Later, modify specific cubes — from the frame callback (render thread)
 scene.findNodeById("cube-2")?.let { node ->
     node.scale = Vec3(2f, 2f, 2f)
 }
@@ -352,11 +356,11 @@ val scene = spatialScene {
     group(id = "spinning-group") {
         position = vec3(0f, 1.5f, -1f)
 
-        cube(size = 10.cm, color = Color.RED) {
+        cube(size = 10.cm, color = Color.Red) {
             position = vec3(0.1f, 0f, 0f)
         }
 
-        sphere(radius = 5.cm, color = Color.BLUE) {
+        sphere(radius = 5.cm, color = Color.Blue) {
             position = vec3(-0.1f, 0f, 0f)
         }
     }
@@ -367,7 +371,7 @@ session.start(
     onFrame = { frameData ->
         val time = frameData.timestamp / 1000f
         scene.findNodeById("spinning-group")?.let { group ->
-            group.rotation = eulerDegrees(0, (time * 45f).toInt(), 0)
+            group.rotation = eulerDegrees(0f, time * 45f, 0f)
         }
     }
 )
@@ -392,9 +396,9 @@ session.start(
                 ) {
                     // Content on the plane
                     group {
-                        cube(size = 20.cm, color = Color.RED)
+                        cube(size = 20.cm, color = Color.Red)
 
-                        sphere(radius = 5.cm, color = Color.WHITE) {
+                        sphere(radius = 5.cm, color = Color.White) {
                             position = vec3(0f, 15.cm, 0f)
                         }
                     }
@@ -444,11 +448,11 @@ session.start(
         val time = frameData.timestamp / 1000f
 
         scene.findNodeById("earth-orbit")?.let { orbit ->
-            orbit.rotation = eulerDegrees(0, (time * 30f).toInt(), 0)
+            orbit.rotation = eulerDegrees(0f, time * 30f, 0f)
         }
 
         scene.findNodeById("moon-orbit")?.let { orbit ->
-            orbit.rotation = eulerDegrees(0, (time * 60f).toInt(), 0)
+            orbit.rotation = eulerDegrees(0f, time * 60f, 0f)
         }
     }
 )
@@ -462,7 +466,7 @@ session.start(
 
 ```kotlin
 val scene = spatialScene {
-    cube(size = 10.cm, color = Color.RED) {
+    cube(size = 10.cm, color = Color.Red) {
         position = vec3(0f, 0f, -1f)
     }
 }
@@ -478,7 +482,7 @@ val scene = spatialScene {
 
 ```kotlin
 val scene = SpatialScene()
-val cube = CubeNode(size = 0.1f, color = Color.RED)
+val cube = CubeNode(size = 0.1f, color = Color.Red)
 cube.position = Vec3(0f, 0f, -1f)
 scene.add(cube)
 ```
@@ -611,5 +615,4 @@ cube {
 
 ---
 
-**Last Updated**: January 16, 2026
-**Module Version**: spatial-dsl v1.0
+**Module**: `com.spatialkit:spatial-dsl` (see the root README for the current version)

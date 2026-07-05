@@ -14,8 +14,7 @@ suspend fun startARSession() {
         EngineConfig(
             preferredMode = SessionMode.AR,
             enablePlaneDetection = true,
-            enableLightEstimation = true,
-            targetFrameRate = 60
+            enableLightEstimation = true
         )
     )
 
@@ -82,12 +81,13 @@ fun handleFrame(frame: FrameData) {
 
 ```kotlin
 fun handleTap(screenX: Float, screenY: Float) {
-    // Perform hit test to find where user tapped
+    // Perform hit test to find where user tapped.
+    // Coordinates are normalized 0–1: (0,0) = top-left, (1,1) = bottom-right.
     val hit = engine.performHitTest(screenX, screenY) ?: return
 
     // Create anchor at hit point
     val anchor = AnchorRequest(
-        id = "user_tap_${System.currentTimeMillis()}",
+        id = "user_tap_$tapCounter",
         type = if (hit.planeId != null) {
             // Prefer plane anchor for stability
             AnchorType.Plane(
@@ -281,10 +281,10 @@ suspend fun robustEngineSetup() {
     try {
         engine.initialize(EngineConfig())
     } catch (e: Exception) {
-        // Check error state
-        when (val state = engine.state) {
+        // Check error state (engine.state is a StateFlow<EngineState>)
+        when (val state = engine.state.value) {
             is EngineState.Error -> {
-                when (state.error) {
+                when (val error = state.error) {
                     is EngineError.NotSupported -> {
                         // Show "AR not available" message
                     }
@@ -292,7 +292,7 @@ suspend fun robustEngineSetup() {
                         // Request camera permission
                     }
                     is EngineError.InitializationFailed -> {
-                        // Show error: state.error.reason
+                        // Show error: error.reason
                     }
                     else -> {}
                 }

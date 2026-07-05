@@ -1,8 +1,11 @@
 # Animation System Guide
 
-**Fix for P2 Bug #8: Animation System Stubbed**
-
 The `SpatialAnimator` provides a simple but functional animation API for animating spatial node transforms.
+
+For Compose-driven animation of spatial values (springs, tweens), see
+`animatedSpatialVec3` / `animatedSpatialRotation` in `spatial-compose` — they
+integrate with Compose's animation system, while `SpatialAnimator` is
+Compose-free and driven from the frame callback.
 
 ## Features
 
@@ -63,7 +66,7 @@ animator.animatePosition(
 animator.animateRotation(
     node = cube,
     from = Quaternion.IDENTITY,
-    to = Quaternion.fromEuler(0f, 180f, 0f),
+    to = Quaternion.fromEuler(0f, 180.degrees, 0f),
     duration = 1.5f,
     easing = Easing.EaseInOut
 )
@@ -133,7 +136,7 @@ animator.animatePosition(
 animator.animateRotation(
     node = cube,
     from = Quaternion.IDENTITY,
-    to = Quaternion.fromEuler(0f, 360f, 0f),
+    to = Quaternion.fromEuler(0f, 360.degrees, 0f),
     duration = 2.0f
 )
 ```
@@ -160,46 +163,41 @@ val count = animator.animationCount
 println("Active animations: $count")
 ```
 
-## Complete Example
+## Complete Example (with Compose)
 
 ```kotlin
-import com.spatialkit.compose.*
+import androidx.compose.runtime.*
+import com.spatialkit.compose.SpatialView
 import com.spatialkit.scene.*
 
-class MyARApp {
-    private val animator = SpatialAnimator()
+@Composable
+fun BouncingCube() {
+    val animator = remember { SpatialAnimator() }
+    var cube: CubeNode? = null
+    var bounced by remember { mutableStateOf(false) }
 
-    @Composable
-    fun ARScene() {
-        val session = rememberSpatialSession()
+    Button(onClick = { bounced = true }) { Text("Bounce") }
 
-        SpatialScene(session) {
-            val cube = remember {
-                CubeNode(size = 0.1f, color = Color.RED).apply {
-                    position = Vec3(0f, 0f, -1f)
-                }
-            }
-
-            SpatialObject(cube)
-
-            // Animate on tap
-            SpatialGestureDetector(
-                onTap = { hitResult ->
-                    // Bounce animation
+    SpatialView(
+        onFrame = { frameData ->
+            // Node state is applied on the render thread
+            if (bounced) {
+                bounced = false
+                cube?.let {
                     animator.animatePosition(
-                        node = cube,
-                        from = cube.position,
-                        to = cube.position + Vec3(0f, 0.5f, 0f),
+                        node = it,
+                        from = it.position,
+                        to = it.position + Vec3(0f, 0.5f, 0f),
                         duration = 0.5f,
                         easing = Easing.EaseOutBounce
                     )
                 }
-            )
-
-            // Update animator each frame
-            SpatialFrameHandler { frameData ->
-                animator.update(frameData.deltaTime)
             }
+            animator.update(frameData.deltaTime)
+        },
+    ) {
+        cube = cube(size = 10.cm, color = Color.Red) {
+            position = vec3(0f, 0f, -1f)
         }
     }
 }
@@ -214,30 +212,12 @@ class MyARApp {
 
 ## Integration with Compose
 
-The animation system integrates seamlessly with `spatial-compose`:
+Two options in `spatial-compose`:
 
-```kotlin
-@Composable
-fun AnimatedCube() {
-    val animator = remember { SpatialAnimator() }
-    val cube = remember { CubeNode() }
-
-    LaunchedEffect(Unit) {
-        // Start animation when composable enters
-        animator.animatePosition(
-            node = cube,
-            from = Vec3.ZERO,
-            to = Vec3(0f, 1f, 0f),
-            duration = 1.0f
-        )
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            animator.cancelAll()
-        }
-    }
-
-    SpatialObject(cube)
-}
-```
+1. **Compose-native animated values** — `animatedSpatialVec3` /
+   `animatedSpatialRotation` animate `Vec3`/`Quaternion` with Compose animation
+   specs (springs, tweens); apply the value in `onFrame`. See the README example.
+2. **`SpatialAnimator` in `onFrame`** — as in the complete example above: create
+   it with `remember`, drive `animator.update(frameData.deltaTime)` from
+   `SpatialView`'s `onFrame`, and call `animator.cancelAll()` from a
+   `DisposableEffect`'s `onDispose` when the composable leaves.

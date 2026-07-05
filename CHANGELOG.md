@@ -9,6 +9,17 @@ binary-compatibility validator dumps in each module's `api/` directory).
 
 ## [Unreleased]
 
+### Documentation
+- Full documentation audit against the current API: guides now use the real
+  symbol names (`Color.Red`, `detectedPlanes`, `PlaneType.HORIZONTAL_UP`,
+  `EngineError` subtypes, normalized 0–1 hit-test coordinates, radians-based
+  `Quaternion.fromEuler`), reflect ARKit custom-mesh support, and follow the
+  documented build-once/imperative-update model. Historical phase reports and
+  the superseded 2026-03 production-readiness assessment moved to `docs/archive/`.
+- Roadmap extended in PRODUCTION_PLAN.md: M7 (textured 3D models — current
+  focus) and future milestones M8–M13 (gestures, AR realism, preview renderer,
+  2D UI in space, tracking & persistence, VR).
+
 ### Added
 - Maven publishing for all `spatial-*` modules under the `com.spatialkit` group
   (Apache-2.0, sources + javadoc jars, Central Portal ready).

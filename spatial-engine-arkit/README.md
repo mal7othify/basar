@@ -18,17 +18,18 @@ This module provides a complete ARKit-based implementation of the `SpatialEngine
 - Transform conversions (ARKit ↔ Spatial-KMP)
 - Frame loop with callbacks (driven by the ARSCNView render delegate)
 - Scene rendering via SceneKit (`submitScene` → `SCNNode` graph)
+- Custom mesh geometry (`GeometryType.CUSTOM_MESH` → `SCNGeometry`)
 - Hit testing (`ARSCNView.hitTest`) and raycasting
 
 ⚠️ **Partial / TODO:**
-- Custom mesh geometry (primitive shapes only)
+- On-device validation of custom meshes
 - Input sources
 - Image tracking
 - Face tracking
 
 ## Requirements
 
-- iOS 11.0+
+- iOS 13+
 - Physical device with A9 chip or later
 - Camera permission
 
@@ -66,14 +67,9 @@ import com.spatialkit.engine.arkit.createARKitEngine
 val engine = createARKitEngine()
 ```
 
-### Or use factory (automatic):
-
-```kotlin
-import com.spatialkit.engine.SpatialEngineFactory
-
-// Automatically returns ARKit engine on iOS
-val engine = SpatialEngineFactory.create()
-```
+Note: the common `SpatialEngineFactory.create()` does **not** return an ARKit
+engine — it returns the fallback. Use `createARKitEngine()` from this module
+(the `spatial-compose` iOS surface does this wiring for you by default).
 
 ### Full Compose integration:
 
@@ -84,7 +80,7 @@ import com.spatialkit.engine.SessionMode
 @Composable
 fun ARApp() {
     SpatialView(mode = SessionMode.AR) {
-        cube(size = 10.cm, color = Color.RED) {
+        cube(size = 10.cm, color = Color.Red) {
             position = vec3(0f, 0f, -1.meters)
         }
     }
@@ -97,15 +93,15 @@ The engine reports the following capabilities (based on device):
 
 ```kotlin
 EngineCapabilities(
-    supportsAR = true,              // If ARWorldTrackingConfiguration supported
+    supportsAR = ARWorldTrackingConfiguration.isSupported,
     supportsVR = false,             // iOS doesn't support native VR
-    supportsPlaneDetection = true,  // Most devices
-    supportsImageTracking = true,   // iOS 11.3+
-    supportsFaceTracking = true,    // Devices with TrueDepth camera
-    supportsHandTracking = false,   // Not available in ARKit
-    supportsDepthOcclusion = true,  // iOS 13+ with LiDAR
+    supportsPlaneDetection = ARWorldTrackingConfiguration.isSupported,
+    supportsImageTracking = ARImageTrackingConfiguration.isSupported,
+    supportsFaceTracking = ARFaceTrackingConfiguration.isSupported,  // TrueDepth devices
+    supportsHandTracking = false,   // ARKit has no generic hand tracking
+    supportsDepthOcclusion = ...,   // person-segmentation-with-depth frame semantics
     supportsSpatialAnchors = true,
-    maxAnchors = 100
+    maxAnchors = 100,               // heuristic; ARKit publishes no hard limit
 )
 ```
 
@@ -168,13 +164,11 @@ Each plane includes:
 
 1. **VR Not Supported**: iOS doesn't have native VR APIs
 2. **Simulator**: ARKit requires physical device
-3. **Custom Meshes**: Only primitive shapes (cube, sphere, cylinder, plane) render;
-   arbitrary mesh geometry is not yet supported
-4. **Permissions**: App must request camera permission
+3. **Permissions**: App must request camera permission
 
 ## Performance
 
-- Frame rate: 60 FPS (configurable)
+- Frame rate: 60 FPS (driven by the ARSCNView render delegate)
 - Plane detection: Real-time
 - Tracking: Low latency (<20ms)
 
@@ -188,10 +182,12 @@ ARKit cannot be tested in the iOS Simulator. You must:
 
 ## Next Steps
 
-- Custom mesh geometry support in `submitScene`
+See the roadmap in [PRODUCTION_PLAN.md](../PRODUCTION_PLAN.md). For this module:
+
+- On-device validation (custom meshes, hit testing, anchors)
+- Texture support (rides along with the textured-model milestone)
 - Image tracking
 - Face tracking
-- Body tracking
 - People occlusion
 
 ## Resources

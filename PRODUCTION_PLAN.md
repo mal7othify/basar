@@ -2,21 +2,28 @@
 
 Goal: make the `spatial-*` modules a publishable, consumable Kotlin Multiplatform library.
 
-This plan comes from a full code review (2026-07-03). Work top-to-bottom: each milestone
-builds on the previous one. Tasks are checkboxes so progress is trackable in PRs;
-reference the task ID (e.g. `M1.3`) in commit messages.
+This plan comes from a full code review (2026-07-03); M7+ added 2026-07-05. Work
+top-to-bottom: each milestone builds on the previous one. Tasks are checkboxes so
+progress is trackable in PRs; reference the task ID (e.g. `M1.3`) in commit messages.
 
 **Milestone summary**
 
 | Milestone | Theme | Outcome |
 |---|---|---|
-| M0 | Repo hygiene | Clean repo, no secrets, no ghost modules |
-| M1 | Library packaging | Artifacts other apps can actually depend on |
-| M2 | Shared-code correctness | The engine contract behaves as documented |
-| M3 | Logging & errors | No debug spam; errors carry real information |
-| M4 | Platform renderers | WebXR/ARCore fixes; consistent hit-testing |
-| M5 | API hardening | Observable state, honest APIs, docs that compile |
-| M6 | Quality infrastructure | CI, lint, tests, API stability guarantees |
+| M0 | Repo hygiene | Clean repo, no secrets, no ghost modules | ✅ |
+| M1 | Library packaging | Artifacts other apps can actually depend on | ✅ |
+| M2 | Shared-code correctness | The engine contract behaves as documented | ✅ |
+| M3 | Logging & errors | No debug spam; errors carry real information | ✅ |
+| M4 | Platform renderers | WebXR/ARCore fixes; consistent hit-testing | ✅ |
+| M5 | API hardening | Observable state, honest APIs, docs that compile | ✅ |
+| M6 | Quality infrastructure | CI, lint, tests, API stability guarantees | ✅ |
+| M7 | Textured 3D models | Load a textured GLB and render it identically on all 3 platforms | 🚧 current focus |
+| M8 | Interaction | Tap/drag/pinch/rotate gestures on nodes | planned |
+| M9 | AR realism | Light estimation, shadows, depth occlusion | planned |
+| M10 | Preview renderer | Non-XR 3D preview for desktop/simulator dev loop | planned |
+| M11 | 2D UI in space | Text labels, billboards, Compose-content panels | planned |
+| M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | planned |
+| M13 | Real VR | Per-view stereo rendering + controller input model | planned |
 
 ---
 
@@ -312,16 +319,154 @@ unit test (they're all pure Kotlin).
 
 ---
 
+## M7 — Textured 3D models (~1 month, current focus)
+
+Target: **load a GLB file with a base-color texture and PBR factors, and render
+it identically on Android, iOS, and Web.** This is the "furniture app" bar and
+the gate for real-world use cases.
+
+**Explicit non-goals for M7** (write them down so scope doesn't creep):
+animations/skinning, morph targets, KHR extensions, Draco/compressed textures,
+sparse accessors, USDZ. These come later, if at all.
+
+### Week 1 — Contract + loader (ENGINE FIRST)
+
+- [ ] **M7.1 Add texture data to the engine contract.**
+  `MaterialData.textureId` is a bare string today — no payload path exists. Add
+  `TextureData` (image bytes, dimensions/format, sampler settings: wrap, filter)
+  and a `baseColorTexture: TextureData?` reference on `MaterialData` (keep
+  `textureId` semantics for renderer-side caching). Update `api/*.api` dumps.
+- [ ] **M7.2 Rewrite `GltfLoader` on `kotlinx.serialization.json`.**
+  Replace the string-scanning parser. Support: glTF 2.0 JSON + GLB binary
+  container, accessors with correct `byteOffset`/`byteStride`, UV extraction
+  (TEXCOORD_0), base-color texture + `metallicRoughnessFactor`, node hierarchy
+  → `SceneNode.Group` trees. Remove `@ExperimentalSpatialApi` once solid.
+- [ ] **M7.3 Test against Khronos sample models.**
+  Embed a small fixture set (e.g. Box, BoxTextured, Duck) in `commonTest`;
+  assert geometry counts, UVs, texture bytes, and material factors. Malformed
+  input must produce a helpful error, not a crash.
+
+### Week 2 — Renderers
+
+- [ ] **M7.4 WebXR texture support.** Map `TextureData` → Three.js `DataTexture`
+  (or `TextureLoader` from blob), wire UVs into `BufferGeometry`, PBR factors →
+  `MeshStandardMaterial.map/metalness/roughness`. Dispose textures in the
+  M4.1 disposal paths.
+- [ ] **M7.5 ARCore texture support.** GLES texture upload + UV attributes and
+  sampling in `SimpleRenderer`'s scene shader; cache textures by id; delete GL
+  textures in `destroy()` and node-removal paths (extend the P0.1/P0.2-era
+  VBO/resource caching — do not reintroduce per-frame allocations).
+- [ ] **M7.6 ARKit texture support.** `TextureData` → `UIImage`/`CGImage` →
+  `SCNMaterial.diffuse.contents`; metallic/roughness factors on the
+  physicallyBased lighting model.
+- [ ] **M7.7 Cross-platform parity check.** Same GLB renders with the same
+  orientation, scale, and approximate color on all three renderers (winding
+  order, sRGB vs linear, Y-up conventions documented in the contract).
+
+### Week 3 — Surface it in the API
+
+- [ ] **M7.8 `ModelNode` + `model(...)` DSL builder.** Scene-graph node backed
+  by loader output (a group of meshes), exposed in `SpatialSceneScope`,
+  `GroupScope`, `AnchorScope`.
+- [ ] **M7.9 Asset loading.** Suspend `loadGltf(bytes: ByteArray)` in common;
+  document per-platform byte sourcing (compose resources / URL fetch). Cache
+  parsed models so N nodes of one GLB don't parse N times.
+- [ ] **M7.10 Error propagation.** Malformed model → `EngineError.RuntimeError`
+  (or a dedicated `AssetError`) through `onError`, never a silent blank node.
+
+### Week 4 — Prove it
+
+- [ ] **M7.11 Sample app.** A small "place a model" demo in `composeApp`
+  (tap → hit test → anchor → textured model), running on all three platforms.
+- [ ] **M7.12 On-device validation.** Physical Android + iPhone + WebXR browser
+  run-through; capture screenshots in the PR. (If device access is tight,
+  front-load the iOS check into week 2–3 — ARKit has no simulator.)
+- [ ] **M7.13 Docs.** README + USAGE_EXAMPLES model example; DSL_GUIDE section;
+  CHANGELOG entry.
+
+## Future milestones (M8+, post-M7 order negotiable)
+
+### M8 — Interaction (gestures)
+
+Table stakes for consumer AR: tap-to-select, drag along detected planes,
+pinch-to-scale, two-finger rotate.
+
+- [ ] M8.1 Node picking: screen-point → node raycast in the engine contract
+  (unify with `performRaycast`; needs node bounds).
+- [ ] M8.2 Gesture recognition in `spatial-compose` (pointer input → spatial
+  gestures), applied on the render thread.
+- [ ] M8.3 `Modifier`-style API: `onTap`, `draggable(plane)`, `scalable()`,
+  `rotatable()` on nodes or DSL builders.
+- [ ] M8.4 Sample: full "place and arrange furniture" flow.
+
+### M9 — AR realism
+
+Placed objects currently "float". Ship the three highest-impact cues:
+
+- [ ] M9.1 Light estimation: `FrameData.lightEstimate` already exists — feed it
+  into renderer lighting on all three platforms.
+- [ ] M9.2 Soft shadows: plane-projected shadow or blob shadow under anchored
+  content (per-renderer).
+- [ ] M9.3 Depth occlusion where supported (`supportsDepthOcclusion` is already
+  in `EngineCapabilities`): ARCore Depth API, ARKit scene depth; document the
+  capability check.
+
+### M10 — Non-XR preview renderer
+
+Biggest dev-loop improvement: see a scene without AR hardware.
+
+- [ ] M10.1 `spatial-engine-preview`: camera-orbit 3D renderer implementing
+  `SpatialEngine` (desktop JVM via OpenGL, and/or browser via Three.js without
+  XR session).
+- [ ] M10.2 `SpatialView` falls back to preview when no XR engine is available
+  (replaces the render-nothing `FallbackEngine` path for development).
+
+### M11 — 2D UI in space
+
+The "Compose for spatial" pitch implies this.
+
+- [ ] M11.1 Text/billboard nodes (always-face-camera flag on a quad + texture).
+- [ ] M11.2 Compose-content-to-texture panel node (render a composable into a
+  bitmap, map onto a plane; interaction later).
+
+### M12 — Tracking & persistence
+
+- [ ] M12.1 WebXR anchors (XRAnchor) + plane detection module — closes the
+  README "Known Limitations".
+- [ ] M12.2 Image tracking (ARCore Augmented Images / ARKit reference images)
+  behind `supportsImageTracking`.
+- [ ] M12.3 Anchor persistence across sessions (local world map / cloud anchors
+  — scope after M8–M10).
+
+### M13 — Real VR (or narrow the claim)
+
+- [ ] M13.1 Per-view stereo `FrameData` (closes the M4.5 mono-only note) +
+  WebXR two-view rendering.
+- [ ] M13.2 Controller input surfaced through the DSL/Compose layer (the
+  `InputSource.Controller` contract already exists).
+- [ ] M13.3 If M13.1–2 don't get scheduled, change "AR/VR/Spatial" claims in
+  README/docs to "AR (VR experimental)".
+
+---
+
 ## Versioning path
 
-- `0.1.0-alpha` (current): after M0–M1 → first publishable artifacts, API unstable.
-- `0.2.0`: after M2–M4 → contract behaves as documented on Android + Web.
-- `0.3.0`: after M5 → API shape final-candidate; `binary-compatibility-validator` on.
-- `1.0.0`: ARKit engine complete + samples + docs; no known contract bugs.
+The M0–M6 work is done but **no release has been cut yet** — everything still
+sits at `0.1.0-SNAPSHOT` on Maven Local. The release workflow (publish on `v*`
+tag) already exists; using it is the single highest-leverage remaining step.
+
+- `0.1.0`: cut now from the M0–M6 state → first public artifacts on Maven
+  Central, API unstable.
+- `0.2.0`: after M7 → textured GLB models on all three platforms + sample app.
+- `0.3.0`: after M8 (gestures) → API shape final-candidate.
+- `1.0.0`: on-device validation on all platforms + samples + docs; no known
+  contract bugs.
 
 ## Explicitly out of scope (tracked separately)
 
-- Full ARKit engine completion (`spatial-engine-arkit` — README notes it doesn't compile)
-- Physics, gestures, advanced lighting (CLAUDE.md "next steps")
+- Physics engine integration
+- glTF animations/skinning, KHR extensions, Draco, USDZ (see M7 non-goals)
+- Face/body tracking, people occlusion
+- Multi-user shared sessions
 - wasmJs targets for the `spatial-*` modules
 - True composable scene graph (see M5.5 decision)

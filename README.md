@@ -24,7 +24,7 @@ until `0.3.0`. Not yet published to Maven Central (Maven Local only, see
 - ✅ Full architecture stack: Compose integration → DSL → scene graph → engine contract → platform renderers
 - ✅ Android (ARCore) and Web (WebXR/Three.js) renderers
 - ✅ Engine contract with observable state (`StateFlow`) and awaitable session start
-- ✅ iOS (ARKit + SceneKit) renderer — newest of the three; custom meshes not yet supported
+- ✅ iOS (ARKit + SceneKit) renderer — newest of the three; custom meshes supported, on-device validation pending
 - 🚧 Samples and docs — in progress
 
 Progress is tracked milestone-by-milestone in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**.
@@ -143,7 +143,7 @@ fun SpinningCube() {
     SpatialView(
         onFrame = { frame ->
             angle += frame.deltaTime * 45f  // 45°/second
-            cube?.rotation = Quaternion.fromEuler(0f, angle, 0f)
+            cube?.rotation = eulerDegrees(0f, angle, 0f)
         },
     ) {
         cube = cube(size = 10.cm, color = Color.Blue) {
@@ -284,10 +284,14 @@ fun Interactive() {
 
 ## Roadmap
 
-Tracked in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**: all milestones (M0–M6 —
-hygiene, packaging, correctness, logging, renderers, API hardening, CI and API
-stability) are done. Next up: first Maven Central release, sample apps,
-on-device validation and benchmarking, then gestures and physics.
+Tracked in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**. Foundation milestones
+(M0–M6 — hygiene, packaging, correctness, logging, renderers, API hardening,
+CI and API stability) are done. **Current focus: M7 — textured 3D models**
+(real glTF/GLB loading with textures, rendered identically on all three
+platforms, plus a sample app). After that: gestures (M8), AR realism (M9),
+a non-XR preview renderer (M10), Compose UI in space (M11), tracking &
+persistence (M12), and real VR support (M13). First Maven Central release is
+pending — the release workflow exists and just needs a tag.
 
 ## Documentation
 

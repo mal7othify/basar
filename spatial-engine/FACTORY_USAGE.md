@@ -10,13 +10,19 @@ The `SpatialEngineFactory` provides a cross-platform way to create and detect AR
 
 ### Web (Kotlin/JS)
 
+The common `SpatialEngineFactory.create()` returns the fallback engine — real
+engines live in the platform modules. On the web, create the WebXR engine from
+`spatial-engine-webxr` and hand it to the runtime:
+
 ```kotlin
 import com.spatialkit.engine.*
+import com.spatialkit.engine.webxr.createWebXREngine
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 fun main() {
     val runtime = SpatialRuntime()
+    runtime.setEngine(createWebXREngine())
 
     if (!runtime.isSupported) {
         console.log("WebXR not supported on this browser")
@@ -142,8 +148,8 @@ class MainActivity : AppCompatActivity() {
                 SceneNode.Mesh(
                     id = "plane-${plane.id}",
                     transform = Transform(
-                        position = plane.pose.position,
-                        rotation = plane.pose.rotation
+                        position = plane.centerPose.position,
+                        rotation = plane.centerPose.rotation
                     ),
                     geometry = GeometryData(type = GeometryType.PLANE),
                     material = MaterialData(
@@ -166,21 +172,27 @@ class MainActivity : AppCompatActivity() {
 
 ---
 
-### iOS (ARKit - Future)
+### iOS (ARKit)
 
 ```kotlin
 import com.spatialkit.engine.*
+import com.spatialkit.engine.arkit.createARKitEngine
 import platform.Foundation.NSLog
 
-fun startAR() {
+suspend fun startAR() {
     val runtime = SpatialRuntime()
+    runtime.setEngine(createARKitEngine())
 
     if (!runtime.isSupported) {
         NSLog("ARKit not supported")
         return
     }
 
-    // TODO: Implementation when ARKit support is added
+    runtime.start(
+        config = EngineConfig(preferredMode = SessionMode.AR),
+        onFrame = { frameData -> /* ... */ },
+        onError = { error -> NSLog("AR error: $error") }
+    )
 }
 ```
 
@@ -188,37 +200,37 @@ fun startAR() {
 
 ## Advanced Usage
 
-### Check Specific Session Mode Support
+### Check Session Mode Support
 
 ```kotlin
-// Web only - async check
 import com.spatialkit.engine.SpatialEngineFactory
-import kotlinx.coroutines.launch
 
-GlobalScope.launch {
-    val supportsAR = SpatialEngineFactory.isSessionModeSupported(SessionMode.AR)
-    val supportsVR = SpatialEngineFactory.isSessionModeSupported(SessionMode.VR)
-
-    console.log("AR support: $supportsAR")
-    console.log("VR support: $supportsVR")
-}
+val modes = SpatialEngineFactory.getSupportedModes()
+val supportsAR = SessionMode.AR in modes
+val supportsVR = SessionMode.VR in modes
 ```
 
 ### Manual Engine Creation (Low-Level)
 
+Each platform engine comes from its own module — the common
+`SpatialEngineFactory.create()` returns the `FallbackEngine`:
+
 ```kotlin
-// Create engine manually without SpatialRuntime wrapper
+// Web (spatial-engine-webxr)
+val engine: SpatialEngine = createWebXREngine()
 
-// Web
-val engine: SpatialEngine = SpatialEngineFactory.create()
+// Android (spatial-engine-arcore; needs a Context)
+val engine: SpatialEngine = createARCoreEngine(context)
 
-// Android
-val engine: SpatialEngine = SpatialEngineFactory.createWithContext(context)
+// iOS (spatial-engine-arkit)
+val engine: SpatialEngine = createARKitEngine()
 
-// Then manually manage lifecycle:
-engine.initialize(config)
-engine.onFrame { frameData -> /* ... */ }
-engine.startSession(SessionMode.AR)
+// Then manually manage lifecycle (initialize/startSession are suspend):
+scope.launch {
+    engine.initialize(config)
+    engine.onFrame { frameData -> /* ... */ }
+    engine.startSession(SessionMode.AR)
+}
 // ...
 engine.stopSession()
 engine.dispose()
@@ -240,7 +252,7 @@ class MainActivity : AppCompatActivity() {
         runtime = SpatialRuntimeAndroid(this)
 
         // Check and request installation
-        when (runtime.requestARCoreInstallation(this, !requestedInstall)) {
+        when (runtime.requestInstallation(this, !requestedInstall)) {
             ArCoreApk.InstallStatus.INSTALLED -> {
                 // ARCore is installed, start AR
                 startAR()
@@ -318,14 +330,20 @@ runtime.start(
             EngineError.NotSupported -> {
                 showMessage("AR not supported on this device")
             }
-            is EngineError.PermissionDenied -> {
-                showMessage("Camera permission required: ${error.message}")
+            EngineError.PermissionDenied -> {
+                showMessage("Camera permission required")
             }
             is EngineError.InitializationFailed -> {
-                showMessage("Failed to start AR: ${error.message}")
+                showMessage("Failed to start AR: ${error.reason}")
             }
             is EngineError.SessionFailed -> {
-                showMessage("AR session error: ${error.message}")
+                showMessage("AR session error: ${error.reason}")
+            }
+            is EngineError.TrackingFailed -> {
+                showMessage("Tracking problem: ${error.reason}")
+            }
+            is EngineError.RuntimeError -> {
+                showMessage("Runtime error: ${error.reason}")
             }
         }
     }
@@ -419,18 +437,27 @@ runtime.start(
 object SpatialEngineFactory {
     fun isSupported(): Boolean
     fun getSupportedModes(): List<SessionMode>
-    fun create(): SpatialEngine
+    fun create(): SpatialEngine   // returns FallbackEngine on every platform
     fun getEngineName(): String
-
-    // Platform-specific:
-    // Android:
-    fun isSupported(context: Context): Boolean
-    fun createWithContext(context: Context): SpatialEngine
-    fun requestInstallation(activity: Activity, userRequested: Boolean): InstallStatus
-
-    // Web:
-    suspend fun isSessionModeSupported(mode: SessionMode): Boolean
 }
+```
+
+Platform engines come from their modules:
+
+```kotlin
+// spatial-engine-arcore (Android)
+fun isARCoreAvailable(context: Context): Boolean
+fun isARCoreSupported(context: Context): Boolean
+fun requestARCoreInstallation(activity: Activity, userRequestedInstall: Boolean): InstallStatus
+fun createARCoreEngine(context: Context): SpatialEngine
+
+// spatial-engine-webxr (JS)
+fun isWebXRAvailable(): Boolean
+fun createWebXREngine(): SpatialEngine
+
+// spatial-engine-arkit (iOS)
+fun isARKitAvailable(): Boolean
+fun createARKitEngine(): SpatialEngine
 ```
 
 ### SpatialRuntime
@@ -440,9 +467,13 @@ class SpatialRuntime {
     val isSupported: Boolean
     val supportedModes: List<SessionMode>
     val state: EngineState?
+    val stateFlow: StateFlow<EngineState>?
     val capabilities: EngineCapabilities?
     val engineName: String
     val isRunning: Boolean
+
+    fun getEngine(): SpatialEngine?
+    fun setEngine(customEngine: SpatialEngine)
 
     suspend fun start(
         config: EngineConfig,
@@ -451,20 +482,20 @@ class SpatialRuntime {
     )
 
     fun submitScene(scene: SceneData)
-    fun performHitTest(screenX: Float, screenY: Float): HitTestResult?
+    fun performHitTest(screenX: Float, screenY: Float): HitTestResult?  // normalized 0–1
     fun performRaycast(origin: Vec3, direction: Vec3): RaycastResult?
     fun stop()
     fun dispose()
 }
 ```
 
-### SpatialRuntimeAndroid (Android-specific)
+### SpatialRuntimeAndroid (spatial-engine-arcore)
 
 ```kotlin
 class SpatialRuntimeAndroid(context: Context) {
     // Same API as SpatialRuntime, plus:
 
-    fun requestARCoreInstallation(
+    fun requestInstallation(
         activity: Activity,
         userRequested: Boolean = true
     ): InstallStatus
@@ -475,22 +506,17 @@ class SpatialRuntimeAndroid(context: Context) {
 
 ## FAQ
 
-**Q: Why does Android need a different factory method?**
-A: Android requires Context to check ARCore availability and create the engine. Use `createWithContext(context)` or `SpatialRuntimeAndroid`.
+**Q: Why does Android need different wiring?**
+A: Android requires a `Context` to check ARCore availability and create the engine. Use `createARCoreEngine(context)` from `spatial-engine-arcore`, or `SpatialRuntimeAndroid(context)` which does it for you.
 
 **Q: Can I use multiple engines at once?**
 A: No, most platforms only support one active AR/VR session at a time.
 
 **Q: What happens on unsupported platforms?**
-A: The `FallbackEngine` is returned, which logs warnings and returns empty data. Your app won't crash.
+A: The `FallbackEngine` is used, which reports `NotSupported` and returns empty data. Your app won't crash.
 
 **Q: How do I know which engine I'm using?**
-A: Call `SpatialEngineFactory.getEngineName()` - returns "WebXR", "ARCore", "ARKit", or "Fallback".
+A: Read `runtime.engineName` — the fallback identifies itself and points at the platform module to depend on.
 
 **Q: Can I switch between AR and VR at runtime?**
 A: Call `stop()`, then `start()` with a different mode. Not all platforms support all modes.
-
----
-
-**Last Updated**: January 15, 2026
-**Engine Version**: spatial-engine v1.0

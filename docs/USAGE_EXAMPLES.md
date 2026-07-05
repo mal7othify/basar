@@ -2,6 +2,11 @@
 
 Complete guide to using the Spatial-KMP library, from basic to advanced patterns.
 
+> **The update model in one sentence:** the `SpatialView` content block builds
+> the scene **once**; afterwards you mutate nodes **imperatively**, preferably
+> from `onFrame` (the render thread). Keep references to nodes you want to
+> change. See the `SpatialView` KDoc for the full contract.
+
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
@@ -16,17 +21,23 @@ Complete guide to using the Spatial-KMP library, from basic to advanced patterns
 
 ### Installation
 
-Add to your `build.gradle.kts`:
+Artifacts are published under the `com.spatialkit` group (currently to Maven
+Local via `./gradlew publishToMavenLocal`; Maven Central publication is planned):
 
 ```kotlin
-commonMain.dependencies {
-    implementation(project(":spatial-compose"))
-
-    // For Android ARCore support:
-    implementation(project(":spatial-engine-arcore"))
-
-    // For WebXR support:
-    implementation(project(":spatial-engine-webxr"))
+// build.gradle.kts
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            // Pulls in spatial-dsl, spatial-scene, spatial-engine, spatial-core transitively
+            implementation("com.spatialkit:spatial-compose:0.1.0-SNAPSHOT")
+        }
+        // Web and iOS bundle a default engine (WebXR / ARKit).
+        // Android has no default: provide an engine (see Platform-Specific below).
+        androidMain.dependencies {
+            implementation("com.spatialkit:spatial-engine-arcore:0.1.0-SNAPSHOT")
+        }
+    }
 }
 ```
 
@@ -91,7 +102,7 @@ fun GroupedObjects() {
             rotation = eulerDegrees(0, 45, 0)
 
             // Sun (center)
-            sphere(radius = 10.cm, color = rgba(255, 200, 0, 255))
+            sphere(radius = 10.cm, color = rgb(0xFFC800))
 
             // Earth (orbiting)
             sphere(radius = 3.cm, color = rgb(0x0088FF)) {
@@ -104,39 +115,42 @@ fun GroupedObjects() {
 
 ### Example 3: Plane Anchoring
 
+Detected planes arrive in `onFrame` via `frameData.detectedPlanes`. Anchor
+content dynamically by wrapping the session's scene in a `SpatialSceneScope`:
+
 ```kotlin
 @Composable
 fun PlaneAnchoredContent() {
-    var detectedPlane by remember { mutableStateOf<TrackedPlane?>(null) }
+    var session: SpatialSession? = null
+    var anchored = false
 
     SpatialView(
         mode = SessionMode.AR,
+        onSessionReady = { session = it },
         onFrame = { frameData ->
-            // Track first horizontal plane
-            if (detectedPlane == null) {
-                detectedPlane = frameData.planes.firstOrNull {
-                    it.type == PlaneType.HORIZONTAL
-                }
-            }
-        }
-    ) {
-        // Place content on detected plane
-        detectedPlane?.let { plane ->
-            anchorToPlane(planeId = plane.id) {
-                // Place a table on the floor
-                cube(
-                    width = 1.meters,
-                    height = 5.cm,
-                    depth = 60.cm,
-                    color = rgb(0x8B4513)
-                )
+            // Anchor to the first horizontal-up plane (floor/table), once
+            if (!anchored) {
+                frameData.detectedPlanes
+                    .firstOrNull { it.type == PlaneType.HORIZONTAL_UP }
+                    ?.let { plane ->
+                        session?.let { s ->
+                            SpatialSceneScope(s.scene).anchorToPlane(planeId = plane.id) {
+                                // Place a table top on the floor
+                                cube(size = 20.cm, color = rgb(0x8B4513))
 
-                // Place objects on the table
-                sphere(radius = 5.cm, color = rgb(0xFF0000)) {
-                    position = vec3(0f, 10.cm, 0f)
-                }
+                                // Object on the table
+                                sphere(radius = 5.cm, color = rgb(0xFF0000)) {
+                                    position = vec3(0f, 10.cm, 0f)
+                                }
+                            }
+                        }
+                        anchored = true
+                    }
             }
-        }
+        },
+    ) {
+        // If the plane id is known up front, anchor declaratively instead:
+        // anchorToPlane(planeId = "floor") { cube(size = 20.cm) }
     }
 }
 ```
@@ -145,28 +159,28 @@ fun PlaneAnchoredContent() {
 
 ## Compose Integration
 
-### Example 4: Reactive State
+### Example 4: Animated Values
+
+`animatedSpatialVec3` / `animatedSpatialRotation` animate spatial types with
+Compose's animation system (springs, tweens). Apply the value in `onFrame`:
 
 ```kotlin
 @Composable
-fun ReactiveAnimation() {
-    // Animate rotation over time
-    var rotation by rememberSpatialState { Quaternion.IDENTITY }
+fun LiftOnTap() {
+    var lifted by remember { mutableStateOf(false) }
+    val position by animatedSpatialVec3(
+        targetValue = if (lifted) vec3(0f, 2f, -1f) else vec3(0f, 1.5f, -1f),
+        animationSpec = tween(1000),
+    )
+    var cube: CubeNode? = null
 
-    SpatialView {
-        cube(size = 10.cm, color = rgb(0xFF00FF)) {
-            position = vec3(0f, 1.5f, -1f)
-            this.rotation = rotation  // Updates when rotation changes
-        }
-    }
+    Column {
+        Button(onClick = { lifted = !lifted }) { Text("Lift") }
 
-    // Animate in background
-    LaunchedEffect(Unit) {
-        var angle = 0f
-        while (true) {
-            delay(16) // 60 FPS
-            angle += 1f
-            rotation = eulerDegrees(0, angle, 0)
+        SpatialView(
+            onFrame = { cube?.position = position },
+        ) {
+            cube = cube(size = 10.cm, color = Color.Red)
         }
     }
 }
@@ -174,10 +188,14 @@ fun ReactiveAnimation() {
 
 ### Example 5: User Interaction
 
+Compose state drives node mutations through `onFrame` — the content block is
+not recomposed:
+
 ```kotlin
 @Composable
 fun InteractiveObjects() {
     var selectedColor by remember { mutableStateOf(rgb(0xFF0000)) }
+    var cube: CubeNode? = null
 
     Column {
         // Color picker UI
@@ -187,9 +205,11 @@ fun InteractiveObjects() {
             Button(onClick = { selectedColor = rgb(0x0000FF) }) { Text("Blue") }
         }
 
-        // Spatial content with reactive color
-        SpatialView {
-            cube(size = 15.cm, color = selectedColor) {
+        // Node state is applied on the render thread; snapshot state can be read there
+        SpatialView(
+            onFrame = { cube?.color = selectedColor },
+        ) {
+            cube = cube(size = 15.cm, color = rgb(0xFF0000)) {
                 position = vec3(0f, 1.5f, -1f)
             }
         }
@@ -202,32 +222,29 @@ fun InteractiveObjects() {
 ```kotlin
 @Composable
 fun LifecycleExample() {
-    var sessionReady by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     SpatialView(
         mode = SessionMode.AR,
         onSessionReady = { session ->
-            sessionReady = true
             println("Session capabilities: ${session.capabilities}")
         },
         onFrame = { frameData ->
-            // Called every frame
-            println("Camera pose: ${frameData.cameraPose}")
+            // Called every frame, on the render thread
         },
         onError = { error ->
             errorMessage = when (error) {
-                is EngineError.NotSupported -> "AR not supported"
-                is EngineError.PermissionDenied -> "Camera permission required"
+                EngineError.NotSupported -> "AR not supported"
+                EngineError.PermissionDenied -> "Camera permission required"
                 is EngineError.InitializationFailed -> "Failed: ${error.reason}"
-                is EngineError.SessionLost -> "Session lost, restart required"
+                is EngineError.SessionFailed -> "Session error: ${error.reason}"
+                is EngineError.TrackingFailed -> "Tracking problem: ${error.reason}"
+                is EngineError.RuntimeError -> "Runtime error: ${error.reason}"
             }
         }
     ) {
-        if (sessionReady) {
-            sphere(radius = 10.cm, color = rgb(0x00FF00)) {
-                position = vec3(0f, 1.5f, -1f)
-            }
+        sphere(radius = 10.cm, color = rgb(0x00FF00)) {
+            position = vec3(0f, 1.5f, -1f)
         }
     }
 
@@ -241,37 +258,36 @@ fun LifecycleExample() {
 
 ## Advanced Patterns
 
-### Example 7: Dynamic Scene Building
+### Example 7: Toggling Content
+
+Build all variants once and toggle `visible` — cheaper than rebuilding the
+scene, and consistent with the build-once model:
 
 ```kotlin
 @Composable
-fun DynamicScene() {
-    var objectCount by remember { mutableStateOf(5) }
+fun SceneSwitcher() {
+    var showCube by remember { mutableStateOf(true) }
+    var cube: CubeNode? = null
+    var sphere: SphereNode? = null
 
     Column {
-        Slider(
-            value = objectCount.toFloat(),
-            onValueChange = { objectCount = it.toInt() },
-            valueRange = 1f..20f
-        )
+        Row {
+            Button(onClick = { showCube = true }) { Text("Cube") }
+            Button(onClick = { showCube = false }) { Text("Sphere") }
+        }
 
-        SpatialView {
-            // Generate objects dynamically
-            repeat(objectCount) { i ->
-                val angle = (i.toFloat() / objectCount) * 360f
-                val radius = 50.cm
-
-                cube(
-                    size = 5.cm,
-                    color = rgb((i * 255 / objectCount) shl 16),
-                    id = "cube-$i"
-                ) {
-                    position = vec3(
-                        x = radius * cos(angle.radians),
-                        y = 1.5f,
-                        z = -1f + radius * sin(angle.radians)
-                    )
-                }
+        SpatialView(
+            onFrame = {
+                cube?.visible = showCube
+                sphere?.visible = !showCube
+            },
+        ) {
+            cube = cube(size = 10.cm, color = rgb(0xFF0000)) {
+                position = vec3(0f, 1.5f, -1f)
+            }
+            sphere = sphere(radius = 10.cm, color = rgb(0x0000FF)) {
+                position = vec3(0f, 1.5f, -1f)
+                visible = false
             }
         }
     }
@@ -280,68 +296,68 @@ fun DynamicScene() {
 
 ### Example 8: Hit Testing
 
+`performHitTest` takes **normalized 0–1 coordinates** — divide tap offsets by
+the surface size. Apply the result to nodes from `onFrame`:
+
 ```kotlin
 @Composable
 fun HitTestExample() {
-    var hitPosition by remember { mutableStateOf<Vec3?>(null) }
-    var session by remember { mutableStateOf<SpatialSession?>(null) }
+    var session: SpatialSession? = null
+    var marker: SphereNode? = null
+    var pendingHit: Vec3? = null
 
-    Column {
-        Box(modifier = Modifier.fillMaxSize()) {
-            SpatialView(
-                onSessionReady = { session = it }
-            ) {
-                // Show marker at hit location
-                hitPosition?.let { pos ->
-                    sphere(radius = 2.cm, color = rgb(0xFF0000)) {
-                        position = pos
+    Box(modifier = Modifier.fillMaxSize()) {
+        SpatialView(
+            onSessionReady = { session = it },
+            onFrame = {
+                pendingHit?.let { hit ->
+                    marker?.position = hit
+                    marker?.visible = true
+                    pendingHit = null
+                }
+            },
+        ) {
+            marker = sphere(radius = 2.cm, color = rgb(0xFF0000)) {
+                visible = false
+            }
+        }
+
+        // Tap detector overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val result = session?.performHitTest(
+                            screenX = offset.x / size.width,
+                            screenY = offset.y / size.height,
+                        )
+                        pendingHit = result?.position
                     }
                 }
-            }
-
-            // Tap detector overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures { offset ->
-                            session?.performHitTest(offset.x, offset.y)?.let { result ->
-                                hitPosition = result.worldPosition
-                            }
-                        }
-                    }
-            )
-        }
+        )
     }
 }
 ```
 
-### Example 9: Multiple Scenes
+### Example 9: Per-Frame Animation
+
+Drive continuous animation from `onFrame` using `deltaTime`:
 
 ```kotlin
 @Composable
-fun MultiSceneExample() {
-    var currentScene by remember { mutableStateOf("scene1") }
+fun SpinningCube() {
+    var cube: CubeNode? = null
+    var angle = 0f
 
-    Column {
-        Row {
-            Button(onClick = { currentScene = "scene1" }) { Text("Scene 1") }
-            Button(onClick = { currentScene = "scene2" }) { Text("Scene 2") }
-        }
-
-        SpatialView {
-            when (currentScene) {
-                "scene1" -> {
-                    cube(size = 10.cm, color = rgb(0xFF0000)) {
-                        position = vec3(0f, 1.5f, -1f)
-                    }
-                }
-                "scene2" -> {
-                    sphere(radius = 10.cm, color = rgb(0x0000FF)) {
-                        position = vec3(0f, 1.5f, -1f)
-                    }
-                }
-            }
+    SpatialView(
+        onFrame = { frame ->
+            angle += frame.deltaTime * 45f  // 45°/second
+            cube?.rotation = eulerDegrees(0f, angle, 0f)
+        },
+    ) {
+        cube = cube(size = 10.cm, color = rgb(0x0000FF)) {
+            position = vec3(0f, 1.5f, -1f)
         }
     }
 }
@@ -353,6 +369,9 @@ fun MultiSceneExample() {
 
 ### Android (ARCore)
 
+ARCore needs an Android `Context`, so the library doesn't bundle a default
+engine on Android — provide one at the root of your UI:
+
 ```kotlin
 // build.gradle.kts
 android {
@@ -362,21 +381,23 @@ android {
     }
 }
 
-dependencies {
-    implementation(project(":spatial-compose"))
-    implementation(project(":spatial-engine-arcore"))
-}
-
 // AndroidManifest.xml
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-feature android:name="android.hardware.camera.ar" android:required="true" />
 
 // MainActivity.kt
+import com.spatialkit.compose.LocalSpatialEngine
+import com.spatialkit.engine.arcore.createARCoreEngine
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            App() // Your spatial composable
+            val context = LocalContext.current
+            val engine = remember { createARCoreEngine(context) }
+            CompositionLocalProvider(LocalSpatialEngine provides engine) {
+                App() // Your spatial composable
+            }
         }
     }
 }
@@ -384,78 +405,70 @@ class MainActivity : ComponentActivity() {
 
 ### Web (WebXR)
 
+The web surface bundles the WebXR engine by default — just add the dependency:
+
 ```kotlin
 // build.gradle.kts
-dependencies {
-    implementation(project(":spatial-compose"))
-    implementation(project(":spatial-engine-webxr"))
-}
-
-// Configure Kotlin/JS
 kotlin {
     js(IR) {
         browser()
         binaries.executable()
     }
+    sourceSets {
+        jsMain.dependencies {
+            implementation("com.spatialkit:spatial-engine-webxr:0.1.0-SNAPSHOT")
+        }
+    }
 }
 ```
 
-```html
-<!-- index.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Spatial App</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body>
-    <div id="root"></div>
-    <script src="app.js"></script>
-</body>
-</html>
-```
+WebXR requires **HTTPS** and a WebXR-capable browser (e.g. Chrome on Android).
 
-### iOS (Future ARKit)
+### iOS (ARKit)
+
+The iOS surface bundles the ARKit engine by default:
 
 ```kotlin
 // build.gradle.kts
 kotlin {
-    iosX64()
     iosArm64()
     iosSimulatorArm64()
-}
 
-dependencies {
-    implementation(project(":spatial-compose"))
-    implementation(project(":spatial-engine-arkit")) // TODO: Not yet implemented
+    sourceSets {
+        iosMain.dependencies {
+            implementation("com.spatialkit:spatial-engine-arkit:0.1.0-SNAPSHOT")
+        }
+    }
 }
 ```
+
+ARKit requires a **physical device** (iOS 13+) — it does not run in the
+Simulator — and the app must declare `NSCameraUsageDescription` in Info.plist.
 
 ---
 
 ## Performance Tips
 
-1. **Avoid creating objects in frame callbacks**:
+1. **Keep the frame callback allocation-light**:
 ```kotlin
-// ❌ Bad - creates new objects every frame
+// ❌ Bad - allocates a list and searches the scene every frame
 onFrame = {
-    val position = Vec3(0f, 1f, 0f)
+    scene.getAllNodes().filterIsInstance<CubeNode>().forEach { ... }
 }
 
-// ✅ Good - reuse objects
-val position = Vec3(0f, 1f, 0f)
-onFrame = {
-    position.x += 0.01f
+// ✅ Good - capture node references once, mutate them directly
+var cube: CubeNode? = null
+var angle = 0f
+onFrame = { frame ->
+    angle += frame.deltaTime * 45f
+    cube?.rotation = eulerDegrees(0f, angle, 0f)
 }
 ```
 
-2. **Use remember for expensive operations**:
+2. **Use remember for expensive setup**:
 ```kotlin
 // ✅ Good - computed once
-val scene = remember {
-    computeComplexScene()
-}
+val geometry = remember { generateProceduralGeometry() }
 ```
 
 3. **Batch updates**:
@@ -468,11 +481,13 @@ cube(size = 10.cm) {
 }
 ```
 
+4. **Prefer visibility toggles over add/remove** (see Example 7).
+
 ---
 
 ## Best Practices
 
-1. **Use meaningful IDs**:
+1. **Use meaningful IDs** (passed at creation — `id` is immutable):
 ```kotlin
 cube(id = "player-marker") { /* ... */ }
 sphere(id = "health-indicator") { /* ... */ }
@@ -483,23 +498,17 @@ sphere(id = "health-indicator") { /* ... */ }
 SpatialView(
     onError = { error ->
         when (error) {
-            is EngineError.NotSupported -> showARNotSupportedDialog()
-            is EngineError.PermissionDenied -> requestCameraPermission()
+            EngineError.NotSupported -> showARNotSupportedDialog()
+            EngineError.PermissionDenied -> requestCameraPermission()
             else -> showGenericError(error)
         }
     }
 )
 ```
 
-3. **Cleanup resources**:
-```kotlin
-DisposableEffect(Unit) {
-    val resource = allocateResource()
-    onDispose {
-        resource.release()
-    }
-}
-```
+3. **Mutate nodes from the frame callback** — node-level state (transforms,
+   colors) is applied on the render thread; structural scene operations are
+   synchronized internally.
 
 ---
 
@@ -522,7 +531,7 @@ The library follows a layered architecture:
 │     (spatial-engine)                │  SceneData, FrameData
 ├─────────────────────────────────────┤
 │     Platform Renderers              │  ARCore, WebXR, ARKit
-│     (spatial-engine-*)              │  expect/actual implementations
+│     (spatial-engine-*)              │  contract implementations
 └─────────────────────────────────────┘
 ```
 
@@ -537,11 +546,12 @@ You can use any layer directly:
 ## Further Reading
 
 - **DSL Guide**: See `spatial-dsl/DSL_GUIDE.md` for comprehensive DSL documentation
-- **Engine Contracts**: See `spatial-engine/CONTRACTS.md` for renderer requirements
-- **Architecture**: See `.claude/CLAUDE.md` for project philosophy
+- **Scene Graph Guide**: See `spatial-scene/SCENE_GRAPH_GUIDE.md` for the imperative API
+- **Engine Contract**: See `spatial-engine/README.md` for renderer requirements
+- **Roadmap**: See `PRODUCTION_PLAN.md` for milestones and current progress
 
 ---
 
 ## License
 
-[Your License Here]
+[Apache-2.0](../LICENSE)

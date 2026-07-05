@@ -46,32 +46,37 @@ need.
 
 ## Current Phase
 
-✅ **Phase 7: Compose Integration - COMPLETE**
-
-All core phases completed! Full architecture stack:
+✅ **Foundation complete (M0–M6)** — full architecture stack:
 **Compose DSL (@Composable) → Kotlin DSL (spatialScene) → Scene Graph → Engine Interface → Platform Renderers**
 
-### Completed Phases
-
-1. ✅ **Phase 1-3**: Core Foundation (math, types, primitives)
-2. ✅ **Phase 4**: Engine Interface Layer (contract-first design)
-3. ✅ **Phase 5**: Scene Graph (nodes, shapes, anchors, sessions)
-4. ✅ **Phase 6**: Kotlin DSL (zero-overhead builders, extension functions)
-5. ✅ **Phase 7**: Compose Integration (reactive UI integration)
+🚧 **Current focus: M7 — Textured 3D models** (see PRODUCTION_PLAN.md for the
+task breakdown). Target: load a GLB with a base-color texture + PBR factors and
+render it identically on all three platforms. Non-goals for M7: animations,
+skinning, KHR extensions, Draco, USDZ.
 
 ### Platform Status
 
 - **Android**: ARCore engine + Compose integration ✅
-- **Web**: WebXR engine + Compose integration ✅
-- **iOS**: ARKit engine (SceneKit) + Compose integration ✅ (custom meshes TODO)
+- **Web**: WebXR engine + Compose integration ✅ (anchors/planes not XRAnchor-backed yet)
+- **iOS**: ARKit engine (SceneKit) + Compose integration ✅ (custom meshes done; on-device validation pending)
 
-### Next Steps
+### Roadmap (after M7)
 
-The library foundation is complete. Ready for:
-- Example applications showcasing the full stack
-- ARKit: custom mesh support, on-device validation
-- Performance optimization and benchmarking
-- Advanced features (physics, gestures, lighting)
+Tracked milestone-by-milestone in PRODUCTION_PLAN.md:
+- **M8** Gestures (tap/drag/pinch/rotate on nodes)
+- **M9** AR realism (light estimation, shadows, depth occlusion)
+- **M10** Non-XR preview renderer (desktop/simulator dev loop)
+- **M11** 2D UI in space (labels, billboards, Compose panels)
+- **M12** Tracking & persistence (image tracking, anchor persistence, WebXR anchors)
+- **M13** Real VR (stereo rendering + controllers) — or narrow the AR/VR claim
+- First Maven Central release: pending — cut a `v*` tag (workflow exists)
+
+### Update model (important for docs and examples)
+
+The `SpatialView` content block builds the scene **once**; afterwards nodes are
+mutated **imperatively from `onFrame`** (the render thread). Docs and examples
+must not show reactive recomposition of scene content. Node-level state is
+mutated only from the frame callback; structural scene ops are synchronized.
 
 
 
