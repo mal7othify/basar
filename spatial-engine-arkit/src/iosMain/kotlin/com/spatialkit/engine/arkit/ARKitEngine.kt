@@ -33,13 +33,9 @@ import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.FloatVar
 import kotlinx.cinterop.Vector128
-import kotlinx.cinterop.Vector128Var
 import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.autoreleasepool
 import kotlinx.cinterop.get
-import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.pointed
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
@@ -62,10 +58,6 @@ import platform.ARKit.ARPlaneAnchor
 import platform.ARKit.ARPlaneAnchorAlignment
 import platform.ARKit.ARPlaneDetectionHorizontal
 import platform.ARKit.ARPlaneDetectionVertical
-import platform.ARKit.ARRaycastQuery
-import platform.ARKit.ARRaycastResult
-import platform.ARKit.ARRaycastTarget
-import platform.ARKit.ARRaycastTargetAlignment
 import platform.ARKit.ARSCNView
 import platform.ARKit.ARSCNViewDelegateProtocol
 import platform.ARKit.ARSession
@@ -94,6 +86,7 @@ import platform.SceneKit.SCNGeometrySource
 import platform.SceneKit.SCNGeometrySourceSemanticNormal
 import platform.SceneKit.SCNGeometrySourceSemanticTexcoord
 import platform.SceneKit.SCNGeometrySourceSemanticVertex
+import platform.SceneKit.SCNHitTestResult
 import platform.SceneKit.SCNLightingModelPhysicallyBased
 import platform.SceneKit.SCNMaterial
 import platform.SceneKit.SCNMaterialProperty
@@ -162,6 +155,10 @@ public class ARKitEngine : SpatialEngine {
     // Decoded UIImages keyed by TextureData.id, so meshes sharing a texture
     // decode it once (SceneKit dedupes the GPU upload for identical contents)
     private val imageCache = mutableMapOf<String, UIImage>()
+
+    // Last applied transform scale per primitive-mesh node id (primitives
+    // bake scale into geometry, so scale changes require a rebuild)
+    private val appliedScales = mutableMapOf<String, Vec3>()
 
     // Texture ids that failed to decode; skipped instead of retried
     private val failedTextures = mutableSetOf<String>()
@@ -705,6 +702,7 @@ public class ARKitEngine : SpatialEngine {
             sceneNodeMap[id]?.removeFromParentNode()
             sceneNodeMap.remove(id)
             materialCache.remove(id)
+            appliedScales.remove(id)
         }
 
         // Drop cached images whose textures left the scene
@@ -780,6 +778,15 @@ public class ARKitEngine : SpatialEngine {
                     mesh.transform.scale.y,
                     mesh.transform.scale.z,
                 )
+        } else {
+            // Primitives bake scale into the geometry, so a scale change
+            // (e.g. a bounce animation) needs the geometry rebuilt — the
+            // node transform alone won't resize them.
+            val previousScale = appliedScales.put(mesh.id, mesh.transform.scale)
+            if (previousScale != null && previousScale != mesh.transform.scale) {
+                scnNode.geometry = createGeometry(mesh.geometry, mesh.transform.scale)
+                updateNodeMaterial(scnNode, mesh.material, isCustomMesh = false)
+            }
         }
 
         // Update visibility
@@ -1184,65 +1191,61 @@ public class ARKitEngine : SpatialEngine {
         }
     }
 
+    /**
+     * Raycasts against **scene content** (the nodes submitted via
+     * [submitScene]), matching the ARCore and WebXR engines. Real-world
+     * surfaces are [performHitTest]'s job.
+     *
+     * Implemented with SceneKit's segment hit test under [contentRoot], so it
+     * works for any geometry (primitives and custom meshes alike). Does not
+     * touch `session.currentFrame` — a retained ARFrame starves ARKit's
+     * camera buffer pool (see [onRenderTick]) and stalls rendering.
+     */
     @OptIn(ExperimentalForeignApi::class)
     override fun performRaycast(
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? {
-        // NOTE: do not touch session.currentFrame here — the raycast query
-        // doesn't need it, and a retained ARFrame starves ARKit's camera
-        // buffer pool (see onRenderTick), stalling rendering until the GC
-        // collects the wrapper.
-        val session = arSession ?: return null
-        val query =
-            memScoped {
-                val originPtr = allocArray<FloatVar>(4)
-                originPtr[0] = origin.x
-                originPtr[1] = origin.y
-                originPtr[2] = origin.z
-                originPtr[3] = 0f
+        val start = SCNVector3Make(origin.x, origin.y, origin.z)
+        val end =
+            SCNVector3Make(
+                origin.x + direction.x * RAYCAST_MAX_DISTANCE,
+                origin.y + direction.y * RAYCAST_MAX_DISTANCE,
+                origin.z + direction.z * RAYCAST_MAX_DISTANCE,
+            )
 
-                val dirPtr = allocArray<FloatVar>(4)
-                dirPtr[0] = direction.x
-                dirPtr[1] = direction.y
-                dirPtr[2] = direction.z
-                dirPtr[3] = 0f
+        // contentRoot sits at identity under the scene root, so world-space
+        // segment endpoints are valid in its local space, and the search is
+        // limited to engine-submitted content (not ARKit's internal nodes).
+        val hits = contentRoot.hitTestWithSegmentFromPoint(start, end, null)
 
-                ARRaycastQuery(
-                    origin = originPtr.reinterpret<Vector128Var>().pointed.value,
-                    direction = dirPtr.reinterpret<Vector128Var>().pointed.value,
-                    allowingTarget = ARRaycastTarget.ARRaycastTargetExistingPlaneGeometry,
-                    alignment = ARRaycastTargetAlignment.ARRaycastTargetAlignmentAny,
-                )
-            }
+        for (rawHit in hits) {
+            val hit = rawHit as? SCNHitTestResult ?: continue
+            val nodeId = nodeIdFor(hit.node) ?: continue
+            val position = hit.worldCoordinates.useContents { Vec3(x, y, z) }
+            val normal = hit.worldNormal.useContents { Vec3(x, y, z) }
+            return RaycastResult(
+                position = position,
+                normal = normal,
+                distance = origin.distance(position),
+                nodeId = nodeId,
+            )
+        }
+        return null
+    }
 
-        val results = session.raycast(query)
-
-        if (results.isEmpty()) return null
-
-        val hit = results[0] as ARRaycastResult
-
-        val position =
-            hit.worldTransform.useContents {
-                val col3Ptr = columns[3].ptr.reinterpret<FloatVar>()
-                Vec3(col3Ptr[0], col3Ptr[1], col3Ptr[2])
-            }
-
-        val normal =
-            hit.worldTransform.useContents {
-                val col2Ptr = columns[2].ptr.reinterpret<FloatVar>()
-                Vec3(col2Ptr[0], col2Ptr[1], col2Ptr[2])
-            }
-
-        val distance = origin.distance(position)
-        val nodeId = hit.anchor?.identifier?.UUIDString
-
-        return RaycastResult(
-            position = position,
-            normal = normal,
-            distance = distance,
-            nodeId = nodeId,
-        )
+    /**
+     * Resolves an SCNNode (or its nearest tracked ancestor) back to the
+     * scene-node id it was created for.
+     */
+    private fun nodeIdFor(scnNode: SCNNode): String? {
+        var node: SCNNode? = scnNode
+        while (node != null) {
+            val current = node
+            sceneNodeMap.entries.firstOrNull { it.value === current }?.let { return it.key }
+            node = current.parentNode
+        }
+        return null
     }
 
     override fun stopSession() {
@@ -1269,6 +1272,7 @@ public class ARKitEngine : SpatialEngine {
         materialCache.clear()
         imageCache.clear()
         failedTextures.clear()
+        appliedScales.clear()
 
         _state.value = EngineState.Uninitialized
     }
@@ -1280,6 +1284,9 @@ public class ARKitEngine : SpatialEngine {
         // planes and light estimates change slowly; the camera pose is
         // refreshed every tick from pointOfView instead.
         const val FRAME_SAMPLE_INTERVAL = 60L
+
+        // Segment length for scene-content raycasts (meters)
+        const val RAYCAST_MAX_DISTANCE = 100f
     }
 }
 

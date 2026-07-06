@@ -391,6 +391,17 @@ sparse accessors, USDZ. These come later, if at all.
 - [ ] **M7.12 On-device validation.** Physical Android + iPhone + WebXR browser
   run-through; capture screenshots in the PR. (If device access is tight,
   front-load the iOS check into week 2–3 — ARKit has no simulator.)
+  *Status (2026-07-06):*
+  - *Android (physical device): ✅ validated — checkerboard texture renders,
+    tap-to-bounce and surface placement work. Caught and fixed three engine
+    bugs: sensor-oriented `camera.pose` breaking screen-space rays,
+    ARFrame retention in the iOS raycast, and tap-ray FOV assumptions.*
+  - *iOS (physical device): texture parity confirmed. Scene-content raycast
+    (SceneKit segment hit test) + primitive scale rebuild implemented so
+    bounce/placement match Android — **on-device retest deferred until
+    after M8** (gestures will exercise the same paths properly).
+    Deploy with `scripts/run-ios.sh`.*
+  - *WebXR browser run-through: pending.*
 - [x] **M7.13 Docs.** README + USAGE_EXAMPLES model example; DSL_GUIDE section;
   CHANGELOG entry.
 
