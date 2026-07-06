@@ -477,7 +477,12 @@ public class ARCoreEngine(
         deltaTime: Float,
     ): FrameData {
         val camera = frame.camera
-        val pose = camera.pose
+        // displayOrientedPose, not pose: the sensor pose is rotated 90°/180°
+        // relative to the screen in portrait. The display-oriented pose is
+        // consistent with the (display-rotated) view/projection matrices and
+        // with what the ARKit and WebXR engines report, so screen-space math
+        // (e.g. building tap rays from cameraPose.rotation) works.
+        val pose = camera.displayOrientedPose
 
         return FrameData(
             timestamp = frame.timestamp / 1_000_000, // Convert nanoseconds to milliseconds

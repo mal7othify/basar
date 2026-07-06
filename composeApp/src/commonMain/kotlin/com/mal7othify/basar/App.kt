@@ -155,29 +155,33 @@ fun App() {
                                             direction = rayDirection,
                                         )
 
-                                    if (result != null) {
+                                    // performRaycast is platform-dependent: Android/Web
+                                    // test scene content (nodeId = scene node), iOS tests
+                                    // AR planes (nodeId = anchor UUID). Only bounce when
+                                    // the hit resolves to an actual scene node; otherwise
+                                    // fall through to surface placement.
+                                    val hitNode = result?.nodeId?.let { currentSession.scene.findNodeById(it) }
+
+                                    if (result != null && hitNode != null) {
                                         lastTapInfo = "Hit: ${result.nodeId?.take(12)} at ${result.distance.round2()}m"
 
-                                        val hitNode = currentSession.scene.findNodeById(result.nodeId ?: "")
-                                        if (hitNode != null) {
-                                            val baseScale = baseScales.getOrPut(hitNode.id) { hitNode.scale }
-                                            animator.animateScale(
-                                                node = hitNode,
-                                                from = hitNode.scale,
-                                                to = baseScale * 1.3f,
-                                                duration = 0.15f,
-                                                easing = Easing.EaseOut,
-                                                onComplete = {
-                                                    animator.animateScale(
-                                                        node = hitNode,
-                                                        from = hitNode.scale,
-                                                        to = baseScale,
-                                                        duration = 0.15f,
-                                                        easing = Easing.EaseOut,
-                                                    )
-                                                },
-                                            )
-                                        }
+                                        val baseScale = baseScales.getOrPut(hitNode.id) { hitNode.scale }
+                                        animator.animateScale(
+                                            node = hitNode,
+                                            from = hitNode.scale,
+                                            to = baseScale * 1.3f,
+                                            duration = 0.15f,
+                                            easing = Easing.EaseOut,
+                                            onComplete = {
+                                                animator.animateScale(
+                                                    node = hitNode,
+                                                    from = hitNode.scale,
+                                                    to = baseScale,
+                                                    duration = 0.15f,
+                                                    easing = Easing.EaseOut,
+                                                )
+                                            },
+                                        )
                                     } else {
                                         // M7: tap on a detected surface →
                                         // hit test → anchor → textured model
