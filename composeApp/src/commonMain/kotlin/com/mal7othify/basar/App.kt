@@ -11,6 +11,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,25 +26,30 @@ import com.spatialkit.core.math.cm
 import com.spatialkit.core.math.degrees
 import com.spatialkit.dsl.rgb
 import com.spatialkit.dsl.vec3
+import com.spatialkit.engine.AnchorType
 import com.spatialkit.engine.FrameData
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.scene.Easing
 import com.spatialkit.scene.GltfLoader
+import com.spatialkit.scene.GltfModel
 import com.spatialkit.scene.SpatialAnimator
 import com.spatialkit.scene.SpatialSession
+import com.spatialkit.scene.loadGltf
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.round
 import kotlin.math.sin
 
 /**
- * Comprehensive demo showcasing three ways to create custom shapes in Spatial-KMP:
+ * Comprehensive demo showcasing four ways to create content in Spatial-KMP:
  *
  * 1. PRIMITIVES: Build complex shapes from built-in primitives (flower)
  * 2. CUSTOM MESH: Define vertices manually (leaf shape)
  * 3. GLTF LOADER: Load 3D models from GLTF format (star shape)
+ * 4. TEXTURED MODEL: A textured GLB crate; tap a detected surface to place
+ *    more copies (tap → hit test → anchor → model)
  */
 @Composable
 fun App() {
@@ -52,6 +58,14 @@ fun App() {
     var lastTapInfo by remember { mutableStateOf("Tap objects to test raycasting") }
     var session: SpatialSession? by remember { mutableStateOf(null) }
     var lastFrameData by remember { mutableStateOf<FrameData?>(null) }
+
+    // Textured model, parsed once off the main thread (M7). Capture the value
+    // (not the state) below so the scene rebuilds when loading completes.
+    var crateModel by remember { mutableStateOf<GltfModel?>(null) }
+    LaunchedEffect(Unit) {
+        crateModel = loadGltf(createCrateGltf().encodeToByteArray())
+    }
+    val crate = crateModel
 
     val animator = remember { SpatialAnimator() }
 
@@ -151,7 +165,22 @@ fun App() {
                                             )
                                         }
                                     } else {
-                                        lastTapInfo = "No hit - tapped at (${ndcX.round2()}, ${ndcY.round2()})"
+                                        // M7: tap on a detected surface →
+                                        // hit test → anchor → textured model
+                                        val model = crateModel
+                                        val hit =
+                                            currentSession.performHitTest(
+                                                offset.x / screenWidth,
+                                                offset.y / screenHeight,
+                                            )
+                                        if (model != null && hit != null) {
+                                            placeCrate(currentSession, model, hit.position)
+                                            lastTapInfo =
+                                                "Placed crate at (${hit.position.x.round2()}, " +
+                                                "${hit.position.y.round2()}, ${hit.position.z.round2()})"
+                                        } else {
+                                            lastTapInfo = "No hit - tapped at (${ndcX.round2()}, ${ndcY.round2()})"
+                                        }
                                     }
                                 }
                             }
@@ -327,8 +356,7 @@ fun App() {
                     // Embedded GLTF: A simple 5-pointed star
                     // This GLTF was generated with vertices for a star shape
                     val starGltf = createStarGltf()
-                    val loader = GltfLoader(starGltf)
-                    val starGeometry = loader.parseGeometry()
+                    val starGeometry = GltfLoader.load(starGltf).firstGeometry()
 
                     if (starGeometry != null) {
                         customMesh(
@@ -338,6 +366,19 @@ fun App() {
                         ) {
                             position = vec3(0.3f, 0.1f, -0.6f)
                             scale = Vec3(0.5f, 0.5f, 0.5f)
+                        }
+                    }
+
+                    // ================================================================
+                    // DEMO 4: TEXTURED GLB MODEL (M7)
+                    // A crate with a checkerboard base-color texture. Loaded
+                    // with loadGltf() outside this block (scene content builds
+                    // synchronously, once); placed via the model() builder.
+                    // Tap a detected surface to place more copies.
+                    // ================================================================
+                    if (crate != null) {
+                        model(crate, id = "crate_preview") {
+                            position = vec3(0f, 0.05f, -0.6f)
                         }
                     }
 
@@ -364,6 +405,141 @@ fun App() {
         }
     }
 }
+
+/**
+ * Places a [model] instance at [position], pinned to a world anchor so the
+ * pose stays put as tracking refines. Runs from the tap handler — structural
+ * scene ops like [com.spatialkit.scene.SpatialScene.add] are synchronized.
+ */
+private fun placeCrate(
+    session: SpatialSession,
+    model: GltfModel,
+    position: Vec3,
+) {
+    val node = model.toNode()
+    node.position = position
+
+    val anchor = session.scene.createAnchor(AnchorType.World(position, Quaternion.IDENTITY))
+    anchor.onTrack {
+        it.pose?.let { pose ->
+            node.position = pose.position
+            node.rotation = pose.rotation
+        }
+    }
+    session.scene.add(node)
+}
+
+/**
+ * Creates a glTF JSON string for a 10cm crate with a checkerboard base-color
+ * texture (embedded as a PNG data URI) — the M7 textured-model demo asset.
+ *
+ * In production you'd ship a real GLB and load its bytes from Compose
+ * resources or the network; embedding here keeps the demo self-contained.
+ */
+private fun createCrateGltf(): String {
+    val half = 0.05f
+    val faceNormals =
+        arrayOf(
+            floatArrayOf(0f, 0f, 1f),
+            floatArrayOf(0f, 0f, -1f),
+            floatArrayOf(1f, 0f, 0f),
+            floatArrayOf(-1f, 0f, 0f),
+            floatArrayOf(0f, 1f, 0f),
+            floatArrayOf(0f, -1f, 0f),
+        )
+
+    val positions = FloatArray(24 * 3)
+    val normals = FloatArray(24 * 3)
+    val uvs = FloatArray(24 * 2)
+    val indices = IntArray(36)
+
+    faceNormals.forEachIndexed { face, n ->
+        // Face basis chosen so u × v = n: corners wind counter-clockwise
+        // seen from outside (the engine contract's front-face convention)
+        val u = if (n[1] != 0f) floatArrayOf(1f, 0f, 0f) else floatArrayOf(n[2], 0f, -n[0])
+        val v =
+            floatArrayOf(
+                n[1] * u[2] - n[2] * u[1],
+                n[2] * u[0] - n[0] * u[2],
+                n[0] * u[1] - n[1] * u[0],
+            )
+
+        for (corner in 0 until 4) {
+            val su = if (corner == 1 || corner == 2) 1f else -1f
+            val sv = if (corner >= 2) 1f else -1f
+            val vi = face * 4 + corner
+            for (axis in 0 until 3) {
+                positions[vi * 3 + axis] = (n[axis] + u[axis] * su + v[axis] * sv) * half
+                normals[vi * 3 + axis] = n[axis]
+            }
+            uvs[vi * 2] = (su + 1f) / 2f
+            uvs[vi * 2 + 1] = (1f - sv) / 2f
+        }
+
+        val base = face * 4
+        val ii = face * 6
+        indices[ii] = base
+        indices[ii + 1] = base + 1
+        indices[ii + 2] = base + 2
+        indices[ii + 3] = base
+        indices[ii + 4] = base + 2
+        indices[ii + 5] = base + 3
+    }
+
+    val positionBytes = floatsToBytes(positions)
+    val normalBytes = floatsToBytes(normals)
+    val uvBytes = floatsToBytes(uvs)
+    val indexBytes = intsToUShortBytes(indices)
+    val buffer = positionBytes + normalBytes + uvBytes + indexBytes
+    val base64 = bytesToBase64(buffer)
+
+    val normalOffset = positionBytes.size
+    val uvOffset = normalOffset + normalBytes.size
+    val indexOffset = uvOffset + uvBytes.size
+
+    return """
+{
+  "asset": { "version": "2.0" },
+  "scene": 0,
+  "scenes": [{ "nodes": [0] }],
+  "nodes": [{ "mesh": 0 }],
+  "meshes": [{
+    "primitives": [{
+      "attributes": { "POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2 },
+      "indices": 3,
+      "material": 0
+    }]
+  }],
+  "materials": [{
+    "pbrMetallicRoughness": {
+      "baseColorTexture": { "index": 0 },
+      "metallicFactor": 0.0,
+      "roughnessFactor": 0.8
+    }
+  }],
+  "textures": [{ "source": 0, "sampler": 0 }],
+  "samplers": [{ "magFilter": 9728, "minFilter": 9728, "wrapS": 10497, "wrapT": 10497 }],
+  "images": [{ "uri": "data:image/png;base64,$CRATE_TEXTURE_PNG" }],
+  "accessors": [
+    { "bufferView": 0, "componentType": 5126, "count": 24, "type": "VEC3" },
+    { "bufferView": 1, "componentType": 5126, "count": 24, "type": "VEC3" },
+    { "bufferView": 2, "componentType": 5126, "count": 24, "type": "VEC2" },
+    { "bufferView": 3, "componentType": 5123, "count": 36, "type": "SCALAR" }
+  ],
+  "bufferViews": [
+    { "buffer": 0, "byteOffset": 0, "byteLength": ${positionBytes.size} },
+    { "buffer": 0, "byteOffset": $normalOffset, "byteLength": ${normalBytes.size} },
+    { "buffer": 0, "byteOffset": $uvOffset, "byteLength": ${uvBytes.size} },
+    { "buffer": 0, "byteOffset": $indexOffset, "byteLength": ${indexBytes.size} }
+  ],
+  "buffers": [{ "byteLength": ${buffer.size}, "uri": "data:application/octet-stream;base64,$base64" }]
+}
+        """.trimIndent()
+}
+
+/** 8x8 two-tone checkerboard PNG (nearest-filtered for crisp squares). */
+private const val CRATE_TEXTURE_PNG =
+    "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAGUlEQVR42mPYU+V0b1UeJsmAVRRIMgxKHQD/fm3BYWe/ygAAAABJRU5ErkJggg=="
 
 /**
  * Creates a GLTF JSON string for a simple 5-pointed star.

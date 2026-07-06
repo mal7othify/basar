@@ -9,6 +9,24 @@ import com.spatialkit.core.math.Transform
  * Applications build a SceneData each frame (or when scene changes) and
  * submit it via SpatialEngine.submitScene().
  *
+ * ## Rendering conventions (all platform renderers MUST follow these)
+ *
+ * These match glTF 2.0, so loader output renders identically everywhere:
+ *
+ * - **Coordinate system**: right-handed, +Y up, +X right, -Z forward
+ *   (into the screen). Units are meters.
+ * - **Winding order**: counter-clockwise triangles are front-facing.
+ * - **UV origin**: (0,0) is the **top-left** of the texture image, V grows
+ *   downward. Renderers that upload with a bottom-left GL convention must
+ *   compensate (e.g. Three.js `flipY = false`) instead of rewriting UVs.
+ * - **Color spaces**: [MaterialData.baseColor] and PBR factors are linear;
+ *   [TextureData] base-color images are sRGB-encoded. Color-managed
+ *   renderers (SceneKit, Three.js with `colorSpace = "srgb"`) decode
+ *   accordingly; the minimal GLES renderer samples sRGB bytes directly,
+ *   which is consistent with its non-color-managed output.
+ * - **Base color × texture**: when both are present they multiply
+ *   (glTF `baseColorFactor` semantics).
+ *
  * @property nodes All nodes to render (flat list, hierarchy via Group nodes)
  * @property anchors Anchor requests for this frame
  */
@@ -146,10 +164,10 @@ public enum class GeometryType {
  * Platform implementations convert to native materials.
  *
  * @property type Shading model to use
- * @property baseColor RGBA color (0-1 range)
+ * @property baseColor RGBA color (0-1 range); multiplied with [baseColorTexture] if present
  * @property metallic Metallic factor for PBR (0=dielectric, 1=metal)
  * @property roughness Roughness factor for PBR (0=smooth, 1=rough)
- * @property textureId Optional texture identifier (platform-specific)
+ * @property baseColorTexture Optional base-color texture, sampled with the mesh UVs
  * @property doubleSided Render both faces (disables back-face culling)
  */
 public data class MaterialData(
@@ -157,9 +175,92 @@ public data class MaterialData(
     val baseColor: Vec4,
     val metallic: Float = 0f,
     val roughness: Float = 0.5f,
-    val textureId: String? = null,
+    val baseColorTexture: TextureData? = null,
     val doubleSided: Boolean = false,
 )
+
+/**
+ * A texture as encoded image bytes plus sampling settings.
+ *
+ * The image is kept in its encoded container format (PNG/JPEG) and decoded by
+ * each platform renderer with its native image APIs. Renderers cache uploaded
+ * textures by [id]: two [TextureData] instances with the same id are treated
+ * as the same texture, so reuse one instance (or at least one id) when many
+ * meshes share a texture.
+ *
+ * @property id Stable identifier used as the renderer-side cache key
+ * @property data Encoded image bytes (PNG or JPEG)
+ * @property mimeType MIME type of [data] ("image/png", "image/jpeg"), if known
+ * @property sampler How the texture is sampled
+ */
+public class TextureData(
+    public val id: String,
+    public val data: ByteArray,
+    public val mimeType: String? = null,
+    public val sampler: TextureSampler = TextureSampler(),
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as TextureData
+
+        return id == other.id &&
+            mimeType == other.mimeType &&
+            sampler == other.sampler &&
+            data.contentEquals(other.data)
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + (mimeType?.hashCode() ?: 0)
+        result = 31 * result + sampler.hashCode()
+        result = 31 * result + data.size
+        return result
+    }
+
+    override fun toString(): String = "TextureData(id=$id, ${data.size} bytes, mimeType=$mimeType, sampler=$sampler)"
+}
+
+/**
+ * Texture sampling settings.
+ *
+ * @property wrapU Wrapping along the U axis
+ * @property wrapV Wrapping along the V axis
+ * @property minFilter Filter used when the texture is minified
+ * @property magFilter Filter used when the texture is magnified
+ */
+public data class TextureSampler(
+    val wrapU: TextureWrap = TextureWrap.REPEAT,
+    val wrapV: TextureWrap = TextureWrap.REPEAT,
+    val minFilter: TextureFilter = TextureFilter.LINEAR,
+    val magFilter: TextureFilter = TextureFilter.LINEAR,
+)
+
+/**
+ * Texture coordinate wrapping modes.
+ */
+public enum class TextureWrap {
+    /** Repeat the texture (tile) */
+    REPEAT,
+
+    /** Repeat, mirroring on each wrap */
+    MIRRORED_REPEAT,
+
+    /** Clamp to the edge pixel */
+    CLAMP_TO_EDGE,
+}
+
+/**
+ * Texture filtering modes.
+ */
+public enum class TextureFilter {
+    /** Nearest-neighbor (blocky) */
+    NEAREST,
+
+    /** Linear interpolation (smooth); renderers may use mipmapped variants */
+    LINEAR,
+}
 
 /**
  * Material shading types.

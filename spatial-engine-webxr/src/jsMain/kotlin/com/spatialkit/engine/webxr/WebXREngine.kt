@@ -62,6 +62,7 @@ public class WebXREngine : SpatialEngine {
     private val nodeMap = mutableMapOf<String, Object3D>()
     private val appliedMaterials = mutableMapOf<String, MaterialData>()
     private val appliedGeometry = mutableMapOf<String, GeometryData>()
+    private val textureCache = ThreeTextureCache()
     private var lastFrameTime = 0.0
 
     /**
@@ -388,6 +389,7 @@ public class WebXREngine : SpatialEngine {
         nodeMap.clear()
         appliedMaterials.clear()
         appliedGeometry.clear()
+        textureCache.disposeAll()
 
         scene = null
         camera = null
@@ -414,7 +416,7 @@ public class WebXREngine : SpatialEngine {
                 disposeObject(obj)
             }
             nodeMap.remove(id)
-            appliedMaterials.remove(id)
+            appliedMaterials.remove(id)?.baseColorTexture?.let { textureCache.release(it.id) }
             appliedGeometry.remove(id)
         }
 
@@ -552,6 +554,7 @@ public class WebXREngine : SpatialEngine {
         if (previousMaterial != node.material) {
             if (previousMaterial != null) {
                 mesh.material.dispose()
+                previousMaterial.baseColorTexture?.let { textureCache.release(it.id) }
             }
             mesh.material = createMaterial(node.material)
             appliedMaterials[node.id] = node.material
@@ -619,6 +622,11 @@ public class WebXREngine : SpatialEngine {
                     normals.forEachIndexed { i, v -> normalsArray[i] = v }
                     geometry.setAttribute("normal", BufferAttribute(normalsArray, 3))
                 }
+                data.uvs?.let { uvs ->
+                    val uvArray = Float32Array(uvs.size)
+                    uvs.forEachIndexed { i, v -> uvArray[i] = v }
+                    geometry.setAttribute("uv", BufferAttribute(uvArray, 2))
+                }
                 data.indices?.let { indices ->
                     // Uint16 only addresses 65535 vertices; switch to Uint32 beyond that
                     val needsWideIndices = indices.any { it > 0xFFFF }
@@ -639,7 +647,12 @@ public class WebXREngine : SpatialEngine {
      *
      * Three.js expects color as a hex integer (e.g. 0xFF0000 for red),
      * not as an {r, g, b} object. We convert the float RGB components (0.0-1.0)
-     * to a single packed integer.
+     * to a single packed integer. Three multiplies `map` by `color`, matching
+     * glTF's baseColorFactor × baseColorTexture semantics.
+     *
+     * Texture decode is asynchronous: the material starts with its base color
+     * and gets `map` assigned when the cache delivers the texture. The matching
+     * release happens where the applied material is replaced or removed.
      */
     private fun createMaterial(data: MaterialData): Material {
         val r = (data.baseColor.x * 255).toInt().coerceIn(0, 255)
@@ -647,23 +660,33 @@ public class WebXREngine : SpatialEngine {
         val b = (data.baseColor.z * 255).toInt().coerceIn(0, 255)
         val colorHex = (r shl 16) or (g shl 8) or b
 
-        return when (data.type) {
-            MaterialType.UNLIT -> {
-                val params = js("{}")
-                params.color = colorHex
-                if (data.doubleSided) params.side = 2 // THREE.DoubleSide
-                MeshBasicMaterial(params)
+        val material =
+            when (data.type) {
+                MaterialType.UNLIT -> {
+                    val params = js("{}")
+                    params.color = colorHex
+                    if (data.doubleSided) params.side = 2 // THREE.DoubleSide
+                    MeshBasicMaterial(params)
+                }
+
+                MaterialType.LIT, MaterialType.PBR -> {
+                    val params = js("{}")
+                    params.color = colorHex
+                    params.metalness = data.metallic.toDouble()
+                    params.roughness = data.roughness.toDouble()
+                    if (data.doubleSided) params.side = 2 // THREE.DoubleSide
+                    MeshStandardMaterial(params)
+                }
             }
 
-            MaterialType.LIT, MaterialType.PBR -> {
-                val params = js("{}")
-                params.color = colorHex
-                params.metalness = data.metallic.toDouble()
-                params.roughness = data.roughness.toDouble()
-                if (data.doubleSided) params.side = 2 // THREE.DoubleSide
-                MeshStandardMaterial(params)
+        data.baseColorTexture?.let { textureData ->
+            textureCache.acquire(textureData) { texture ->
+                material.asDynamic().map = texture
+                material.asDynamic().needsUpdate = true
             }
         }
+
+        return material
     }
 
     private fun updateTransform(

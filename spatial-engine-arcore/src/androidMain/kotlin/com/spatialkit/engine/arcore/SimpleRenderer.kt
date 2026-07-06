@@ -1,8 +1,10 @@
 package com.spatialkit.engine.arcore
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
+import android.opengl.GLUtils
 import android.opengl.Matrix
 import com.google.ar.core.Camera
 import com.google.ar.core.Coordinates2d
@@ -13,6 +15,9 @@ import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SceneNode
+import com.spatialkit.engine.TextureData
+import com.spatialkit.engine.TextureFilter
+import com.spatialkit.engine.TextureWrap
 import com.spatialkit.engine.Vec3
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -22,6 +27,8 @@ import kotlin.concurrent.withLock
 
 /**
  * Data class to hold VBO/VAO resources for a geometry.
+ *
+ * @property uvVbo UV coordinate buffer, or 0 if the geometry has no UVs
  */
 private data class GeometryBuffers(
     val vao: Int,
@@ -29,7 +36,10 @@ private data class GeometryBuffers(
     val normalVbo: Int,
     val indexVbo: Int,
     val indexCount: Int,
-)
+    val uvVbo: Int = 0,
+) {
+    val hasUvs: Boolean get() = uvVbo != 0
+}
 
 /**
  * Simple OpenGL renderer for ARCore scenes.
@@ -67,6 +77,20 @@ public class SimpleRenderer(
 
     // Custom mesh cache keyed by node ID (each custom mesh has unique geometry)
     private val customMeshCache = mutableMapOf<String, GeometryBuffers>()
+
+    // GL texture cache keyed by TextureData.id (decode + upload happens once)
+    private val textureCache = mutableMapOf<String, Int>()
+
+    // Texture ids that failed to decode; skipped instead of retried every frame
+    private val failedTextures = mutableSetOf<String>()
+
+    // Bumped by updateScene; render thread evicts stale GPU resources on change
+    private var sceneRevision = 0
+    private var renderedRevision = -1
+
+    // Cached uniform locations for the texture path (avoids per-frame lookups)
+    private var hasTextureLoc = -1
+    private var baseColorTexLoc = -1
 
     // Store shader references for cleanup
     private var vertexShader: Int = 0
@@ -270,6 +294,7 @@ public class SimpleRenderer(
         sceneLock.withLock {
             sceneNodes.clear()
             sceneNodes.addAll(sceneData.nodes)
+            sceneRevision++
         }
     }
 
@@ -338,21 +363,26 @@ public class SimpleRenderer(
 
             layout(location = 0) in vec3 a_Position;
             layout(location = 1) in vec3 a_Normal;
+            layout(location = 2) in vec2 a_TexCoord;
 
             uniform mat4 u_MVP;
             uniform mat4 u_Model;
 
             out vec3 v_Normal;
             out vec3 v_Position;
+            out vec2 v_TexCoord;
 
             void main() {
                 gl_Position = u_MVP * vec4(a_Position, 1.0);
                 v_Normal = mat3(u_Model) * a_Normal;
                 v_Position = (u_Model * vec4(a_Position, 1.0)).xyz;
+                v_TexCoord = a_TexCoord;
             }
             """.trimIndent()
 
-        // Simple fragment shader with basic lighting
+        // Simple fragment shader with basic lighting.
+        // The base-color texture is multiplied with u_Color, matching glTF's
+        // baseColorFactor × baseColorTexture semantics.
         val fragmentShader =
             """
             #version 300 es
@@ -360,22 +390,31 @@ public class SimpleRenderer(
 
             in vec3 v_Normal;
             in vec3 v_Position;
+            in vec2 v_TexCoord;
 
             uniform vec3 u_Color;
             uniform vec3 u_LightDir;
+            uniform bool u_HasTexture;
+            uniform sampler2D u_BaseColorTex;
 
             out vec4 fragColor;
 
             void main() {
+                vec3 baseColor = u_Color;
+                if (u_HasTexture) {
+                    baseColor *= texture(u_BaseColorTex, v_TexCoord).rgb;
+                }
                 vec3 normal = normalize(v_Normal);
                 float diffuse = max(dot(normal, u_LightDir), 0.0);
-                vec3 ambient = u_Color * 0.3;
-                vec3 color = ambient + u_Color * diffuse * 0.7;
+                vec3 ambient = baseColor * 0.3;
+                vec3 color = ambient + baseColor * diffuse * 0.7;
                 fragColor = vec4(color, 1.0);
             }
             """.trimIndent()
 
         sceneProgram = createProgram(vertexShader, fragmentShader, saveShaders = true)
+        hasTextureLoc = GLES30.glGetUniformLocation(sceneProgram, "u_HasTexture")
+        baseColorTexLoc = GLES30.glGetUniformLocation(sceneProgram, "u_BaseColorTex")
     }
 
     private fun renderBackground(frame: Frame) {
@@ -438,6 +477,7 @@ public class SimpleRenderer(
         vertices: FloatArray,
         normals: FloatArray,
         indices: ShortArray,
+        uvs: FloatArray? = null,
     ): GeometryBuffers {
         // Generate VAO
         val vaoIds = IntArray(1)
@@ -445,11 +485,13 @@ public class SimpleRenderer(
         val vao = vaoIds[0]
 
         // Generate VBOs
-        val vboIds = IntArray(3)
-        GLES30.glGenBuffers(3, vboIds, 0)
+        val vboCount = if (uvs != null) 4 else 3
+        val vboIds = IntArray(vboCount)
+        GLES30.glGenBuffers(vboCount, vboIds, 0)
         val vertexVbo = vboIds[0]
         val normalVbo = vboIds[1]
         val indexVbo = vboIds[2]
+        val uvVbo = if (uvs != null) vboIds[3] else 0
 
         // Bind VAO
         GLES30.glBindVertexArray(vao)
@@ -482,6 +524,22 @@ public class SimpleRenderer(
         GLES30.glEnableVertexAttribArray(1)
         GLES30.glVertexAttribPointer(1, 3, GLES30.GL_FLOAT, false, 0, 0)
 
+        // Upload UV data (location 2), if present
+        if (uvs != null) {
+            val uvBuffer =
+                ByteBuffer
+                    .allocateDirect(uvs.size * 4)
+                    .order(ByteOrder.nativeOrder())
+                    .asFloatBuffer()
+                    .put(uvs)
+                    .apply { position(0) }
+
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, uvVbo)
+            GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, uvs.size * 4, uvBuffer, GLES30.GL_STATIC_DRAW)
+            GLES30.glEnableVertexAttribArray(2)
+            GLES30.glVertexAttribPointer(2, 2, GLES30.GL_FLOAT, false, 0, 0)
+        }
+
         // Upload index data
         val indexBuffer =
             ByteBuffer
@@ -499,7 +557,7 @@ public class SimpleRenderer(
         GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, 0)
         GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, 0)
 
-        return GeometryBuffers(vao, vertexVbo, normalVbo, indexVbo, indices.size)
+        return GeometryBuffers(vao, vertexVbo, normalVbo, indexVbo, indices.size, uvVbo)
     }
 
     /**
@@ -529,10 +587,105 @@ public class SimpleRenderer(
             val normals =
                 geometry.normals?.takeIf { it.size == vertices.size }
                     ?: com.spatialkit.engine.generateVertexNormals(vertices, indices)
+            // Two UV components per three vertex components
+            val uvs = geometry.uvs?.takeIf { it.size / 2 == vertices.size / 3 }
 
             val shortIndices = ShortArray(indices.size) { indices[it].toShort() }
-            return@getOrPut createGeometryBuffers(vertices, normals, shortIndices)
+            return@getOrPut createGeometryBuffers(vertices, normals, shortIndices, uvs)
         }
+    }
+
+    // ===== Texture Caching Implementation =====
+
+    /**
+     * Returns the GL texture for [data], decoding and uploading it on first
+     * use (GL thread). Returns 0 if decoding failed; failures are recorded so
+     * they aren't retried every frame.
+     */
+    private fun getOrCreateTexture(data: TextureData): Int {
+        textureCache[data.id]?.let { return it }
+        if (data.id in failedTextures) return 0
+
+        val bitmap = BitmapFactory.decodeByteArray(data.data, 0, data.data.size)
+        if (bitmap == null) {
+            SpatialLog.warn(TAG) { "texture decode failed for '${data.id}' (${data.data.size} bytes)" }
+            failedTextures.add(data.id)
+            return 0
+        }
+
+        val textureIds = IntArray(1)
+        GLES30.glGenTextures(1, textureIds, 0)
+        val textureId = textureIds[0]
+
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureId)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, data.sampler.wrapU.toGl())
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, data.sampler.wrapV.toGl())
+        GLES30.glTexParameteri(
+            GLES30.GL_TEXTURE_2D,
+            GLES30.GL_TEXTURE_MIN_FILTER,
+            when (data.sampler.minFilter) {
+                TextureFilter.NEAREST -> GLES30.GL_NEAREST
+                // Trilinear for quality at glancing angles (mipmaps generated below)
+                TextureFilter.LINEAR -> GLES30.GL_LINEAR_MIPMAP_LINEAR
+            },
+        )
+        GLES30.glTexParameteri(
+            GLES30.GL_TEXTURE_2D,
+            GLES30.GL_TEXTURE_MAG_FILTER,
+            when (data.sampler.magFilter) {
+                TextureFilter.NEAREST -> GLES30.GL_NEAREST
+                TextureFilter.LINEAR -> GLES30.GL_LINEAR
+            },
+        )
+        GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, bitmap, 0)
+        if (data.sampler.minFilter == TextureFilter.LINEAR) {
+            GLES30.glGenerateMipmap(GLES30.GL_TEXTURE_2D)
+        }
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
+        bitmap.recycle()
+
+        textureCache[data.id] = textureId
+        return textureId
+    }
+
+    private fun TextureWrap.toGl(): Int =
+        when (this) {
+            TextureWrap.REPEAT -> GLES30.GL_REPEAT
+            TextureWrap.MIRRORED_REPEAT -> GLES30.GL_MIRRORED_REPEAT
+            TextureWrap.CLAMP_TO_EDGE -> GLES30.GL_CLAMP_TO_EDGE
+        }
+
+    /**
+     * Frees GPU resources for nodes/textures no longer in the scene. Runs on
+     * the GL thread, and only when the scene actually changed (see
+     * [sceneRevision]) so steady-state frames do no extra work.
+     */
+    private fun evictStaleResources(nodes: List<SceneNode>) {
+        val liveNodeIds = mutableSetOf<String>()
+        val liveTextureIds = mutableSetOf<String>()
+
+        fun collect(nodes: List<SceneNode>) {
+            nodes.forEach { node ->
+                liveNodeIds.add(node.id)
+                when (node) {
+                    is SceneNode.Mesh -> node.material.baseColorTexture?.let { liveTextureIds.add(it.id) }
+                    is SceneNode.Group -> collect(node.children)
+                }
+            }
+        }
+        collect(nodes)
+
+        customMeshCache.entries.removeAll { (nodeId, buffers) ->
+            (nodeId !in liveNodeIds).also { stale ->
+                if (stale) deleteGeometryBuffers(buffers)
+            }
+        }
+        textureCache.entries.removeAll { (textureId, glTexture) ->
+            (textureId !in liveTextureIds).also { stale ->
+                if (stale) GLES30.glDeleteTextures(1, intArrayOf(glTexture), 0)
+            }
+        }
+        failedTextures.retainAll(liveTextureIds)
     }
 
     /**
@@ -793,8 +946,13 @@ public class SimpleRenderer(
         val vaoIds = intArrayOf(buffers.vao)
         GLES30.glDeleteVertexArrays(1, vaoIds, 0)
 
-        val vboIds = intArrayOf(buffers.vertexVbo, buffers.normalVbo, buffers.indexVbo)
-        GLES30.glDeleteBuffers(3, vboIds, 0)
+        val vboIds =
+            if (buffers.hasUvs) {
+                intArrayOf(buffers.vertexVbo, buffers.normalVbo, buffers.indexVbo, buffers.uvVbo)
+            } else {
+                intArrayOf(buffers.vertexVbo, buffers.normalVbo, buffers.indexVbo)
+            }
+        GLES30.glDeleteBuffers(vboIds.size, vboIds, 0)
     }
 
     private fun render3DScene(
@@ -802,16 +960,22 @@ public class SimpleRenderer(
         arCamera: Camera,
     ) {
         // Copy scene nodes under lock to avoid race conditions
-        val nodesToRender =
+        val (nodesToRender, revision) =
             sceneLock.withLock {
                 if (sceneNodes.isEmpty()) {
                     return // Early return if empty
                 }
-                sceneNodes.toList() // Create a copy
+                sceneNodes.toList() to sceneRevision // Create a copy
             }
 
         if (sceneProgram == 0) {
             return
+        }
+
+        // Free GPU resources for removed nodes/textures (GL thread only)
+        if (revision != renderedRevision) {
+            evictStaleResources(nodesToRender)
+            renderedRevision = revision
         }
 
         GLES30.glUseProgram(sceneProgram)
@@ -900,10 +1064,25 @@ public class SimpleRenderer(
                 getOrCreateGeometryBuffers(mesh.geometry.type)
             }
         if (buffers != null) {
+            // Bind base-color texture if the material has one and the mesh has UVs
+            val textureData = mesh.material.baseColorTexture
+            val glTexture = if (textureData != null && buffers.hasUvs) getOrCreateTexture(textureData) else 0
+            if (glTexture != 0) {
+                GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, glTexture)
+                GLES30.glUniform1i(baseColorTexLoc, 0)
+                GLES30.glUniform1i(hasTextureLoc, 1)
+            } else {
+                GLES30.glUniform1i(hasTextureLoc, 0)
+            }
+
             // Bind VAO and draw
             GLES30.glBindVertexArray(buffers.vao)
             GLES30.glDrawElements(GLES30.GL_TRIANGLES, buffers.indexCount, GLES30.GL_UNSIGNED_SHORT, 0)
             GLES30.glBindVertexArray(0)
+            if (glTexture != 0) {
+                GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
+            }
         }
     }
 
@@ -1163,6 +1342,15 @@ public class SimpleRenderer(
         geometryCache.clear()
         customMeshCache.values.forEach { deleteGeometryBuffers(it) }
         customMeshCache.clear()
+
+        // Delete all cached scene textures
+        if (textureCache.isNotEmpty()) {
+            val ids = textureCache.values.toIntArray()
+            GLES30.glDeleteTextures(ids.size, ids, 0)
+            textureCache.clear()
+        }
+        failedTextures.clear()
+        renderedRevision = -1
 
         // Clear scene data under lock
         sceneLock.withLock {

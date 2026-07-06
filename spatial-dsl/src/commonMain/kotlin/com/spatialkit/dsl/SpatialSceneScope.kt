@@ -8,7 +8,9 @@ import com.spatialkit.scene.CapsuleNode
 import com.spatialkit.scene.CubeNode
 import com.spatialkit.scene.CustomMeshNode
 import com.spatialkit.scene.CylinderNode
+import com.spatialkit.scene.GltfModel
 import com.spatialkit.scene.GroupNode
+import com.spatialkit.scene.ModelNode
 import com.spatialkit.scene.PlaneNode
 import com.spatialkit.scene.SpatialAnchor
 import com.spatialkit.scene.SpatialNode
@@ -145,6 +147,32 @@ public class SpatialSceneScope(
         id: String = SpatialNode.generateId(),
         configure: CustomMeshNode.() -> Unit = {},
     ): CustomMeshNode = CustomMeshNode(geometry, color, id).apply(configure).also { scene.add(it) }
+
+    /**
+     * Places a loaded glTF model in the scene.
+     *
+     * Load the model beforehand with `loadGltf(bytes)` (suspend) — asset
+     * loading does not belong in the scene block, which builds synchronously
+     * and only once. The same [GltfModel] can be placed any number of times;
+     * geometry and textures are shared between instances.
+     *
+     * ```kotlin
+     * model(duck) {
+     *     position = vec3(0f, 0f, -1f)
+     *     scale = vec3(0.5f, 0.5f, 0.5f)
+     * }
+     * ```
+     *
+     * @param model The loaded model to instantiate
+     * @param id Optional unique identifier
+     * @param configure Lambda to configure the model node
+     * @return The created model node
+     */
+    public fun model(
+        model: GltfModel,
+        id: String = SpatialNode.generateId(),
+        configure: ModelNode.() -> Unit = {},
+    ): ModelNode = ModelNode(model, id).apply(configure).also { scene.add(it) }
 
     /**
      * Creates a group node with nested content.

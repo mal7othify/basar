@@ -155,6 +155,49 @@ fun PlaneAnchoredContent() {
 }
 ```
 
+### Example 3b: Textured 3D Models (glTF / GLB)
+
+Load a model once with the suspend `loadGltf`, then place it with `model(...)`.
+Loading happens *outside* the scene block (which builds synchronously, once);
+capture the loaded value so the scene rebuilds when it arrives:
+
+```kotlin
+@Composable
+fun ModelViewer() {
+    var duckModel by remember { mutableStateOf<GltfModel?>(null) }
+    LaunchedEffect(Unit) {
+        // Bytes from Compose resources, network, or platform file APIs
+        duckModel = loadGltf(Res.readBytes("files/duck.glb"))
+    }
+    val duck = duckModel  // capture the value, not the state
+
+    SpatialView(
+        mode = SessionMode.AR,
+        onError = { error ->
+            // Malformed assets arrive as EngineError.AssetError instead of
+            // rendering a silent blank scene
+            println("Spatial error: $error")
+        },
+    ) {
+        if (duck != null) {
+            model(duck) {
+                position = vec3(0f, 0f, -1f)
+            }
+
+            // Instances share geometry/textures; the asset parses once
+            model(duck, id = "duck-2") {
+                position = vec3(0.5f, 0f, -1f)
+                scale = Vec3(0.5f, 0.5f, 0.5f)
+            }
+        }
+    }
+}
+```
+
+To place a model where the user taps (hit test → anchor → model), see the
+crate demo in `composeApp` — `placeCrate` in `App.kt` shows the full flow
+using `session.performHitTest`, `scene.createAnchor`, and `model.toNode()`.
+
 ---
 
 ## Compose Integration

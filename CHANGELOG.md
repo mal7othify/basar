@@ -9,6 +9,41 @@ binary-compatibility validator dumps in each module's `api/` directory).
 
 ## [Unreleased]
 
+### Added (M7 — textured 3D models; on-device validation pending)
+- `TextureData` in the engine contract: encoded PNG/JPEG bytes plus
+  `TextureSampler` (wrap and filter modes). `MaterialData.textureId` replaced
+  by `baseColorTexture: TextureData?`; `MeshNode.baseColorTexture` flows into
+  submitted scenes.
+- `GltfLoader` rewritten on `kotlinx.serialization` (M7.1–M7.3): GLB container
+  and glTF JSON with embedded buffers, correct accessor `byteOffset` /
+  bufferView `byteStride` (interleaved layouts), TEXCOORD_0 UVs, PBR
+  metallic-roughness materials with base-color textures and sampler modes,
+  node hierarchies (TRS and matrix transforms). New API:
+  `GltfLoader.load(bytes|json): GltfModel` → `GltfModel.toNode()`; malformed
+  assets throw `GltfParseException` with actionable messages. No longer
+  experimental.
+- Texture rendering in all three engines (M7.4–M7.6): WebXR decodes via
+  `createImageBitmap` into refcount-cached Three.js textures (`flipY=false`,
+  sRGB color space, sampler wrap/filter mapped, disposed with the last
+  user); ARCore decodes via `BitmapFactory` and uploads with `GLUtils`, with
+  UV attributes and base-color sampling added to the scene shader, textures
+  cached by id and freed on node removal and `destroy()`; ARKit decodes to
+  `UIImage` on `SCNMaterial.diffuse` with the `multiply` slot carrying the
+  base-color factor and a `Texcoord` geometry source for UVs.
+- Rendering conventions documented in the engine contract (M7.7): Y-up
+  right-handed meters, CCW front faces, top-left UV origin, sRGB base-color
+  textures multiplied with linear factors — all matching glTF 2.0.
+- `ModelNode` + `model(...)` DSL builder in scene, group, and anchor scopes
+  (M7.8); `GltfModel.toNode()` now returns `ModelNode`.
+- Suspend `loadGltf(bytes)` (M7.9): parses off the caller's thread and caches
+  parsed models by content, so N placements of one asset parse once.
+- `EngineError.AssetError` (M7.10): a model that fails to parse inside a
+  `SpatialView` content block is reported through `onError` instead of
+  crashing the composition or rendering a silent blank scene.
+- Sample app (M7.11): textured crate demo — a GLB-style glTF with an embedded
+  checkerboard texture rendered on all three platforms; tapping a detected
+  surface places anchored copies (tap → hit test → anchor → model).
+
 ### Documentation
 - Full documentation audit against the current API: guides now use the real
   symbol names (`Color.Red`, `detectedPlanes`, `PlaneType.HORIZONTAL_UP`,

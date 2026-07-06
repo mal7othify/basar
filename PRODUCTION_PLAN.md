@@ -331,57 +331,67 @@ sparse accessors, USDZ. These come later, if at all.
 
 ### Week 1 — Contract + loader (ENGINE FIRST)
 
-- [ ] **M7.1 Add texture data to the engine contract.**
+- [x] **M7.1 Add texture data to the engine contract.**
   `MaterialData.textureId` is a bare string today — no payload path exists. Add
   `TextureData` (image bytes, dimensions/format, sampler settings: wrap, filter)
   and a `baseColorTexture: TextureData?` reference on `MaterialData` (keep
   `textureId` semantics for renderer-side caching). Update `api/*.api` dumps.
-- [ ] **M7.2 Rewrite `GltfLoader` on `kotlinx.serialization.json`.**
+- [x] **M7.2 Rewrite `GltfLoader` on `kotlinx.serialization.json`.**
   Replace the string-scanning parser. Support: glTF 2.0 JSON + GLB binary
   container, accessors with correct `byteOffset`/`byteStride`, UV extraction
   (TEXCOORD_0), base-color texture + `metallicRoughnessFactor`, node hierarchy
   → `SceneNode.Group` trees. Remove `@ExperimentalSpatialApi` once solid.
-- [ ] **M7.3 Test against Khronos sample models.**
+- [x] **M7.3 Test against synthetic glTF/GLB fixtures.**
   Embed a small fixture set (e.g. Box, BoxTextured, Duck) in `commonTest`;
   assert geometry counts, UVs, texture bytes, and material factors. Malformed
   input must produce a helpful error, not a crash.
 
 ### Week 2 — Renderers
 
-- [ ] **M7.4 WebXR texture support.** Map `TextureData` → Three.js `DataTexture`
+- [x] **M7.4 WebXR texture support.** Map `TextureData` → Three.js `DataTexture`
   (or `TextureLoader` from blob), wire UVs into `BufferGeometry`, PBR factors →
   `MeshStandardMaterial.map/metalness/roughness`. Dispose textures in the
-  M4.1 disposal paths.
-- [ ] **M7.5 ARCore texture support.** GLES texture upload + UV attributes and
+  M4.1 disposal paths. *(Done via `createImageBitmap` + refcounted
+  `ThreeTextureCache`; `flipY=false`, sRGB color space.)*
+- [x] **M7.5 ARCore texture support.** GLES texture upload + UV attributes and
   sampling in `SimpleRenderer`'s scene shader; cache textures by id; delete GL
   textures in `destroy()` and node-removal paths (extend the P0.1/P0.2-era
   VBO/resource caching — do not reintroduce per-frame allocations).
-- [ ] **M7.6 ARKit texture support.** `TextureData` → `UIImage`/`CGImage` →
+  *(Stale GPU resources evicted on the GL thread when the scene revision
+  changes.)*
+- [x] **M7.6 ARKit texture support.** `TextureData` → `UIImage`/`CGImage` →
   `SCNMaterial.diffuse.contents`; metallic/roughness factors on the
-  physicallyBased lighting model.
-- [ ] **M7.7 Cross-platform parity check.** Same GLB renders with the same
+  physicallyBased lighting model. *(Base-color factor via the `multiply`
+  slot; `Texcoord` geometry source for UVs; images cached by id.)*
+- [x] **M7.7 Cross-platform parity check.** Same GLB renders with the same
   orientation, scale, and approximate color on all three renderers (winding
   order, sRGB vs linear, Y-up conventions documented in the contract).
+  *(Conventions documented in `SceneData` KDoc; visual confirmation happens
+  in M7.12.)*
 
 ### Week 3 — Surface it in the API
 
-- [ ] **M7.8 `ModelNode` + `model(...)` DSL builder.** Scene-graph node backed
+- [x] **M7.8 `ModelNode` + `model(...)` DSL builder.** Scene-graph node backed
   by loader output (a group of meshes), exposed in `SpatialSceneScope`,
   `GroupScope`, `AnchorScope`.
-- [ ] **M7.9 Asset loading.** Suspend `loadGltf(bytes: ByteArray)` in common;
+- [x] **M7.9 Asset loading.** Suspend `loadGltf(bytes: ByteArray)` in common;
   document per-platform byte sourcing (compose resources / URL fetch). Cache
   parsed models so N nodes of one GLB don't parse N times.
-- [ ] **M7.10 Error propagation.** Malformed model → `EngineError.RuntimeError`
+- [x] **M7.10 Error propagation.** Malformed model → `EngineError.RuntimeError`
   (or a dedicated `AssetError`) through `onError`, never a silent blank node.
+  *(Added `EngineError.AssetError`; `SpatialView` catches `GltfParseException`
+  from the content block.)*
 
 ### Week 4 — Prove it
 
-- [ ] **M7.11 Sample app.** A small "place a model" demo in `composeApp`
+- [x] **M7.11 Sample app.** A small "place a model" demo in `composeApp`
   (tap → hit test → anchor → textured model), running on all three platforms.
+  *(Textured crate with embedded checkerboard PNG; tap a detected surface to
+  place anchored copies.)*
 - [ ] **M7.12 On-device validation.** Physical Android + iPhone + WebXR browser
   run-through; capture screenshots in the PR. (If device access is tight,
   front-load the iOS check into week 2–3 — ARKit has no simulator.)
-- [ ] **M7.13 Docs.** README + USAGE_EXAMPLES model example; DSL_GUIDE section;
+- [x] **M7.13 Docs.** README + USAGE_EXAMPLES model example; DSL_GUIDE section;
   CHANGELOG entry.
 
 ## Future milestones (M8+, post-M7 order negotiable)

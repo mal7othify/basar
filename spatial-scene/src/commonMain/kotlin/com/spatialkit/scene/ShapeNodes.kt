@@ -8,6 +8,7 @@ import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.MaterialData
 import com.spatialkit.engine.MaterialType
 import com.spatialkit.engine.SceneNode
+import com.spatialkit.engine.TextureData
 import com.spatialkit.engine.Vec4
 
 /**
@@ -52,6 +53,12 @@ public abstract class MeshNode(
     public var doubleSided: Boolean = false
 
     /**
+     * Optional base-color texture, sampled with the geometry's UVs and
+     * multiplied with [color].
+     */
+    public var baseColorTexture: TextureData? = null
+
+    /**
      * The intrinsic size of the geometry along each axis, applied on top of
      * [scale] when rendering this node's mesh (but not inherited by children).
      */
@@ -69,6 +76,7 @@ public abstract class MeshNode(
                 baseColor = color.toVec4(),
                 metallic = metallic,
                 roughness = roughness,
+                baseColorTexture = baseColorTexture,
                 doubleSided = doubleSided,
             )
         val size = geometrySize

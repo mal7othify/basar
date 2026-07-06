@@ -193,6 +193,20 @@ public final class com/spatialkit/engine/EngineConfig {
 public abstract interface class com/spatialkit/engine/EngineError {
 }
 
+public final class com/spatialkit/engine/EngineError$AssetError : com/spatialkit/engine/EngineError {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Throwable;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Throwable;)Lcom/spatialkit/engine/EngineError$AssetError;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineError$AssetError;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)Lcom/spatialkit/engine/EngineError$AssetError;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/spatialkit/engine/EngineError$InitializationFailed : com/spatialkit/engine/EngineError {
 	public fun <init> (Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -543,22 +557,22 @@ public final class com/spatialkit/engine/LightEstimate {
 }
 
 public final class com/spatialkit/engine/MaterialData {
-	public fun <init> (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLjava/lang/String;Z)V
-	public synthetic fun <init> (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLjava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLcom/spatialkit/engine/TextureData;Z)V
+	public synthetic fun <init> (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLcom/spatialkit/engine/TextureData;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lcom/spatialkit/engine/MaterialType;
 	public final fun component2 ()Lcom/spatialkit/core/math/Vec4;
 	public final fun component3 ()F
 	public final fun component4 ()F
-	public final fun component5 ()Ljava/lang/String;
+	public final fun component5 ()Lcom/spatialkit/engine/TextureData;
 	public final fun component6 ()Z
-	public final fun copy (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLjava/lang/String;Z)Lcom/spatialkit/engine/MaterialData;
-	public static synthetic fun copy$default (Lcom/spatialkit/engine/MaterialData;Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLjava/lang/String;ZILjava/lang/Object;)Lcom/spatialkit/engine/MaterialData;
+	public final fun copy (Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLcom/spatialkit/engine/TextureData;Z)Lcom/spatialkit/engine/MaterialData;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/MaterialData;Lcom/spatialkit/engine/MaterialType;Lcom/spatialkit/core/math/Vec4;FFLcom/spatialkit/engine/TextureData;ZILjava/lang/Object;)Lcom/spatialkit/engine/MaterialData;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBaseColor ()Lcom/spatialkit/core/math/Vec4;
+	public final fun getBaseColorTexture ()Lcom/spatialkit/engine/TextureData;
 	public final fun getDoubleSided ()Z
 	public final fun getMetallic ()F
 	public final fun getRoughness ()F
-	public final fun getTextureId ()Ljava/lang/String;
 	public final fun getType ()Lcom/spatialkit/engine/MaterialType;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -740,6 +754,54 @@ public final class com/spatialkit/engine/SpatialRuntime {
 	public static synthetic fun start$default (Lcom/spatialkit/engine/SpatialRuntime;Lcom/spatialkit/engine/EngineConfig;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun stop ()V
 	public final fun submitScene (Lcom/spatialkit/engine/SceneData;)V
+}
+
+public final class com/spatialkit/engine/TextureData {
+	public fun <init> (Ljava/lang/String;[BLjava/lang/String;Lcom/spatialkit/engine/TextureSampler;)V
+	public synthetic fun <init> (Ljava/lang/String;[BLjava/lang/String;Lcom/spatialkit/engine/TextureSampler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getData ()[B
+	public final fun getId ()Ljava/lang/String;
+	public final fun getMimeType ()Ljava/lang/String;
+	public final fun getSampler ()Lcom/spatialkit/engine/TextureSampler;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/TextureFilter : java/lang/Enum {
+	public static final field LINEAR Lcom/spatialkit/engine/TextureFilter;
+	public static final field NEAREST Lcom/spatialkit/engine/TextureFilter;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/TextureFilter;
+	public static fun values ()[Lcom/spatialkit/engine/TextureFilter;
+}
+
+public final class com/spatialkit/engine/TextureSampler {
+	public fun <init> ()V
+	public fun <init> (Lcom/spatialkit/engine/TextureWrap;Lcom/spatialkit/engine/TextureWrap;Lcom/spatialkit/engine/TextureFilter;Lcom/spatialkit/engine/TextureFilter;)V
+	public synthetic fun <init> (Lcom/spatialkit/engine/TextureWrap;Lcom/spatialkit/engine/TextureWrap;Lcom/spatialkit/engine/TextureFilter;Lcom/spatialkit/engine/TextureFilter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/spatialkit/engine/TextureWrap;
+	public final fun component2 ()Lcom/spatialkit/engine/TextureWrap;
+	public final fun component3 ()Lcom/spatialkit/engine/TextureFilter;
+	public final fun component4 ()Lcom/spatialkit/engine/TextureFilter;
+	public final fun copy (Lcom/spatialkit/engine/TextureWrap;Lcom/spatialkit/engine/TextureWrap;Lcom/spatialkit/engine/TextureFilter;Lcom/spatialkit/engine/TextureFilter;)Lcom/spatialkit/engine/TextureSampler;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/TextureSampler;Lcom/spatialkit/engine/TextureWrap;Lcom/spatialkit/engine/TextureWrap;Lcom/spatialkit/engine/TextureFilter;Lcom/spatialkit/engine/TextureFilter;ILjava/lang/Object;)Lcom/spatialkit/engine/TextureSampler;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMagFilter ()Lcom/spatialkit/engine/TextureFilter;
+	public final fun getMinFilter ()Lcom/spatialkit/engine/TextureFilter;
+	public final fun getWrapU ()Lcom/spatialkit/engine/TextureWrap;
+	public final fun getWrapV ()Lcom/spatialkit/engine/TextureWrap;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/TextureWrap : java/lang/Enum {
+	public static final field CLAMP_TO_EDGE Lcom/spatialkit/engine/TextureWrap;
+	public static final field MIRRORED_REPEAT Lcom/spatialkit/engine/TextureWrap;
+	public static final field REPEAT Lcom/spatialkit/engine/TextureWrap;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/spatialkit/engine/TextureWrap;
+	public static fun values ()[Lcom/spatialkit/engine/TextureWrap;
 }
 
 public final class com/spatialkit/engine/Touch {

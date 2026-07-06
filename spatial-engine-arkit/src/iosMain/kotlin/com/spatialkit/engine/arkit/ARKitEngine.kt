@@ -1,5 +1,6 @@
 package com.spatialkit.engine.arkit
 
+import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.engine.AnchorState
@@ -22,6 +23,10 @@ import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SceneNode
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
+import com.spatialkit.engine.TextureData
+import com.spatialkit.engine.TextureFilter
+import com.spatialkit.engine.TextureSampler
+import com.spatialkit.engine.TextureWrap
 import com.spatialkit.engine.TrackingState
 import com.spatialkit.engine.generateVertexNormals
 import kotlinx.cinterop.CValue
@@ -79,14 +84,19 @@ import platform.QuartzCore.CACurrentMediaTime
 import platform.SceneKit.SCNBox
 import platform.SceneKit.SCNCapsule
 import platform.SceneKit.SCNCylinder
+import platform.SceneKit.SCNFilterModeLinear
+import platform.SceneKit.SCNFilterModeNearest
+import platform.SceneKit.SCNFilterModeNone
 import platform.SceneKit.SCNGeometry
 import platform.SceneKit.SCNGeometryElement
 import platform.SceneKit.SCNGeometryPrimitiveTypeTriangles
 import platform.SceneKit.SCNGeometrySource
 import platform.SceneKit.SCNGeometrySourceSemanticNormal
+import platform.SceneKit.SCNGeometrySourceSemanticTexcoord
 import platform.SceneKit.SCNGeometrySourceSemanticVertex
 import platform.SceneKit.SCNLightingModelPhysicallyBased
 import platform.SceneKit.SCNMaterial
+import platform.SceneKit.SCNMaterialProperty
 import platform.SceneKit.SCNNode
 import platform.SceneKit.SCNPlane
 import platform.SceneKit.SCNScene
@@ -94,8 +104,13 @@ import platform.SceneKit.SCNSceneRendererProtocol
 import platform.SceneKit.SCNSphere
 import platform.SceneKit.SCNVector3Make
 import platform.SceneKit.SCNVector4Make
+import platform.SceneKit.SCNWrapMode
+import platform.SceneKit.SCNWrapModeClamp
+import platform.SceneKit.SCNWrapModeMirror
+import platform.SceneKit.SCNWrapModeRepeat
 import platform.UIKit.UIApplication
 import platform.UIKit.UIColor
+import platform.UIKit.UIImage
 import platform.UIKit.UIInterfaceOrientation
 import platform.UIKit.UIInterfaceOrientationPortrait
 import platform.darwin.NSObject
@@ -143,6 +158,13 @@ public class ARKitEngine : SpatialEngine {
     // Last applied material per node id, to skip redundant per-frame
     // SCNMaterial updates (each one invalidates SceneKit's render caches)
     private val materialCache = mutableMapOf<String, MaterialData>()
+
+    // Decoded UIImages keyed by TextureData.id, so meshes sharing a texture
+    // decode it once (SceneKit dedupes the GPU upload for identical contents)
+    private val imageCache = mutableMapOf<String, UIImage>()
+
+    // Texture ids that failed to decode; skipped instead of retried
+    private val failedTextures = mutableSetOf<String>()
     private var currentScene: SceneData? = null
 
     // Delegate for frame updates
@@ -685,9 +707,29 @@ public class ARKitEngine : SpatialEngine {
             materialCache.remove(id)
         }
 
+        // Drop cached images whose textures left the scene
+        if (toRemove.isNotEmpty() && imageCache.isNotEmpty()) {
+            val liveTextureIds = mutableSetOf<String>()
+            collectTextureIds(scene.nodes, liveTextureIds)
+            imageCache.keys.retainAll(liveTextureIds)
+            failedTextures.retainAll(liveTextureIds)
+        }
+
         // Create or update nodes
         scene.nodes.forEach { node ->
             processSceneNode(node, contentRoot)
+        }
+    }
+
+    private fun collectTextureIds(
+        nodes: List<SceneNode>,
+        ids: MutableSet<String>,
+    ) {
+        nodes.forEach { node ->
+            when (node) {
+                is SceneNode.Mesh -> node.material.baseColorTexture?.let { ids.add(it.id) }
+                is SceneNode.Group -> collectTextureIds(node.children, ids)
+            }
         }
     }
 
@@ -745,7 +787,7 @@ public class ARKitEngine : SpatialEngine {
 
         // Update material only when it actually changed
         if (materialCache[mesh.id] != mesh.material) {
-            updateNodeMaterial(scnNode, mesh.material)
+            updateNodeMaterial(scnNode, mesh.material, mesh.geometry.type == GeometryType.CUSTOM_MESH)
             materialCache[mesh.id] = mesh.material
         }
     }
@@ -888,6 +930,22 @@ public class ARKitEngine : SpatialEngine {
                 dataStride = (3 * Float.SIZE_BYTES).toLong(),
             )
 
+        // Texture coordinates (two components per vertex). SceneKit's texcoord
+        // origin is top-left, same as glTF, so UVs pass through unchanged.
+        val texcoordSource =
+            data.uvs?.takeIf { it.size / 2 == vertexCount }?.let { uvs ->
+                SCNGeometrySource.geometrySourceWithData(
+                    data = uvs.toNSData(),
+                    semantic = SCNGeometrySourceSemanticTexcoord,
+                    vectorCount = vertexCount.toLong(),
+                    floatComponents = true,
+                    componentsPerVector = 2,
+                    bytesPerComponent = Float.SIZE_BYTES.toLong(),
+                    dataOffset = 0,
+                    dataStride = (2 * Float.SIZE_BYTES).toLong(),
+                )
+            }
+
         val indexData =
             indices.usePinned { pinned ->
                 NSData.dataWithBytes(pinned.addressOf(0), (indices.size * Int.SIZE_BYTES).toULong())
@@ -901,7 +959,7 @@ public class ARKitEngine : SpatialEngine {
             )
 
         return SCNGeometry.geometryWithSources(
-            sources = listOf(vertexSource, normalSource),
+            sources = listOfNotNull(vertexSource, normalSource, texcoordSource),
             elements = listOf(element),
         )
     }
@@ -917,8 +975,17 @@ public class ARKitEngine : SpatialEngine {
                 blue = materialData.baseColor.z.toDouble(),
                 alpha = materialData.baseColor.w.toDouble(),
             )
-        material.diffuse.contents = color
+        val image = materialData.baseColorTexture?.let { getOrCreateImage(it) }
+        val diffuseContents: Any = image ?: color
+        material.diffuse.contents = diffuseContents
+        materialData.baseColorTexture?.sampler?.let { applySampler(material.diffuse, it) }
         material.doubleSided = materialData.doubleSided
+
+        // glTF multiplies baseColorFactor with the texture; SCNMaterial's
+        // multiply slot provides exactly that.
+        if (image != null && !materialData.baseColor.isWhite()) {
+            material.multiply.contents = color
+        }
 
         // Set PBR properties
         when (materialData.type) {
@@ -934,13 +1001,69 @@ public class ARKitEngine : SpatialEngine {
 
             MaterialType.UNLIT -> {
                 // Use emission for unlit appearance
-                material.emission.contents = color
-                material.diffuse.contents = UIColor.clearColor
+                material.emission.contents = diffuseContents
+                material.diffuse.contents = UIColor.blackColor
             }
         }
 
         return material
     }
+
+    private fun com.spatialkit.engine.Vec4.isWhite(): Boolean = x == 1f && y == 1f && z == 1f && w == 1f
+
+    /**
+     * Decodes [data]'s encoded PNG/JPEG bytes into a UIImage, cached by id.
+     * Returns null (and records the failure) if the bytes can't be decoded.
+     */
+    @OptIn(ExperimentalForeignApi::class)
+    private fun getOrCreateImage(data: TextureData): UIImage? {
+        imageCache[data.id]?.let { return it }
+        if (data.id in failedTextures || data.data.isEmpty()) return null
+
+        val nsData =
+            data.data.usePinned { pinned ->
+                NSData.dataWithBytes(pinned.addressOf(0), data.data.size.toULong())
+            }
+        val image = UIImage.imageWithData(nsData)
+        if (image == null) {
+            SpatialLog.warn(TAG) { "texture decode failed for '${data.id}' (${data.data.size} bytes)" }
+            failedTextures.add(data.id)
+            return null
+        }
+        imageCache[data.id] = image
+        return image
+    }
+
+    private fun applySampler(
+        property: SCNMaterialProperty,
+        sampler: TextureSampler,
+    ) {
+        property.wrapS = sampler.wrapU.toSCN()
+        property.wrapT = sampler.wrapV.toSCN()
+        property.magnificationFilter =
+            when (sampler.magFilter) {
+                TextureFilter.NEAREST -> SCNFilterModeNearest
+                TextureFilter.LINEAR -> SCNFilterModeLinear
+            }
+        when (sampler.minFilter) {
+            TextureFilter.NEAREST -> {
+                property.minificationFilter = SCNFilterModeNearest
+                property.mipFilter = SCNFilterModeNone
+            }
+            TextureFilter.LINEAR -> {
+                // Trilinear for quality at glancing angles
+                property.minificationFilter = SCNFilterModeLinear
+                property.mipFilter = SCNFilterModeLinear
+            }
+        }
+    }
+
+    private fun TextureWrap.toSCN(): SCNWrapMode =
+        when (this) {
+            TextureWrap.REPEAT -> SCNWrapModeRepeat
+            TextureWrap.MIRRORED_REPEAT -> SCNWrapModeMirror
+            TextureWrap.CLAMP_TO_EDGE -> SCNWrapModeClamp
+        }
 
     private fun updateNodeTransform(
         node: SCNNode,
@@ -978,19 +1101,23 @@ public class ARKitEngine : SpatialEngine {
         // For more complex scenarios, you might want to use node.scale
     }
 
+    /**
+     * Rebuilds the node's material from [materialData]. A full rebuild keeps
+     * texture, sampler, and PBR state consistent in one place; it only runs
+     * when the material actually changed (see [materialCache]).
+     */
     private fun updateNodeMaterial(
         node: SCNNode,
         materialData: MaterialData,
+        isCustomMesh: Boolean,
     ) {
-        node.geometry?.firstMaterial?.let { material ->
-            val color =
-                UIColor(
-                    red = materialData.baseColor.x.toDouble(),
-                    green = materialData.baseColor.y.toDouble(),
-                    blue = materialData.baseColor.z.toDouble(),
-                    alpha = materialData.baseColor.w.toDouble(),
-                )
-            material.diffuse.contents = color
+        node.geometry?.let { geometry ->
+            val material = createMaterial(materialData)
+            if (isCustomMesh) {
+                // Match the GL-based renderers, which don't cull back faces
+                material.doubleSided = true
+            }
+            geometry.firstMaterial = material
         }
     }
 
@@ -1137,11 +1264,15 @@ public class ARKitEngine : SpatialEngine {
         sceneNodeMap.values.forEach { it.removeFromParentNode() }
         sceneNodeMap.clear()
         materialCache.clear()
+        imageCache.clear()
+        failedTextures.clear()
 
         _state.value = EngineState.Uninitialized
     }
 
     private companion object {
+        const val TAG = "ARKitEngine"
+
         // Render ticks between ARFrame samples (~1 s at 60 fps). Anchors,
         // planes and light estimates change slowly; the camera pose is
         // refreshed every tick from pointOfView instead.

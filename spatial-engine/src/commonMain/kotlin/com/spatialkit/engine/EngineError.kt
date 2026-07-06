@@ -55,4 +55,15 @@ public sealed interface EngineError {
         val reason: String,
         val cause: Throwable? = null,
     ) : EngineError
+
+    /**
+     * An asset (e.g. a glTF model) could not be loaded or parsed.
+     *
+     * @property reason Human-readable description of what is wrong with the asset
+     * @property cause The original exception, if one was caught
+     */
+    public data class AssetError(
+        val reason: String,
+        val cause: Throwable? = null,
+    ) : EngineError
 }

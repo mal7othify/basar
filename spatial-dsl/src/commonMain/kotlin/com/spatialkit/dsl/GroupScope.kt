@@ -6,7 +6,9 @@ import com.spatialkit.scene.CapsuleNode
 import com.spatialkit.scene.CubeNode
 import com.spatialkit.scene.CustomMeshNode
 import com.spatialkit.scene.CylinderNode
+import com.spatialkit.scene.GltfModel
 import com.spatialkit.scene.GroupNode
+import com.spatialkit.scene.ModelNode
 import com.spatialkit.scene.PlaneNode
 import com.spatialkit.scene.SpatialNode
 import com.spatialkit.scene.SphereNode
@@ -83,6 +85,17 @@ public class GroupScope(
         id: String = SpatialNode.generateId(),
         configure: CustomMeshNode.() -> Unit = {},
     ): CustomMeshNode = CustomMeshNode(geometry, color, id).apply(configure).also { group.addChild(it) }
+
+    /**
+     * Places a loaded glTF model as a child of this group.
+     *
+     * See [SpatialSceneScope.model] for loading and reuse semantics.
+     */
+    public fun model(
+        model: GltfModel,
+        id: String = SpatialNode.generateId(),
+        configure: ModelNode.() -> Unit = {},
+    ): ModelNode = ModelNode(model, id).apply(configure).also { group.addChild(it) }
 
     /**
      * Creates a nested group node.

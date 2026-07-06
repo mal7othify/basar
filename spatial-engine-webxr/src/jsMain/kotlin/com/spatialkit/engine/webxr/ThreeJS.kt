@@ -144,6 +144,22 @@ public external class BufferAttribute(
     itemSize: Int,
 )
 
+// === Textures ===
+
+public external class Texture(
+    image: dynamic = definedExternally,
+) {
+    public var needsUpdate: Boolean
+    public var wrapS: Int
+    public var wrapT: Int
+    public var minFilter: Int
+    public var magFilter: Int
+    public var flipY: Boolean
+    public var colorSpace: String
+
+    public fun dispose()
+}
+
 // === Materials ===
 
 public abstract external class Material {

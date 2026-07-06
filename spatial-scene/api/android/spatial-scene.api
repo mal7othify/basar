@@ -58,10 +58,21 @@ public abstract class com/spatialkit/scene/Easing : java/lang/Enum {
 }
 
 public final class com/spatialkit/scene/GltfLoader {
-	public fun <init> (Ljava/lang/String;)V
-	public final fun loadFirstMesh (Lcom/spatialkit/core/types/Color;)Lcom/spatialkit/scene/CustomMeshNode;
-	public static synthetic fun loadFirstMesh$default (Lcom/spatialkit/scene/GltfLoader;Lcom/spatialkit/core/types/Color;ILjava/lang/Object;)Lcom/spatialkit/scene/CustomMeshNode;
-	public final fun parseGeometry ()Lcom/spatialkit/engine/GeometryData;
+	public static final field INSTANCE Lcom/spatialkit/scene/GltfLoader;
+	public final fun load (Ljava/lang/String;)Lcom/spatialkit/scene/GltfModel;
+	public final fun load ([B)Lcom/spatialkit/scene/GltfModel;
+}
+
+public final class com/spatialkit/scene/GltfModel {
+	public final fun firstGeometry ()Lcom/spatialkit/engine/GeometryData;
+	public final fun getMeshCount ()I
+	public final fun toNode (Ljava/lang/String;)Lcom/spatialkit/scene/ModelNode;
+	public static synthetic fun toNode$default (Lcom/spatialkit/scene/GltfModel;Ljava/lang/String;ILjava/lang/Object;)Lcom/spatialkit/scene/ModelNode;
+}
+
+public final class com/spatialkit/scene/GltfParseException : java/lang/Exception {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class com/spatialkit/scene/GroupNode : com/spatialkit/scene/SpatialNode {
@@ -73,16 +84,29 @@ public final class com/spatialkit/scene/GroupNode : com/spatialkit/scene/Spatial
 
 public abstract class com/spatialkit/scene/MeshNode : com/spatialkit/scene/SpatialNode {
 	public fun <init> (Ljava/lang/String;)V
+	public final fun getBaseColorTexture ()Lcom/spatialkit/engine/TextureData;
 	public final fun getColor ()Lcom/spatialkit/core/types/Color;
 	public final fun getDoubleSided ()Z
 	public final fun getMaterialType ()Lcom/spatialkit/engine/MaterialType;
 	public final fun getMetallic ()F
 	public final fun getRoughness ()F
+	public final fun setBaseColorTexture (Lcom/spatialkit/engine/TextureData;)V
 	public final fun setColor (Lcom/spatialkit/core/types/Color;)V
 	public final fun setDoubleSided (Z)V
 	public final fun setMaterialType (Lcom/spatialkit/engine/MaterialType;)V
 	public final fun setMetallic (F)V
 	public final fun setRoughness (F)V
+}
+
+public final class com/spatialkit/scene/ModelNode : com/spatialkit/scene/SpatialNode {
+	public fun <init> (Lcom/spatialkit/scene/GltfModel;Ljava/lang/String;)V
+	public synthetic fun <init> (Lcom/spatialkit/scene/GltfModel;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getModel ()Lcom/spatialkit/scene/GltfModel;
+	public synthetic fun toSceneNode$spatial_scene_release ()Lcom/spatialkit/engine/SceneNode;
+}
+
+public final class com/spatialkit/scene/ModelNodeKt {
+	public static final fun loadGltf ([BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class com/spatialkit/scene/PlaneNode : com/spatialkit/scene/MeshNode {

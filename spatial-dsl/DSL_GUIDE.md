@@ -112,6 +112,57 @@ capsule(
 
 ---
 
+## Models (glTF / GLB)
+
+Load a glTF 2.0 asset once with `loadGltf` (a `suspend` function — call it
+*outside* the scene block, which builds synchronously), then place it with the
+`model(...)` builder. Base-color textures, PBR factors, and the node hierarchy
+come from the asset.
+
+```kotlin
+// Load before building the scene (e.g. in a LaunchedEffect).
+// Bytes can come from Compose resources, a network fetch, or platform files.
+val duck: GltfModel = loadGltf(Res.readBytes("files/duck.glb"))
+
+spatialScene {
+    model(duck) {
+        position = vec3(0f, 0f, -1f)
+        scale = Vec3(0.5f, 0.5f, 0.5f)
+    }
+
+    // The same GltfModel can be placed any number of times: geometry and
+    // textures are shared between instances, transforms are per-instance.
+    model(duck, id = "duck-2") {
+        position = vec3(0.5f, 0f, -1f)
+    }
+}
+```
+
+`model(...)` is available in scene, group, and anchor scopes, so models can be
+grouped and anchored like any other node:
+
+```kotlin
+spatialScene {
+    anchorToPlane(planeId = floorId) {
+        model(duck)
+    }
+}
+```
+
+Notes:
+
+- `loadGltf` parses off the caller's thread and caches by content — loading
+  the same bytes again returns the already-parsed model.
+- Malformed assets throw `GltfParseException` with an actionable message. If
+  parsing happens inside a `SpatialView` content block, the failure is
+  reported as `EngineError.AssetError` through `onError` instead of rendering
+  a silent blank scene.
+- Supported: GLB and glTF JSON with embedded buffers, TEXCOORD_0 UVs,
+  base-color texture + metallic/roughness factors, node hierarchies.
+  Not (yet) supported: animations, skinning, Draco, glTF extensions.
+
+---
+
 ## Hierarchies with Groups
 
 Groups allow you to organize nodes hierarchically. Child transforms are relative to the parent.

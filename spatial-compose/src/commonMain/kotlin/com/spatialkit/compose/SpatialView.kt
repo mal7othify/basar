@@ -13,6 +13,7 @@ import com.spatialkit.engine.FrameData
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.SpatialRuntime
+import com.spatialkit.scene.GltfParseException
 import com.spatialkit.scene.SpatialScene
 import com.spatialkit.scene.SpatialSession
 
@@ -100,14 +101,24 @@ public fun SpatialView(
         providedEngine?.let { runtime.setEngine(it) }
     }
 
-    // Build scene from DSL (rebuild when content changes)
-    val scene =
+    // Build scene from DSL (rebuild when content changes). A model asset that
+    // fails to parse inside the content block must surface through onError,
+    // not render as a silent blank scene (or crash the composition).
+    val built =
         remember(content) {
-            spatialScene(content)
+            try {
+                BuiltScene(spatialScene(content), error = null)
+            } catch (e: GltfParseException) {
+                BuiltScene(spatialScene {}, error = e)
+            }
         }
+    val scene = built.scene
 
-    // Assign scene to session
-    LaunchedEffect(scene) {
+    // Assign scene to session; report a failed scene build
+    LaunchedEffect(built) {
+        built.error?.let { e ->
+            onError(EngineError.AssetError(e.message ?: "Failed to parse model asset", e))
+        }
         session.scene.clear()
         scene.nodes.forEach { session.scene.add(it) }
     }
@@ -149,6 +160,12 @@ public fun SpatialView(
         }
     }
 }
+
+/** A built scene plus the asset failure that emptied it, if any. */
+private class BuiltScene(
+    val scene: SpatialScene,
+    val error: GltfParseException?,
+)
 
 /**
  * Platform-specific rendering surface.

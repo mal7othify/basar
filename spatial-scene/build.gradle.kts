@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.mavenPublish)
 }
@@ -30,10 +31,14 @@ kotlin {
             // (Vec3, Quaternion, FrameData, SpatialRuntime, ...)
             api(project(":spatial-engine"))
             api(project(":spatial-core"))
+
+            // glTF parsing (GltfLoader); internal only
+            implementation(libs.kotlinx.serialization.json)
         }
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

@@ -53,6 +53,8 @@ need.
 task breakdown). Target: load a GLB with a base-color texture + PBR factors and
 render it identically on all three platforms. Non-goals for M7: animations,
 skinning, KHR extensions, Draco, USDZ.
+**Status: code-complete (M7.1–M7.11, M7.13 done); only M7.12 on-device
+validation (physical Android + iPhone + WebXR browser run-through) remains.**
 
 ### Platform Status
 

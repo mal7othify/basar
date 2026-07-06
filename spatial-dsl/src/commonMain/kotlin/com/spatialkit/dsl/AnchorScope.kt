@@ -4,7 +4,9 @@ import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
 import com.spatialkit.scene.CubeNode
+import com.spatialkit.scene.GltfModel
 import com.spatialkit.scene.GroupNode
+import com.spatialkit.scene.ModelNode
 import com.spatialkit.scene.SpatialAnchor
 import com.spatialkit.scene.SpatialNode
 import com.spatialkit.scene.SpatialScene
@@ -73,6 +75,17 @@ public class AnchorScope(
         id: String = SpatialNode.generateId(),
         configure: SphereNode.() -> Unit = {},
     ): SphereNode = register(SphereNode(radius, color, id).apply(configure))
+
+    /**
+     * Places a loaded glTF model anchored to this spatial anchor.
+     *
+     * See [SpatialSceneScope.model] for loading and reuse semantics.
+     */
+    public fun model(
+        model: GltfModel,
+        id: String = SpatialNode.generateId(),
+        configure: ModelNode.() -> Unit = {},
+    ): ModelNode = register(ModelNode(model, id).apply(configure))
 
     /**
      * Creates a group node anchored to this spatial anchor.

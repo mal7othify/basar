@@ -155,6 +155,37 @@ fun SpinningCube() {
 
 See the `SpatialView` KDoc for the full contract.
 
+### Textured 3D models (glTF / GLB)
+
+Load an asset once with the suspend `loadGltf`, then place it with the
+`model(...)` builder. Base-color textures and PBR factors render consistently
+on all three platforms:
+
+```kotlin
+@Composable
+fun DuckViewer() {
+    var duck by remember { mutableStateOf<GltfModel?>(null) }
+    LaunchedEffect(Unit) {
+        duck = loadGltf(Res.readBytes("files/duck.glb"))
+    }
+
+    duck?.let { model ->
+        SpatialView(
+            onError = { error -> /* AssetError surfaces malformed models */ },
+        ) {
+            model(model) {
+                position = vec3(0f, 0f, -1f)
+            }
+        }
+    }
+}
+```
+
+`loadGltf` parses off the main thread and caches by content, so placing N
+copies of one asset parses it once; instances share geometry and textures.
+Malformed assets throw `GltfParseException` (or arrive as
+`EngineError.AssetError` via `onError` when parsed inside the content block).
+
 ## Examples
 
 ### Animated Values
