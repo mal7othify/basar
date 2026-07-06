@@ -59,6 +59,11 @@ fun App() {
     var session: SpatialSession? by remember { mutableStateOf(null) }
     var lastFrameData by remember { mutableStateOf<FrameData?>(null) }
 
+    // Surface-detection feedback: without it there is no way to tell when
+    // tap-to-place can work (detected planes are not rendered)
+    var planeCount by remember { mutableStateOf(0) }
+    var trackingState by remember { mutableStateOf("...") }
+
     // Textured model, parsed once off the main thread (M7). Capture the value
     // (not the state) below so the scene rebuilds when loading completes.
     var crateModel by remember { mutableStateOf<GltfModel?>(null) }
@@ -83,6 +88,11 @@ fun App() {
                         style = MaterialTheme.typography.headlineSmall,
                     )
                     Text("Session: ${if (sessionReady) "✓ Ready" else "⌛ Starting..."}")
+                    Text(
+                        "Tracking: $trackingState | Surfaces: $planeCount" +
+                            if (planeCount == 0) " (scan the floor slowly)" else " — tap one to place a crate",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                     lastError?.let { error ->
                         Text(
                             "⚠ $error",
@@ -115,12 +125,12 @@ fun App() {
                                     val ndcX = (offset.x / screenWidth) * 2f - 1f
                                     val ndcY = -((offset.y / screenHeight) * 2f - 1f)
 
-                                    val aspectRatio = screenWidth / screenHeight
-                                    val verticalFov = 60f
-                                    val horizontalFov = verticalFov * aspectRatio
-
-                                    val angleX = ndcX * (horizontalFov / 2f) * (PI.toFloat() / 180f)
-                                    val angleY = ndcY * (verticalFov / 2f) * (PI.toFloat() / 180f)
+                                    // Unproject through the camera's actual projection
+                                    // matrix (column-major): P[0]=1/(tanHalfX), P[5]=1/tanHalfY.
+                                    // A guessed FOV makes rays miss small objects.
+                                    val proj = frameData.projectionMatrix
+                                    val tanHalfX = if (proj[0] != 0f) 1f / proj[0] else 1f
+                                    val tanHalfY = if (proj[5] != 0f) 1f / proj[5] else 1f
 
                                     val forward = Vec3(0f, 0f, -1f)
                                     val right = Vec3(1f, 0f, 0f)
@@ -129,8 +139,8 @@ fun App() {
                                     val rayDirCamera =
                                         (
                                             forward +
-                                                right * kotlin.math.tan(angleX) +
-                                                up * kotlin.math.tan(angleY)
+                                                right * (ndcX * tanHalfX) +
+                                                up * (ndcY * tanHalfY)
                                         ).normalized()
 
                                     val rayDirection = cameraPose.rotation * rayDirCamera
@@ -173,13 +183,21 @@ fun App() {
                                                 offset.x / screenWidth,
                                                 offset.y / screenHeight,
                                             )
-                                        if (model != null && hit != null) {
-                                            placeCrate(currentSession, model, hit.position)
-                                            lastTapInfo =
-                                                "Placed crate at (${hit.position.x.round2()}, " +
-                                                "${hit.position.y.round2()}, ${hit.position.z.round2()})"
-                                        } else {
-                                            lastTapInfo = "No hit - tapped at (${ndcX.round2()}, ${ndcY.round2()})"
+                                        when {
+                                            model != null && hit != null -> {
+                                                placeCrate(currentSession, model, hit.position)
+                                                lastTapInfo =
+                                                    "Placed crate at (${hit.position.x.round2()}, " +
+                                                    "${hit.position.y.round2()}, ${hit.position.z.round2()})"
+                                            }
+                                            hit == null ->
+                                                lastTapInfo =
+                                                    if (planeCount == 0) {
+                                                        "No surface yet — move the phone slowly over a textured floor/table"
+                                                    } else {
+                                                        "Missed the detected surface — aim at it and tap again"
+                                                    }
+                                            else -> lastTapInfo = "Model still loading..."
                                         }
                                     }
                                 }
@@ -195,6 +213,10 @@ fun App() {
                     },
                     onFrame = { frameData ->
                         lastFrameData = frameData
+                        // Same-value writes don't recompose; this only fires
+                        // when detection/tracking actually changes
+                        planeCount = frameData.detectedPlanes.size
+                        trackingState = frameData.trackingState.name
                         animator.update(frameData.deltaTime)
                     },
                     onError = { error ->

@@ -1189,8 +1189,11 @@ public class ARKitEngine : SpatialEngine {
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult? {
+        // NOTE: do not touch session.currentFrame here — the raycast query
+        // doesn't need it, and a retained ARFrame starves ARKit's camera
+        // buffer pool (see onRenderTick), stalling rendering until the GC
+        // collects the wrapper.
         val session = arSession ?: return null
-        val frame = session.currentFrame ?: return null // TODO: Test this
         val query =
             memScoped {
                 val originPtr = allocArray<FloatVar>(4)
