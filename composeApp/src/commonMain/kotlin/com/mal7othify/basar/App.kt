@@ -74,6 +74,10 @@ fun App() {
 
     val animator = remember { SpatialAnimator() }
 
+    // True resting scale per node, captured on first tap. Re-reading
+    // node.scale mid-bounce would ratchet the size up on rapid taps.
+    val baseScales = remember { mutableMapOf<String, Vec3>() }
+
     MaterialTheme {
         Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
             Card(
@@ -156,18 +160,18 @@ fun App() {
 
                                         val hitNode = currentSession.scene.findNodeById(result.nodeId ?: "")
                                         if (hitNode != null) {
-                                            val originalScale = hitNode.scale
+                                            val baseScale = baseScales.getOrPut(hitNode.id) { hitNode.scale }
                                             animator.animateScale(
                                                 node = hitNode,
-                                                from = originalScale,
-                                                to = originalScale * 1.3f,
+                                                from = hitNode.scale,
+                                                to = baseScale * 1.3f,
                                                 duration = 0.15f,
                                                 easing = Easing.EaseOut,
                                                 onComplete = {
                                                     animator.animateScale(
                                                         node = hitNode,
                                                         from = hitNode.scale,
-                                                        to = originalScale,
+                                                        to = baseScale,
                                                         duration = 0.15f,
                                                         easing = Easing.EaseOut,
                                                     )
