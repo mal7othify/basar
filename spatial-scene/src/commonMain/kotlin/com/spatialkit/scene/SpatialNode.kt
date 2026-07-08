@@ -51,6 +51,79 @@ public abstract class SpatialNode(
      */
     public var visible: Boolean = true
 
+    // === Interaction (M8) ===
+    // Configured at build time (or from the frame callback); handlers run on
+    // the render thread. A gesture on a mesh resolves to the nearest
+    // self-or-ancestor node carrying the matching behavior, so making a group
+    // (or glTF model root) interactive covers all of its meshes.
+
+    /**
+     * Called when the node (or any descendant mesh) is tapped.
+     *
+     * Runs on the render thread, so the handler may mutate node state
+     * directly. Requires gestures to be enabled on the view (they are by
+     * default in `SpatialView`).
+     */
+    public var onTap: ((TapEvent) -> Unit)? = null
+
+    /**
+     * Drag behavior, or null if the node is not draggable.
+     * Usually set via [draggable].
+     */
+    public var dragBehavior: DragBehavior? = null
+
+    /**
+     * Pinch-to-scale behavior, or null if the node is not scalable.
+     * Usually set via [scalable].
+     */
+    public var scaleBehavior: ScaleBehavior? = null
+
+    /**
+     * Two-finger-twist rotation behavior, or null if the node is not
+     * rotatable. Usually set via [rotatable].
+     */
+    public var rotateBehavior: RotateBehavior? = null
+
+    /**
+     * Makes the node follow one-finger drags.
+     *
+     * ```kotlin
+     * model(chair) {
+     *     draggable()          // follow detected surfaces
+     *     scalable(0.5f, 2f)   // pinch to resize within 50%–200%
+     *     rotatable()          // two-finger twist to turn
+     * }
+     * ```
+     *
+     * @param mode Which surface the node follows; see [DragMode]
+     */
+    public fun draggable(mode: DragMode = DragMode.DetectedSurfaces) {
+        dragBehavior = DragBehavior(mode)
+    }
+
+    /**
+     * Makes the node respond to pinch-to-scale.
+     *
+     * @param minFactor Smallest allowed scale, relative to the node's base scale
+     * @param maxFactor Largest allowed scale, relative to the node's base scale
+     */
+    public fun scalable(
+        minFactor: Float = 0.25f,
+        maxFactor: Float = 4f,
+    ) {
+        scaleBehavior = ScaleBehavior(minFactor, maxFactor)
+    }
+
+    /**
+     * Makes the node respond to two-finger twist rotation.
+     *
+     * @param axis World-space rotation axis (default up, for content on
+     *   horizontal surfaces)
+     */
+    public fun rotatable(axis: Vec3 = Vec3.UP) {
+        rotateBehavior = RotateBehavior(axis)
+    }
+
     /**
      * Parent node in the scene graph.
      * null if this is a root node.
@@ -68,11 +141,14 @@ public abstract class SpatialNode(
     /**
      * World-space position (accumulated from parent chain).
      *
-     * Applies the full parent transform: the local position is scaled by the
-     * parent's world scale, rotated by the parent's world rotation, then offset
-     * by the parent's world position — matching what renderers display.
+     * The getter applies the full parent transform: the local position is
+     * scaled by the parent's world scale, rotated by the parent's world
+     * rotation, then offset by the parent's world position — matching what
+     * renderers display. The setter converts the given world-space point back
+     * into this node's parent-local space, so it works at any depth in the
+     * hierarchy.
      */
-    public val worldPosition: Vec3
+    public var worldPosition: Vec3
         get() {
             val p = parent
             return if (p != null) {
@@ -82,6 +158,21 @@ public abstract class SpatialNode(
             } else {
                 position
             }
+        }
+        set(value) {
+            val p = parent
+            position =
+                if (p != null) {
+                    val ps = p.worldScale
+                    val unrotated = p.worldRotation.conjugate() * (value - p.worldPosition)
+                    Vec3(
+                        if (ps.x != 0f) unrotated.x / ps.x else unrotated.x,
+                        if (ps.y != 0f) unrotated.y / ps.y else unrotated.y,
+                        if (ps.z != 0f) unrotated.z / ps.z else unrotated.z,
+                    )
+                } else {
+                    value
+                }
         }
 
     /**

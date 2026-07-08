@@ -68,11 +68,22 @@ import com.spatialkit.scene.SpatialSession
  * iOS). Android has no default — provide an ARCore engine from
  * `spatial-engine-arcore` (or your own) via either mechanism.
  *
+ * ## Gestures (M8)
+ *
+ * With [gesturesEnabled] (the default), touch input on the view is recognized
+ * as spatial gestures and routed to scene nodes on the render thread:
+ * configure nodes with `onTap`, `draggable()`, `scalable()` and `rotatable()`
+ * (see [com.spatialkit.scene.SpatialNode]), and handle taps that hit nothing
+ * interactive via `session.interactions.onTapMissed` (e.g. tap-to-place).
+ * Disable it to run your own pointer handling instead.
+ *
  * @param modifier Compose modifier for layout
  * @param mode AR or VR mode
  * @param config Optional engine configuration
  * @param engine Engine to render with; overrides [LocalSpatialEngine] and the
  *   platform default. See "Engine selection" above.
+ * @param gesturesEnabled Recognize tap/drag/pinch/twist gestures on the view
+ *   and route them to scene nodes; see "Gestures" above
  * @param onSessionReady Callback when session is ready
  * @param onFrame Callback for each frame update (invoked on the render thread)
  * @param onError Callback for errors
@@ -85,6 +96,7 @@ public fun SpatialView(
     mode: SessionMode = SessionMode.AR,
     config: EngineConfig = EngineConfig(preferredMode = mode),
     engine: SpatialEngine? = null,
+    gesturesEnabled: Boolean = true,
     onSessionReady: (SpatialSession) -> Unit = {},
     onFrame: (FrameData) -> Unit = {},
     onError: (EngineError) -> Unit = {},
@@ -123,9 +135,10 @@ public fun SpatialView(
         scene.nodes.forEach { session.scene.add(it) }
     }
 
-    // Platform-specific rendering surface
+    // Platform-specific rendering surface, with gesture recognition feeding
+    // the session's interaction manager (applied on the render thread)
     SpatialSurface(
-        modifier = modifier,
+        modifier = if (gesturesEnabled) modifier.spatialGestures(session.interactions) else modifier,
         session = session,
         scene = scene,
     )

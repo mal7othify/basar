@@ -317,12 +317,12 @@ fun Interactive() {
 
 Tracked in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**. Foundation milestones
 (M0–M6 — hygiene, packaging, correctness, logging, renderers, API hardening,
-CI and API stability) are done. **Current focus: M7 — textured 3D models**
-(real glTF/GLB loading with textures, rendered identically on all three
-platforms, plus a sample app). After that: gestures (M8), AR realism (M9),
-a non-XR preview renderer (M10), Compose UI in space (M11), tracking &
-persistence (M12), and real VR support (M13). First Maven Central release is
-pending — the release workflow exists and just needs a tag.
+CI and API stability) are done. **M7 (textured 3D models) and M8 (gestures:
+tap / drag / pinch / twist on nodes) are code-complete**, with a combined
+on-device validation pass pending. Next up: AR realism (M9), a non-XR preview
+renderer (M10), Compose UI in space (M11), tracking & persistence (M12), and
+real VR support (M13). First Maven Central release is pending — the release
+workflow exists and just needs a tag.
 
 ## Documentation
 

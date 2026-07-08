@@ -15,6 +15,7 @@ import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SceneNode
+import com.spatialkit.engine.SceneRaycaster
 import com.spatialkit.engine.TextureData
 import com.spatialkit.engine.TextureFilter
 import com.spatialkit.engine.TextureWrap
@@ -988,53 +989,37 @@ public class SimpleRenderer(
         val lightDirLoc = GLES30.glGetUniformLocation(sceneProgram, "u_LightDir")
         GLES30.glUniform3f(lightDirLoc, 0.0f, 0.7f, 0.7f)
 
-        // Render each node recursively (groups contain children)
-        fun renderNodes(nodes: List<SceneNode>) {
+        // Render each node recursively, composing parent transforms so
+        // groups (and glTF model hierarchies) carry their children
+        val rootMatrix = FloatArray(16).also { Matrix.setIdentityM(it, 0) }
+        fun renderNodes(
+            nodes: List<SceneNode>,
+            parentMatrix: FloatArray,
+        ) {
             nodes.forEach { node ->
                 when (node) {
-                    is SceneNode.Mesh -> renderMesh(node)
-                    is SceneNode.Group -> if (node.visible) renderNodes(node.children)
+                    is SceneNode.Mesh -> renderMesh(node, parentMatrix)
+                    is SceneNode.Group ->
+                        if (node.visible) {
+                            val composed = FloatArray(16)
+                            // Matrix4 is column-major like android.opengl.Matrix
+                            Matrix.multiplyMM(composed, 0, parentMatrix, 0, node.transform.toMatrix().toFloatArray(), 0)
+                            renderNodes(node.children, composed)
+                        }
                 }
             }
         }
-        renderNodes(nodesToRender)
+        renderNodes(nodesToRender, rootMatrix)
     }
 
-    private fun renderMesh(mesh: SceneNode.Mesh) {
+    private fun renderMesh(
+        mesh: SceneNode.Mesh,
+        parentMatrix: FloatArray,
+    ) {
         if (!mesh.visible) return
 
-        val transform = mesh.transform
-
-        // Build model matrix from transform
-        Matrix.setIdentityM(modelMatrix, 0)
-        Matrix.translateM(
-            modelMatrix,
-            0,
-            transform.position.x,
-            transform.position.y,
-            transform.position.z,
-        )
-
-        // Apply rotation
-        val rot = transform.rotation
-        val angle = 2.0f * Math.acos(rot.w.toDouble()).toFloat()
-        if (angle > 0.001f) {
-            val axis = floatArrayOf(rot.x, rot.y, rot.z)
-            val axisLength = Math.sqrt((axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).toDouble()).toFloat()
-            if (axisLength > 0.001f) {
-                Matrix.rotateM(
-                    modelMatrix,
-                    0,
-                    Math.toDegrees(angle.toDouble()).toFloat(),
-                    axis[0] / axisLength,
-                    axis[1] / axisLength,
-                    axis[2] / axisLength,
-                )
-            }
-        }
-
-        // Apply scale
-        Matrix.scaleM(modelMatrix, 0, transform.scale.x, transform.scale.y, transform.scale.z)
+        // Model matrix = parent chain × local TRS
+        Matrix.multiplyMM(modelMatrix, 0, parentMatrix, 0, mesh.transform.toMatrix().toFloatArray(), 0)
 
         // Calculate MVP matrix
         val tempMatrix = FloatArray(16)
@@ -1087,10 +1072,11 @@ public class SimpleRenderer(
     }
 
     /**
-     * Perform world-space raycasting against scene meshes.
+     * Perform world-space raycasting against scene content.
      *
-     * Tests a ray against all visible mesh nodes in the scene and returns
-     * the closest intersection point.
+     * Delegates to the shared [SceneRaycaster]: all geometry types (including
+     * custom meshes) are tested, and group transforms are accumulated, so
+     * picking matches what is rendered.
      *
      * @param origin Ray origin in world space
      * @param direction Ray direction (should be normalized)
@@ -1104,196 +1090,8 @@ public class SimpleRenderer(
             sceneLock.withLock {
                 sceneNodes.toList()
             }
-
-        var closestHit: RaycastResult? = null
-        var closestDistance = Float.MAX_VALUE
-
-        fun testNodes(nodes: List<SceneNode>) {
-            nodes.forEach { node ->
-                when (node) {
-                    is SceneNode.Mesh -> {
-                        if (!node.visible) return@forEach
-
-                        val hit = raycastMesh(origin, direction, node)
-                        if (hit != null && hit.distance < closestDistance) {
-                            closestDistance = hit.distance
-                            closestHit = hit
-                        }
-                    }
-                    is SceneNode.Group -> if (node.visible) testNodes(node.children)
-                }
-            }
-        }
-        testNodes(nodesToTest)
-
-        return closestHit
+        return SceneRaycaster.raycast(nodesToTest, origin, direction)
     }
-
-    /**
-     * Test ray against a single mesh node.
-     */
-    private fun raycastMesh(
-        origin: Vec3,
-        direction: Vec3,
-        mesh: SceneNode.Mesh,
-    ): RaycastResult? {
-        val transform = mesh.transform
-
-        // Build inverse model matrix to transform ray to model space
-        val invPosition = Vec3(-transform.position.x, -transform.position.y, -transform.position.z)
-        val invRotation = transform.rotation.conjugate()
-        val invScale =
-            Vec3(
-                if (transform.scale.x != 0f) 1f / transform.scale.x else 1f,
-                if (transform.scale.y != 0f) 1f / transform.scale.y else 1f,
-                if (transform.scale.z != 0f) 1f / transform.scale.z else 1f,
-            )
-
-        // Transform ray to model space
-        val localOrigin = (invRotation * (origin + invPosition)) * invScale
-        val localDir = (invRotation * direction) * invScale
-
-        // Perform intersection test based on geometry type
-        val localHit =
-            when (mesh.geometry.type) {
-                GeometryType.CUBE -> raycastBox(localOrigin, localDir)
-                GeometryType.SPHERE -> raycastSphere(localOrigin, localDir)
-                GeometryType.CYLINDER -> raycastCylinder(localOrigin, localDir)
-                else -> null
-            }
-
-        if (localHit == null) return null
-
-        // Transform hit back to world space
-        val worldHitPos = (transform.rotation * (localHit * transform.scale)) + transform.position
-
-        val distance = (worldHitPos - origin).length()
-        val normal = transform.rotation * localHit.normalized()
-
-        return RaycastResult(
-            position = worldHitPos,
-            normal = normal,
-            distance = distance,
-            nodeId = mesh.id,
-        )
-    }
-
-    /**
-     * Ray-box intersection (unit cube centered at origin).
-     */
-    private fun raycastBox(
-        origin: Vec3,
-        direction: Vec3,
-    ): Vec3? {
-        val bounds = 0.5f
-        var tMin = -Float.MAX_VALUE
-        var tMax = Float.MAX_VALUE
-
-        // Test each axis
-        for (axis in 0..2) {
-            val o = origin.component(axis)
-            val d = direction.component(axis)
-
-            if (kotlin.math.abs(d) < 0.0001f) {
-                // Ray is parallel to slab
-                if (o < -bounds || o > bounds) return null
-            } else {
-                val t1 = (-bounds - o) / d
-                val t2 = (bounds - o) / d
-
-                val tNear = kotlin.math.min(t1, t2)
-                val tFar = kotlin.math.max(t1, t2)
-
-                tMin = kotlin.math.max(tMin, tNear)
-                tMax = kotlin.math.min(tMax, tFar)
-
-                if (tMin > tMax) return null
-            }
-        }
-
-        if (tMin < 0) return null // Behind ray origin
-
-        return Vec3(
-            origin.x + direction.x * tMin,
-            origin.y + direction.y * tMin,
-            origin.z + direction.z * tMin,
-        )
-    }
-
-    /**
-     * Ray-sphere intersection (unit sphere at origin).
-     */
-    private fun raycastSphere(
-        origin: Vec3,
-        direction: Vec3,
-    ): Vec3? {
-        val radius = 0.5f
-
-        // Solve quadratic equation: |origin + t*direction| = radius
-        val a = direction.dot(direction)
-        val b = 2f * origin.dot(direction)
-        val c = origin.dot(origin) - radius * radius
-
-        val discriminant = b * b - 4f * a * c
-        if (discriminant < 0) return null
-
-        val t = (-b - kotlin.math.sqrt(discriminant)) / (2f * a)
-        if (t < 0) return null
-
-        return Vec3(
-            origin.x + direction.x * t,
-            origin.y + direction.y * t,
-            origin.z + direction.z * t,
-        )
-    }
-
-    /**
-     * Ray-cylinder intersection (unit cylinder along Y axis).
-     */
-    private fun raycastCylinder(
-        origin: Vec3,
-        direction: Vec3,
-    ): Vec3? {
-        val radius = 0.5f
-        val halfHeight = 0.5f
-
-        // Test infinite cylinder first (ignore Y)
-        val a = direction.x * direction.x + direction.z * direction.z
-        val b = 2f * (origin.x * direction.x + origin.z * direction.z)
-        val c = origin.x * origin.x + origin.z * origin.z - radius * radius
-
-        val discriminant = b * b - 4f * a * c
-        if (discriminant < 0) return null
-
-        val t1 = (-b - kotlin.math.sqrt(discriminant)) / (2f * a)
-        val t2 = (-b + kotlin.math.sqrt(discriminant)) / (2f * a)
-
-        // Check if intersection is within height bounds
-        val y1 = origin.y + t1 * direction.y
-        val y2 = origin.y + t2 * direction.y
-
-        val t =
-            when {
-                t1 >= 0 && y1 >= -halfHeight && y1 <= halfHeight -> t1
-                t2 >= 0 && y2 >= -halfHeight && y2 <= halfHeight -> t2
-                else -> return null
-            }
-
-        return Vec3(
-            origin.x + direction.x * t,
-            origin.y + direction.y * t,
-            origin.z + direction.z * t,
-        )
-    }
-
-    // Helper function for Vec3
-    private fun Vec3.component(index: Int): Float =
-        when (index) {
-            0 -> x
-            1 -> y
-            2 -> z
-            else -> throw IllegalArgumentException("Invalid component index: $index")
-        }
 
     /**
      * Clean up all OpenGL resources.

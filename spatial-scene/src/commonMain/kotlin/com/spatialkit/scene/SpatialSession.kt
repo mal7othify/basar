@@ -9,6 +9,7 @@ import com.spatialkit.engine.HitTestResult
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SpatialRuntime
 import com.spatialkit.engine.Vec3
+import com.spatialkit.engine.screenPointToRay
 
 /**
  * High-level session combining scene graph with engine runtime.
@@ -54,8 +55,25 @@ public class SpatialSession(
      */
     public val scene: SpatialScene = SpatialScene()
 
+    /**
+     * Gesture routing for this session.
+     *
+     * The platform input layer (`SpatialView`) submits gesture events here;
+     * they are applied to the scene on the render thread each frame. Configure
+     * nodes with `onTap`/`draggable()`/`scalable()`/`rotatable()`, and use
+     * [InteractionManager.onTapMissed] for taps that hit no interactive node
+     * (e.g. tap-to-place).
+     */
+    public val interactions: InteractionManager = InteractionManager()
+
     private var userFrameCallback: ((FrameData) -> Unit)? = null
     private var errorCallback: ((EngineError) -> Unit)? = null
+
+    /**
+     * Latest frame, cached for screen-point picking between frames. Written on
+     * the render thread; readers get the most recent complete frame.
+     */
+    private var lastFrame: FrameData? = null
 
     /**
      * Whether the session is currently running.
@@ -124,6 +142,7 @@ public class SpatialSession(
         scene.clear()
         userFrameCallback = null
         errorCallback = null
+        lastFrame = null
     }
 
     /**
@@ -153,19 +172,51 @@ public class SpatialSession(
     ): RaycastResult? = runtime.performRaycast(origin, direction)
 
     /**
+     * Picks the scene node under a screen point (M8 node picking).
+     *
+     * Unprojects the point through the latest frame's camera (see
+     * [com.spatialkit.engine.screenPointToRay]) and raycasts scene content.
+     * The result's `nodeId` resolves via [SpatialScene.findNodeById].
+     *
+     * Coordinates are normalized: (0,0) = top-left, (1,1) = bottom-right.
+     *
+     * @return The closest content hit, or null if nothing was hit (or no
+     *   frame has been rendered yet)
+     */
+    public fun raycastNodeAt(
+        screenX: Float,
+        screenY: Float,
+    ): RaycastResult? {
+        val frame = lastFrame ?: return null
+        val ray = frame.screenPointToRay(screenX, screenY)
+        return performRaycast(ray.origin, ray.direction)
+    }
+
+    /**
      * Handle each frame from the engine.
      *
      * 1. Update anchor states from frame data
-     * 2. Call user's frame callback
-     * 3. Submit updated scene to engine
+     * 2. Apply queued gestures to the scene (render thread)
+     * 3. Call user's frame callback
+     * 4. Submit updated scene to engine
      */
     private fun handleFrame(frameData: FrameData) {
         // Exceptions (including from the user callback) propagate to
         // SpatialRuntime's frame wrapper, which reports them once as
         // EngineError.RuntimeError with the original cause attached.
+        lastFrame = frameData
 
         // Update anchors
         scene.updateAnchors(frameData.anchors)
+
+        // Apply gestures before app logic so the frame callback observes
+        // post-gesture node state
+        interactions.processFrame(
+            frame = frameData,
+            scene = scene,
+            raycast = ::performRaycast,
+            hitTest = ::performHitTest,
+        )
 
         // User frame logic
         userFrameCallback?.invoke(frameData)

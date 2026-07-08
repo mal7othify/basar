@@ -17,8 +17,8 @@ progress is trackable in PRs; reference the task ID (e.g. `M1.3`) in commit mess
 | M4 | Platform renderers | WebXR/ARCore fixes; consistent hit-testing | ✅ |
 | M5 | API hardening | Observable state, honest APIs, docs that compile | ✅ |
 | M6 | Quality infrastructure | CI, lint, tests, API stability guarantees | ✅ |
-| M7 | Textured 3D models | Load a textured GLB and render it identically on all 3 platforms | 🚧 current focus |
-| M8 | Interaction | Tap/drag/pinch/rotate gestures on nodes | planned |
+| M7 | Textured 3D models | Load a textured GLB and render it identically on all 3 platforms | 🚧 code-complete, device validation pending |
+| M8 | Interaction | Tap/drag/pinch/rotate gestures on nodes | 🚧 code-complete, Android ✅; iPhone + WebXR validation pending |
 | M9 | AR realism | Light estimation, shadows, depth occlusion | planned |
 | M10 | Preview renderer | Non-XR 3D preview for desktop/simulator dev loop | planned |
 | M11 | 2D UI in space | Text labels, billboards, Compose-content panels | planned |
@@ -407,18 +407,50 @@ sparse accessors, USDZ. These come later, if at all.
 
 ## Future milestones (M8+, post-M7 order negotiable)
 
-### M8 — Interaction (gestures)
+### M8 — Interaction (gestures) — code-complete
 
 Table stakes for consumer AR: tap-to-select, drag along detected planes,
 pinch-to-scale, two-finger rotate.
 
-- [ ] M8.1 Node picking: screen-point → node raycast in the engine contract
-  (unify with `performRaycast`; needs node bounds).
-- [ ] M8.2 Gesture recognition in `spatial-compose` (pointer input → spatial
-  gestures), applied on the render thread.
-- [ ] M8.3 `Modifier`-style API: `onTap`, `draggable(plane)`, `scalable()`,
-  `rotatable()` on nodes or DSL builders.
-- [ ] M8.4 Sample: full "place and arrange furniture" flow.
+- [x] M8.1 Node picking: screen-point → node raycast.
+  `FrameData.screenPointToRay()` (shared unprojection, honoring off-center
+  projection terms) + `SpatialSession.raycastNodeAt()`. New common
+  `SceneRaycaster` covers **all** geometry types (custom-mesh triangles via
+  Möller–Trumbore, cylinder end caps) with group-transform accumulation; the
+  ARCore renderer delegates to it. *Also fixed: the ARCore renderer dropped
+  group transforms when rendering — nested content (ModelNode/GroupNode)
+  rendered at its local transform only.*
+- [x] M8.2 Gesture recognition in `spatial-compose`: tap + drag/pinch/twist
+  detector on the rendering surface (`SpatialView(gesturesEnabled = …)`,
+  default on), events queued thread-safely and applied on the render thread
+  by `InteractionManager` before the app frame callback.
+- [x] M8.3 Node-level API: `onTap`, `draggable(mode)`, `scalable(min, max)`,
+  `rotatable(axis)` on `SpatialNode` (works inside DSL builder blocks;
+  `GroupScope.node` exposes the group). Gestures resolve up the parent chain;
+  drag follows detected surfaces with horizontal-plane fallback; pinch clamps
+  against a per-node base scale; misses fire
+  `session.interactions.onTapMissed`.
+- [x] M8.4 Sample: place-and-arrange flow — tap to bounce, tap surface to
+  place a crate, drag/pinch/twist to arrange. Placed crates are no longer
+  world-anchored (an anchor's tracked pose would fight the drag; re-anchoring
+  on drag end is a follow-up).
+- [ ] M8.5 On-device validation (folds into the pending M7.12 pass): Android +
+  iPhone + WebXR run-through of tap/drag/pinch/twist; verify the twist
+  direction feels right (sign chosen so a clockwise twist turns the node
+  clockwise seen from above) and that drag tracking across surfaces behaves.
+  *Android (physical device): ✅ validated 2026-07-08 — tap-to-bounce on the
+  flower (parent-chain resolution via a petal tap), tap-missed crate
+  placement, drag, pinch (clamps at 0.3×–3×), twist direction correct, and
+  tap still hits a crate after it was moved/scaled. Non-interactive nodes
+  (flower/star) correctly ignore drag — interactivity is opt-in per node.*
+  *iPhone + WebXR: deferred (no iOS device on hand as of 2026-07-08). Deploy
+  with `scripts/run-ios.sh` when hardware is available; the WebXR leg can run
+  in desktop Chrome with the WebXR emulator extension. All JVM tests pass and
+  Android/iOS/JS targets compile.*
+
+M8 follow-ups (deliberately out of scope): drag lifecycle callbacks
+(`onDragStart`/`onDragEnd`, needed for re-anchoring dragged content),
+long-press, two-finger vertical drag for height, per-node hit-test masks.
 
 ### M9 — AR realism
 

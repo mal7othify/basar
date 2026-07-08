@@ -9,6 +9,51 @@ binary-compatibility validator dumps in each module's `api/` directory).
 
 ## [Unreleased]
 
+### Added (M8 — interaction/gestures; on-device validation pending)
+- Node picking (M8.1): `screenPointToRay(screenX, screenY)` on `FrameData`
+  unprojects a normalized screen point through the frame's actual projection
+  matrix (including off-center terms from cropped AR viewports) into a world
+  ray; `SpatialSession.raycastNodeAt(screenX, screenY)` picks the scene node
+  under a screen point. `SceneRaycaster` in `spatial-engine` gives CPU
+  raycasting over `SceneData` for every geometry type — analytic tests for the
+  unit primitives (including cylinder end caps, previously missed) and
+  Möller–Trumbore triangle tests for custom meshes — with group transforms
+  accumulated; the ARCore renderer's raycast (previously cube/sphere/cylinder
+  only, no hierarchy) now delegates to it, so tapping glTF models works on
+  Android.
+- Gesture recognition in `spatial-compose` (M8.2): `SpatialView` recognizes
+  tap, one-finger drag, pinch and two-finger twist on the rendering surface
+  (`gesturesEnabled = true` by default; disable to run your own pointer
+  handling). Recognition happens on the UI thread; events are queued and
+  applied to the scene on the render thread before the frame callback, per
+  the scene threading contract.
+- Node-level interaction API (M8.3): `onTap` handler plus modifier-style
+  `draggable(mode)`, `scalable(minFactor, maxFactor)` and `rotatable(axis)`
+  on `SpatialNode`, usable directly inside DSL builder blocks. Gestures on a
+  mesh resolve to the nearest self-or-ancestor node with the matching
+  behavior, so a group or model root covers all its meshes. Dragging follows
+  detected real-world surfaces (`DragMode.DetectedSurfaces`, with a
+  horizontal-plane fallback) or a pure horizontal plane
+  (`DragMode.HorizontalPlane`); pinch scaling clamps relative to the node's
+  base scale so repeated gestures cannot drift; twist rotates about a
+  configurable axis (default up). Taps that hit no interactive node fire
+  `session.interactions.onTapMissed` (e.g. tap-to-place). Custom input
+  sources can submit `GestureEvent`s to `InteractionManager` directly.
+- `GroupScope.node` (DSL): access the group node being built to set its
+  transform or interaction behavior.
+- `SpatialNode.worldPosition` is now writable: setting it converts the
+  world-space point into parent-local space at any hierarchy depth.
+- Sample app (M8.4): place-and-arrange flow — tap content to bounce it (via
+  `onTap`), tap a surface to place a crate (via `onTapMissed`), then drag /
+  pinch / twist placed crates to arrange them.
+
+### Fixed
+- ARCore renderer ignored group transforms: meshes rendered with only their
+  local transform, so `GroupNode`/`ModelNode` position, rotation and scale
+  were dropped on Android (glTF models rendered at the origin). Parent
+  matrices now compose down the hierarchy, matching SceneKit/Three.js
+  parenting on the other platforms.
+
 ### Added (M7 — textured 3D models; on-device validation pending)
 - `TextureData` in the engine contract: encoded PNG/JPEG bytes plus
   `TextureSampler` (wrap and filter modes). `MaterialData.textureId` replaced

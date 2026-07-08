@@ -24,6 +24,21 @@ public class GroupScope(
     private val group: GroupNode,
 ) {
     /**
+     * The group node being built. Use it to set the group's own transform or
+     * interaction behavior:
+     *
+     * ```kotlin
+     * group(id = "furniture") {
+     *     node.position = vec3(0f, 0f, -1f)
+     *     node.onTap = { event -> select(event.node) }
+     *     node.draggable()
+     *
+     *     cube { ... }
+     * }
+     * ```
+     */
+    public val node: GroupNode get() = group
+    /**
      * Creates a cube node and adds it as a child of this group.
      */
     public fun cube(
