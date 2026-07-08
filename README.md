@@ -35,6 +35,15 @@ The **library** is the `spatial-*` modules — that's what gets published.
 `composeApp`, `server`, and `shared` are a development playground / demo app
 and are not part of the published artifacts.
 
+The demo app opens on a home screen with one demo per business use case —
+**Furniture Preview** (retail tap-to-place + arrange gestures), **Tape
+Measure** (construction: hit-test two points, measured segments), **Solar
+System** (education: animated content driven from `onFrame`) — plus the
+**API Showcase** playground. Run it in any desktop browser with
+`./gradlew :composeApp:jsBrowserDevelopmentRun` (non-XR preview; deep link
+straight into a demo with `?demo=furniture|measure|solar|showcase`), or on
+a device for real AR.
+
 ## Architecture
 
 ```
