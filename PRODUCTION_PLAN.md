@@ -489,6 +489,17 @@ Placed objects currently "float". Ship the three highest-impact cues:
   shadows sit under the flower/crates and follow drags, and a hand/couch in
   front of a crate occludes it. iPhone: lighting + shadows (no occlusion).
   WebXR (Chrome Android or emulator): lighting + shadows.
+  *Android first pass (2026-07-08): shadows render and follow content. Found
+  and fixed an occlusion bug — the soft band was centered on the measured
+  depth, so content resting ON a surface (crate bases, the flat star) sat at
+  ~50% alpha and depth noise made it fade in/out entirely (star "reappeared"
+  when dragged toward the camera, vanished when dragged away). The band is
+  now asymmetric: full visibility at equal depth, fading only 0–80 mm behind
+  real geometry. Needs an on-device re-run. Also observed: taps between a
+  concave shape's parts (star points, flower petals) fall through to the
+  sample's `onTapMissed` and place a crate behind the content — that's the
+  M8 tap-missed flow working as coded; padded/bbox picking for concave
+  shapes stays an M8 follow-up.*
 
 ### M10 — Non-XR preview renderer
 

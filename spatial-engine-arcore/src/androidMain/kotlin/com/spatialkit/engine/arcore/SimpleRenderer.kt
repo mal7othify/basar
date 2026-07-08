@@ -527,8 +527,13 @@ public class SimpleRenderer(
                     float realMm = float(raw & 0x1FFFu);
                     if (realMm > 0.0) {
                         float virtualMm = -v_ViewPos.z * 1000.0;
-                        // Soft 80mm transition band around the depth edge
-                        visibility = clamp((realMm - virtualMm) / 80.0 + 0.5, 0.0, 1.0);
+                        // Fade only fragments clearly BEHIND the measured
+                        // depth, over a soft 80mm band. Full visibility at
+                        // equal depth: content resting on a surface sits at
+                        // the surface's own depth reading and must not
+                        // self-fade (a band centered on the edge would leave
+                        // it shimmering at ~50% alpha from depth noise).
+                        visibility = clamp((realMm - virtualMm) / 80.0 + 1.0, 0.0, 1.0);
                     }
                 }
                 fragColor = vec4(color, visibility);
