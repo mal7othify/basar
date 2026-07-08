@@ -9,6 +9,25 @@ binary-compatibility validator dumps in each module's `api/` directory).
 
 ## [Unreleased]
 
+### Added (M12.1 — WebXR anchors + plane detection; device validation pending)
+- WebXR anchors are now backed by real `XRAnchor`s: the engine requests the
+  `anchors` optional feature, resolves `SceneData.anchors` requests on the XR
+  frame (plane anchors are created in the plane's own `planeSpace` so they
+  follow plane refinements), reports per-frame `AnchorState`s from
+  `trackedAnchors` (PENDING → TRACKING/PAUSED/LOST, ERROR on rejection), and
+  `delete()`s anchors dropped from the scene. Browsers without the anchors
+  module fall back to fixed-pose software anchors so `AnchorType.World` /
+  `HitTest` / `Plane` keep working.
+- WebXR plane detection (`plane-detection` optional feature, gated on
+  `EngineConfig.enablePlaneDetection`): `XRFrame.detectedPlanes` is surfaced
+  as `FrameData.detectedPlanes` with stable ids, boundary polygons, extents,
+  and HORIZONTAL_UP/DOWN/VERTICAL classification.
+- New `PlaneRaycaster` in `spatial-engine` (commonMain): analytic ray vs
+  detected-plane intersection (boundary polygon or extent rectangle) for
+  engines without native arbitrary-ray real-world hit testing. The WebXR
+  engine's `performHitTest` now tests detected planes with it alongside scene
+  content — tap-to-place lands on real surfaces on web, matching ARCore/ARKit.
+
 ### Added (M10 — non-XR preview renderer)
 - New `spatial-engine-preview` module (M10.1): `PreviewEngine` renders scenes
   with Three.js in a plain browser window — no WebXR, no AR hardware — so the

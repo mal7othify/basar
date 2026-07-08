@@ -160,3 +160,35 @@ public external interface XRHitTestSource
 public external interface XRHitTestResult {
     public fun getPose(referenceSpace: XRReferenceSpace): XRPose?
 }
+
+// === XR Anchors (WebXR Anchors Module) ===
+// https://immersive-web.github.io/anchors/
+//
+// The module extends XRFrame with `createAnchor(pose, space)` and
+// `trackedAnchors`; those are feature-detected and accessed dynamically in
+// WebXREngine because they are absent on browsers without the module.
+
+public external interface XRAnchor {
+    public val anchorSpace: XRSpace
+
+    public fun delete()
+}
+
+// === XR Plane Detection (WebXR Plane Detection Module) ===
+// https://immersive-web.github.io/real-world-geometry/plane-detection.html
+//
+// The module extends XRFrame with `detectedPlanes` (an XRPlaneSet, i.e. a JS
+// Set), likewise feature-detected and accessed dynamically in WebXREngine.
+
+public external interface XRPlane {
+    /** Space whose origin is the plane center, with +y as the plane normal. */
+    public val planeSpace: XRSpace
+
+    /** Boundary polygon in plane space (points have y = 0). */
+    public val polygon: Array<DOMPointReadOnly>
+
+    /** "horizontal" or "vertical" (may be absent on some UAs). */
+    public val orientation: String?
+
+    public val lastChangedTime: Double
+}

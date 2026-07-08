@@ -1,9 +1,14 @@
 package com.spatialkit.engine.webxr
 
 import com.spatialkit.core.log.SpatialLog
+import com.spatialkit.engine.AnchorRequest
+import com.spatialkit.engine.AnchorState
+import com.spatialkit.engine.AnchorStatus
+import com.spatialkit.engine.AnchorType
 import com.spatialkit.engine.Axis
 import com.spatialkit.engine.Button
 import com.spatialkit.engine.ButtonState
+import com.spatialkit.engine.DetectedPlane
 import com.spatialkit.engine.EngineCapabilities
 import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.EngineError
@@ -11,6 +16,8 @@ import com.spatialkit.engine.EngineState
 import com.spatialkit.engine.FrameData
 import com.spatialkit.engine.HitTestResult
 import com.spatialkit.engine.InputSource
+import com.spatialkit.engine.PlaneRaycaster
+import com.spatialkit.engine.PlaneType
 import com.spatialkit.engine.Pose
 import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.RaycastResult
@@ -58,6 +65,24 @@ public class WebXREngine : SpatialEngine {
     // M9.1 light estimation: scene lights driven by the XR light probe
     private var xrLightProbe: dynamic = null
     private var lastLightEstimate: com.spatialkit.engine.LightEstimate? = null
+
+    // M12.1 anchors: XRAnchor-backed where the WebXR anchors module exists,
+    // with a fixed-pose software fallback elsewhere so AnchorType.World /
+    // HitTest / Plane keep working (they just won't be tracking-refined).
+    // An id lives in exactly one of these maps/sets at a time.
+    private val xrAnchors = LinkedHashMap<String, XRAnchor>()
+    private val softwareAnchors = LinkedHashMap<String, Pose>()
+    private val pendingAnchorRequests = LinkedHashMap<String, AnchorRequest>()
+    private val creatingAnchorIds = mutableSetOf<String>()
+    private val failedAnchorIds = mutableSetOf<String>()
+
+    // M12.1 plane detection: converted once per frame from the session's
+    // XRPlaneSet; ids are kept stable across frames via a WeakMap keyed by
+    // XRPlane identity
+    private var planeIdMap: dynamic = null
+    private var nextPlaneId = 0
+    private var currentPlanes: List<DetectedPlane> = emptyList()
+    private var currentXRPlanes: Map<String, XRPlane> = emptyMap()
 
     /**
      * Invoked when an immersive XR session starts. The hosting UI should hide
@@ -194,11 +219,14 @@ public class WebXREngine : SpatialEngine {
 
         val optionalFeatures =
             if (mode is SessionMode.AR) {
-                if (currentConfig?.enableLightEstimation != false) {
-                    arrayOf("camera-access", "hit-test", "hand-tracking", "light-estimation")
-                } else {
-                    arrayOf("camera-access", "hit-test", "hand-tracking")
-                }
+                buildList {
+                    add("camera-access")
+                    add("hit-test")
+                    add("hand-tracking")
+                    add("anchors") // M12.1: XRAnchor-backed anchors
+                    if (currentConfig?.enableLightEstimation != false) add("light-estimation")
+                    if (currentConfig?.enablePlaneDetection != false) add("plane-detection") // M12.1
+                }.toTypedArray()
             } else {
                 arrayOf("hand-tracking", "local")
             }
@@ -360,6 +388,10 @@ public class WebXREngine : SpatialEngine {
             val viewerPose = frame.getViewerPose(xrReferenceSpace!!)
 
             if (viewerPose != null) {
+                // M12.1: refresh detected planes first — pending plane
+                // anchors resolve against this frame's plane set
+                updateDetectedPlanes(frame)
+                processAnchorRequests(frame)
                 val frameData = convertToFrameData(time, deltaTime, viewerPose, frame, frame.session)
                 frameCallback?.invoke(frameData)
             }
@@ -436,6 +468,15 @@ public class WebXREngine : SpatialEngine {
         lastLightEstimate = null
         lastFrameTime = 0.0
 
+        // XRAnchors die with the session — just drop the bookkeeping
+        xrAnchors.clear()
+        softwareAnchors.clear()
+        pendingAnchorRequests.clear()
+        creatingAnchorIds.clear()
+        failedAnchorIds.clear()
+        currentPlanes = emptyList()
+        currentXRPlanes = emptyMap()
+
         // Stop the animation loop
         renderer?.setAnimationLoop(null)
 
@@ -469,6 +510,7 @@ public class WebXREngine : SpatialEngine {
 
     override fun submitScene(scene: SceneData) {
         sceneRenderer?.submitScene(scene)
+        syncAnchorRequests(scene.anchors)
     }
 
     override fun performHitTest(
@@ -478,9 +520,34 @@ public class WebXREngine : SpatialEngine {
         // WebXR does not expose synchronous real-world hit testing from
         // arbitrary screen points (that requires transient-input hit-test
         // sources). This casts a camera ray through the normalized screen
-        // point against scene content instead.
+        // point against scene content and — since M12.1 — analytically
+        // against the planes the plane-detection module reported this frame;
+        // the nearest hit wins.
         val threeCamera = camera ?: return null
-        return sceneRenderer?.performHitTest(screenX, screenY, threeCamera)
+        val contentHit = sceneRenderer?.performHitTest(screenX, screenY, threeCamera)
+        val planeHit = hitTestDetectedPlanes(screenX, screenY, threeCamera)
+        return listOfNotNull(contentHit, planeHit).minByOrNull { it.distance }
+    }
+
+    private fun hitTestDetectedPlanes(
+        screenX: Float,
+        screenY: Float,
+        threeCamera: Camera,
+    ): HitTestResult? {
+        val planes = currentPlanes
+        if (planes.isEmpty()) return null
+
+        // Normalized (0..1, top-left origin) -> NDC (-1..1, bottom-left origin)
+        val ndc = Vector2((screenX * 2f - 1f).toDouble(), (1f - screenY * 2f).toDouble())
+        val raycaster = Raycaster()
+        raycaster.setFromCamera(ndc, threeCamera)
+        val ray = raycaster.ray
+
+        return PlaneRaycaster.raycast(
+            origin = Vec3(ray.origin.x.toFloat(), ray.origin.y.toFloat(), ray.origin.z.toFloat()),
+            direction = Vec3(ray.direction.x.toFloat(), ray.direction.y.toFloat(), ray.direction.z.toFloat()),
+            planes = planes,
+        )
     }
 
     override fun performRaycast(
@@ -507,33 +574,311 @@ public class WebXREngine : SpatialEngine {
         return FrameData(
             timestamp = time.toLong(),
             deltaTime = deltaTime,
-            cameraPose =
-                Pose(
-                    position =
-                        Vec3(
-                            transform.position.x.toFloat(),
-                            transform.position.y.toFloat(),
-                            transform.position.z.toFloat(),
-                        ),
-                    rotation =
-                        Quaternion(
-                            transform.orientation.x.toFloat(),
-                            transform.orientation.y.toFloat(),
-                            transform.orientation.z.toFloat(),
-                            transform.orientation.w.toFloat(),
-                        ),
-                ),
+            cameraPose = transform.toPose(),
             projectionMatrix =
                 viewerPose.views[0]
                     .projectionMatrix
                     .toFloatArray(),
             viewMatrix = transform.matrix.toFloatArray(),
             trackingState = TrackingState.NORMAL,
-            detectedPlanes = emptyList(),
+            detectedPlanes = currentPlanes,
             lightEstimate = lastLightEstimate,
             inputSources = convertInputSources(session.inputSources, frame),
-            anchors = emptyList(),
+            anchors = buildAnchorStates(frame),
         )
+    }
+
+    // === M12.1: plane detection ===
+
+    /**
+     * Converts this frame's XRPlaneSet (plane-detection module) into
+     * [DetectedPlane]s. Ids stay stable across frames via a WeakMap keyed by
+     * XRPlane identity — the set contains the same plane objects each frame
+     * while a plane is tracked. No-op (empty list) on browsers without the
+     * module or when the feature wasn't granted.
+     */
+    private fun updateDetectedPlanes(frame: XRFrame) {
+        val referenceSpace = xrReferenceSpace ?: return
+        val planeSet = frame.asDynamic().detectedPlanes
+        if (planeSet == null || planeSet == undefined || currentConfig?.enablePlaneDetection == false) {
+            currentPlanes = emptyList()
+            currentXRPlanes = emptyMap()
+            return
+        }
+
+        if (planeIdMap == null) planeIdMap = js("new WeakMap()")
+        val idMap = planeIdMap
+        val planes = ArrayList<DetectedPlane>()
+        val byId = HashMap<String, XRPlane>()
+
+        planeSet.forEach { planeDyn: dynamic ->
+            val plane = planeDyn.unsafeCast<XRPlane>()
+            val xrPose = frame.getPose(plane.planeSpace, referenceSpace)
+            if (xrPose != null) {
+                var id = idMap.get(plane) as? String
+                if (id == null) {
+                    id = "webxr-plane-${nextPlaneId++}"
+                    idMap.set(plane, id)
+                }
+
+                val pose = xrPose.transform.toPose()
+                var minX = 0f
+                var maxX = 0f
+                var minZ = 0f
+                var maxZ = 0f
+                val vertices =
+                    plane.polygon.mapIndexed { index, point ->
+                        val x = point.x.toFloat()
+                        val z = point.z.toFloat()
+                        if (index == 0) {
+                            minX = x
+                            maxX = x
+                            minZ = z
+                            maxZ = z
+                        } else {
+                            if (x < minX) minX = x
+                            if (x > maxX) maxX = x
+                            if (z < minZ) minZ = z
+                            if (z > maxZ) maxZ = z
+                        }
+                        Vec3(x, 0f, z)
+                    }
+
+                planes +=
+                    DetectedPlane(
+                        id = id,
+                        type =
+                            when (plane.orientation?.lowercase()) {
+                                // The module only says "horizontal"; up vs down
+                                // comes from where the plane normal (+y) points
+                                "horizontal" ->
+                                    if ((pose.rotation * Vec3.UP).y >= 0f) {
+                                        PlaneType.HORIZONTAL_UP
+                                    } else {
+                                        PlaneType.HORIZONTAL_DOWN
+                                    }
+                                "vertical" -> PlaneType.VERTICAL
+                                else -> PlaneType.UNKNOWN
+                            },
+                        centerPose = pose,
+                        extentX = maxX - minX,
+                        extentZ = maxZ - minZ,
+                        vertices = vertices.takeIf { it.size >= 3 },
+                    )
+                byId[id] = plane
+            }
+        }
+
+        currentPlanes = planes
+        currentXRPlanes = byId
+    }
+
+    // === M12.1: anchors ===
+
+    /**
+     * Diffs the scene's declarative anchor requests against engine state:
+     * unknown ids are queued for creation on the next XR frame, and anchors
+     * whose request disappeared are released.
+     */
+    private fun syncAnchorRequests(requests: List<AnchorRequest>) {
+        val requestedIds = HashSet<String>(requests.size)
+        requests.forEach { request ->
+            requestedIds += request.id
+            val known =
+                request.id in xrAnchors ||
+                    request.id in softwareAnchors ||
+                    request.id in creatingAnchorIds ||
+                    request.id in failedAnchorIds ||
+                    request.id in pendingAnchorRequests
+            if (!known) pendingAnchorRequests[request.id] = request
+        }
+
+        // Anchors dropped from the scene stop being tracked; XRAnchor.delete
+        // frees the UA-side tracking slot. In-flight creations resolve into
+        // xrAnchors and get cleaned up by a later sync.
+        val staleIds = xrAnchors.keys.filter { it !in requestedIds }
+        staleIds.forEach { id ->
+            val anchor = xrAnchors.remove(id) ?: return@forEach
+            try {
+                anchor.delete()
+            } catch (e: Throwable) {
+                SpatialLog.debug(TAG) { "XRAnchor.delete failed for $id: ${e.message}" }
+            }
+        }
+        softwareAnchors.keys.retainAll(requestedIds)
+        pendingAnchorRequests.keys.retainAll(requestedIds)
+        failedAnchorIds.retainAll(requestedIds)
+    }
+
+    /**
+     * Resolves queued anchor requests against this XR frame. Uses
+     * `XRFrame.createAnchor` (anchors module) when the browser has it —
+     * plane anchors are created in the plane's own [XRPlane.planeSpace] so
+     * they follow plane refinements — and falls back to fixed-pose software
+     * anchors elsewhere. Plane requests whose plane hasn't been detected yet
+     * stay queued (mirroring ARCore, where they retry until the plane shows
+     * up), unless plane detection is unavailable altogether.
+     */
+    private fun processAnchorRequests(frame: XRFrame) {
+        if (pendingAnchorRequests.isEmpty()) return
+        val frameDyn = frame.asDynamic()
+        val nativeAnchors = frameDyn.createAnchor != undefined
+
+        pendingAnchorRequests.values.toList().forEach { request ->
+            when (val type = request.type) {
+                is AnchorType.World ->
+                    dispatchAnchor(request.id, frame, nativeAnchors, Pose(type.position, type.rotation))
+
+                is AnchorType.HitTest ->
+                    dispatchAnchor(request.id, frame, nativeAnchors, Pose(type.hitPoint, Quaternion.IDENTITY))
+
+                is AnchorType.Plane -> {
+                    val plane = currentPlanes.firstOrNull { it.id == type.planeId }
+                    val xrPlane = currentXRPlanes[type.planeId]
+                    when {
+                        plane == null -> {
+                            if (frameDyn.detectedPlanes == undefined) {
+                                // No plane detection on this browser: the plane
+                                // can never appear, so fail instead of pending
+                                failAnchor(request.id, "plane detection unsupported")
+                            }
+                        }
+
+                        nativeAnchors && xrPlane != null ->
+                            createNativeAnchor(
+                                request.id,
+                                frame,
+                                rigidTransform(type.offsetFromCenter, Quaternion.IDENTITY),
+                                xrPlane.planeSpace,
+                            )
+
+                        else -> {
+                            val pose = plane.centerPose
+                            dispatchAnchor(
+                                request.id,
+                                frame,
+                                nativeAnchors,
+                                Pose(pose.position + pose.rotation * type.offsetFromCenter, pose.rotation),
+                            )
+                        }
+                    }
+                }
+
+                is AnchorType.Persistent ->
+                    // M12.3 (anchor persistence) — not implemented yet
+                    failAnchor(request.id, "persistent anchors not supported")
+            }
+        }
+    }
+
+    private fun dispatchAnchor(
+        id: String,
+        frame: XRFrame,
+        nativeAnchors: Boolean,
+        pose: Pose,
+    ) {
+        if (nativeAnchors) {
+            createNativeAnchor(id, frame, rigidTransform(pose.position, pose.rotation), xrReferenceSpace ?: return)
+        } else {
+            pendingAnchorRequests.remove(id)
+            softwareAnchors[id] = pose
+        }
+    }
+
+    private fun createNativeAnchor(
+        id: String,
+        frame: XRFrame,
+        transform: dynamic,
+        space: XRSpace,
+    ) {
+        pendingAnchorRequests.remove(id)
+        creatingAnchorIds += id
+        frame
+            .asDynamic()
+            .createAnchor(transform, space)
+            .then { anchor: dynamic ->
+                creatingAnchorIds.remove(id)
+                xrAnchors[id] = anchor.unsafeCast<XRAnchor>()
+                null
+            }.catch { e: dynamic ->
+                creatingAnchorIds.remove(id)
+                failedAnchorIds += id
+                SpatialLog.warn(TAG) { "createAnchor failed for $id: $e" }
+                null
+            }
+    }
+
+    private fun failAnchor(
+        id: String,
+        reason: String,
+    ) {
+        pendingAnchorRequests.remove(id)
+        failedAnchorIds += id
+        SpatialLog.warn(TAG) { "anchor $id failed: $reason" }
+    }
+
+    /**
+     * Reports every known anchor's state for this frame. Native anchors are
+     * checked against `XRFrame.trackedAnchors` and posed via their
+     * [XRAnchor.anchorSpace]; software anchors always report their fixed pose
+     * as TRACKING.
+     */
+    private fun buildAnchorStates(frame: XRFrame): List<AnchorState> {
+        val nothingTracked =
+            xrAnchors.isEmpty() &&
+                softwareAnchors.isEmpty() &&
+                creatingAnchorIds.isEmpty() &&
+                pendingAnchorRequests.isEmpty() &&
+                failedAnchorIds.isEmpty()
+        if (nothingTracked) return emptyList()
+        val referenceSpace = xrReferenceSpace ?: return emptyList()
+        val trackedSet = frame.asDynamic().trackedAnchors
+
+        val states = ArrayList<AnchorState>()
+        xrAnchors.forEach { (id, anchor) ->
+            val tracked = trackedSet == undefined || trackedSet.has(anchor).unsafeCast<Boolean>()
+            states +=
+                if (!tracked) {
+                    AnchorState(id, AnchorStatus.LOST, null)
+                } else {
+                    val xrPose = frame.getPose(anchor.anchorSpace, referenceSpace)
+                    if (xrPose != null) {
+                        AnchorState(id, AnchorStatus.TRACKING, xrPose.transform.toPose())
+                    } else {
+                        AnchorState(id, AnchorStatus.PAUSED, null)
+                    }
+                }
+        }
+        softwareAnchors.forEach { (id, pose) -> states += AnchorState(id, AnchorStatus.TRACKING, pose) }
+        creatingAnchorIds.forEach { states += AnchorState(it, AnchorStatus.PENDING, null) }
+        pendingAnchorRequests.keys.forEach { states += AnchorState(it, AnchorStatus.PENDING, null) }
+        failedAnchorIds.forEach { states += AnchorState(it, AnchorStatus.ERROR, null) }
+        return states
+    }
+
+    /** Builds a native `XRRigidTransform` (constructed reflectively — it is a global class, not a module export). */
+    private fun rigidTransform(
+        position: Vec3,
+        rotation: Quaternion,
+    ): dynamic {
+        val ctor = window.asDynamic().XRRigidTransform
+        val positionInit = domPointInit(position.x, position.y, position.z, 1f)
+        val orientationInit = domPointInit(rotation.x, rotation.y, rotation.z, rotation.w)
+        return js("Reflect").construct(ctor, arrayOf(positionInit, orientationInit))
+    }
+
+    private fun domPointInit(
+        x: Float,
+        y: Float,
+        z: Float,
+        w: Float,
+    ): dynamic {
+        val point = js("({})")
+        point.x = x
+        point.y = y
+        point.z = z
+        point.w = w
+        return point
     }
 
     private fun convertInputSources(
@@ -668,6 +1013,24 @@ public class WebXREngine : SpatialEngine {
         const val TAG = "WebXREngine"
     }
 }
+
+// Converts an XRRigidTransform to the engine Pose type.
+private fun XRRigidTransform.toPose(): Pose =
+    Pose(
+        position =
+            Vec3(
+                position.x.toFloat(),
+                position.y.toFloat(),
+                position.z.toFloat(),
+            ),
+        rotation =
+            Quaternion(
+                orientation.x.toFloat(),
+                orientation.y.toFloat(),
+                orientation.z.toFloat(),
+                orientation.w.toFloat(),
+            ),
+    )
 
 // Extension to convert JS Float32Array to Kotlin FloatArray.
 // The external `get` operator doesn't map to bracket indexing at runtime in IR,

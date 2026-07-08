@@ -22,7 +22,7 @@ progress is trackable in PRs; reference the task ID (e.g. `M1.3`) in commit mess
 | M9 | AR realism | Light estimation, shadows, depth occlusion | 🚧 code-complete, device validation pending |
 | M10 | Preview renderer | Non-XR 3D preview for desktop/simulator dev loop | ✅ (browser preview; verified headless) |
 | M11 | 2D UI in space | Text labels, billboards, Compose-content panels | planned |
-| M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | planned |
+| M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | 🚧 M12.1 done (WebXR anchors + planes; device validation pending) |
 | M13 | Real VR | Per-view stereo rendering + controller input model | planned |
 
 ---
@@ -547,8 +547,25 @@ The "Compose for spatial" pitch implies this.
 
 ### M12 — Tracking & persistence
 
-- [ ] M12.1 WebXR anchors (XRAnchor) + plane detection module — closes the
-  README "Known Limitations".
+- [x] M12.1 WebXR anchors (XRAnchor) + plane detection module — closes the
+  README "Known Limitations". *Done (2026-07-08): the WebXR engine now
+  requests the `anchors` + `plane-detection` optional features.
+  `SceneData.anchors` requests are resolved on the XR frame into real
+  `XRAnchor`s (plane anchors are created in the plane's own `planeSpace` so
+  they follow plane refinements; anchors dropped from the scene are
+  `delete()`d), with per-frame `AnchorState`s from `trackedAnchors` —
+  PENDING while creating, TRACKING/PAUSED/LOST from the UA, ERROR on
+  rejection. Browsers without the anchors module fall back to fixed-pose
+  software anchors so the API keeps working. `XRFrame.detectedPlanes` is
+  converted to `FrameData.detectedPlanes` (stable ids via a WeakMap,
+  polygon → vertices/extents, HORIZONTAL_UP/DOWN split from the world-space
+  normal), and `performHitTest` now also intersects detected planes
+  analytically via the new shared `PlaneRaycaster` in `spatial-engine`
+  (commonMain, unit-tested) — WebXR has no arbitrary-point real-world hit
+  test, so tap-to-place lands on real surfaces through the same code path
+  as the other platforms. Not validated on an XR device yet (headless
+  Chrome only exercises the preview fallback); fold into the combined
+  on-device pass.*
 - [ ] M12.2 Image tracking (ARCore Augmented Images / ARKit reference images)
   behind `supportsImageTracking`.
 - [ ] M12.3 Anchor persistence across sessions (local world map / cloud anchors

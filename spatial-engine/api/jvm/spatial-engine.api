@@ -605,6 +605,12 @@ public final class com/spatialkit/engine/MaterialType : java/lang/Enum {
 	public static fun values ()[Lcom/spatialkit/engine/MaterialType;
 }
 
+public final class com/spatialkit/engine/PlaneRaycaster {
+	public static final field INSTANCE Lcom/spatialkit/engine/PlaneRaycaster;
+	public final fun raycast (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;Ljava/util/List;)Lcom/spatialkit/engine/HitTestResult;
+	public final fun raycastPlane (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/engine/DetectedPlane;)Lcom/spatialkit/engine/HitTestResult;
+}
+
 public final class com/spatialkit/engine/PlaneType : java/lang/Enum {
 	public static final field HORIZONTAL_DOWN Lcom/spatialkit/engine/PlaneType;
 	public static final field HORIZONTAL_UP Lcom/spatialkit/engine/PlaneType;

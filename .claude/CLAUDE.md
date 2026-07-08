@@ -81,7 +81,7 @@ runs pending — no iOS device on hand as of 2026-07-08.
 ### Platform Status
 
 - **Android**: ARCore engine + Compose integration ✅ (only renderer with depth occlusion)
-- **Web**: WebXR engine + Compose integration ✅ (anchors/planes not XRAnchor-backed yet; light estimation needs Chrome's `light-estimation` feature); non-XR preview fallback on browsers without immersive XR ✅
+- **Web**: WebXR engine + Compose integration ✅ (anchors XRAnchor-backed + plane detection since M12.1, with software-anchor fallback where the modules are missing; light estimation needs Chrome's `light-estimation` feature); non-XR preview fallback on browsers without immersive XR ✅
 - **iOS**: ARKit engine (SceneKit) + Compose integration ✅ (custom meshes done; on-device validation pending)
 
 ### Roadmap (after M10)
