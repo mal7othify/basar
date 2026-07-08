@@ -17,6 +17,9 @@ package com.spatialkit.engine
  * @property lightEstimate Estimated environment lighting (AR)
  * @property inputSources All active input sources this frame
  * @property anchors Current state of all tracked anchors
+ * @property trackedImages Reference images detected in the environment
+ *   (M12.2; empty unless [EngineConfig.referenceImages] were supplied and
+ *   the engine supports image tracking)
  */
 public data class FrameData(
     val timestamp: Long,
@@ -29,6 +32,7 @@ public data class FrameData(
     val lightEstimate: LightEstimate?,
     val inputSources: List<InputSource>,
     val anchors: List<AnchorState>,
+    val trackedImages: List<TrackedImage> = emptyList(),
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -46,6 +50,7 @@ public data class FrameData(
         if (lightEstimate != other.lightEstimate) return false
         if (inputSources != other.inputSources) return false
         if (anchors != other.anchors) return false
+        if (trackedImages != other.trackedImages) return false
 
         return true
     }
@@ -61,6 +66,7 @@ public data class FrameData(
         result = 31 * result + (lightEstimate?.hashCode() ?: 0)
         result = 31 * result + inputSources.hashCode()
         result = 31 * result + anchors.hashCode()
+        result = 31 * result + trackedImages.hashCode()
         return result
     }
 }

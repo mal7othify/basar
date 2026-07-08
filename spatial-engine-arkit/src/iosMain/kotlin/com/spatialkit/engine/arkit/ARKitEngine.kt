@@ -29,6 +29,8 @@ import com.spatialkit.engine.TextureData
 import com.spatialkit.engine.TextureFilter
 import com.spatialkit.engine.TextureSampler
 import com.spatialkit.engine.TextureWrap
+import com.spatialkit.engine.TrackedImage
+import com.spatialkit.engine.TrackedImageStatus
 import com.spatialkit.engine.TrackingState
 import com.spatialkit.engine.generateVertexNormals
 import kotlinx.cinterop.CValue
@@ -56,11 +58,13 @@ import platform.ARKit.ARFaceTrackingConfiguration
 import platform.ARKit.ARFrame
 import platform.ARKit.ARHitTestResult
 import platform.ARKit.ARHitTestResultTypeExistingPlaneUsingExtent
+import platform.ARKit.ARImageAnchor
 import platform.ARKit.ARImageTrackingConfiguration
 import platform.ARKit.ARPlaneAnchor
 import platform.ARKit.ARPlaneAnchorAlignment
 import platform.ARKit.ARPlaneDetectionHorizontal
 import platform.ARKit.ARPlaneDetectionVertical
+import platform.ARKit.ARReferenceImage
 import platform.ARKit.ARSCNView
 import platform.ARKit.ARSCNViewDelegateProtocol
 import platform.ARKit.ARSession
@@ -79,6 +83,7 @@ import platform.Foundation.NSData
 import platform.Foundation.NSNumber
 import platform.Foundation.dataWithBytes
 import platform.Foundation.numberWithFloat
+import platform.ImageIO.kCGImagePropertyOrientationUp
 import platform.QuartzCore.CACurrentMediaTime
 import platform.SceneKit.SCNBox
 import platform.SceneKit.SCNCapsule
@@ -401,10 +406,54 @@ public class ARKitEngine : SpatialEngine {
             arConfig.lightEstimationEnabled = true
         }
 
+        // Image tracking (M12.2)
+        val referenceImages = convertReferenceImages(config.referenceImages)
+        if (referenceImages.isNotEmpty()) {
+            arConfig.detectionImages = referenceImages
+            // Without this ARKit only detects images (pose frozen at
+            // detection); tracking all configured images keeps poses live
+            arConfig.maximumNumberOfTrackedImages = referenceImages.size.toLong()
+        }
+
         // World alignment
         arConfig.worldAlignment = ARWorldAlignment.ARWorldAlignmentGravity
 
         return arConfig
+    }
+
+    /**
+     * Decodes the shared bytes-based [com.spatialkit.engine.ReferenceImage]s
+     * into ARKit [ARReferenceImage]s (M12.2). Undecodable images are skipped
+     * with a warning so one bad asset doesn't take down session start.
+     */
+    @OptIn(ExperimentalForeignApi::class)
+    private fun convertReferenceImages(references: List<com.spatialkit.engine.ReferenceImage>): Set<ARReferenceImage> {
+        if (references.isEmpty()) return emptySet()
+
+        val converted = mutableSetOf<ARReferenceImage>()
+        references.forEach { reference ->
+            if (reference.imageBytes.isEmpty()) {
+                SpatialLog.warn(TAG) { "reference image '${reference.id}' has no bytes, skipping" }
+                return@forEach
+            }
+            val nsData =
+                reference.imageBytes.usePinned { pinned ->
+                    NSData.dataWithBytes(pinned.addressOf(0), reference.imageBytes.size.toULong())
+                }
+            val cgImage = UIImage.imageWithData(nsData)?.CGImage
+            if (cgImage == null) {
+                SpatialLog.warn(TAG) { "reference image '${reference.id}' could not be decoded, skipping" }
+                return@forEach
+            }
+            converted.add(
+                ARReferenceImage(
+                    cgImage,
+                    kCGImagePropertyOrientationUp,
+                    reference.physicalWidthMeters.toDouble(),
+                ).apply { name = reference.id },
+            )
+        }
+        return converted
     }
 
     /**
@@ -414,6 +463,7 @@ public class ARKitEngine : SpatialEngine {
         val trackingState: TrackingState,
         val detectedPlanes: List<DetectedPlane>,
         val anchors: List<AnchorState>,
+        val trackedImages: List<TrackedImage>,
         val lightEstimate: com.spatialkit.engine.LightEstimate?,
         val projectionMatrix: FloatArray,
         val viewMatrix: FloatArray,
@@ -473,6 +523,7 @@ public class ARKitEngine : SpatialEngine {
                 lightEstimate = info.lightEstimate,
                 inputSources = emptyList(),
                 anchors = info.anchors,
+                trackedImages = info.trackedImages,
             ),
         )
     }
@@ -519,29 +570,36 @@ public class ARKitEngine : SpatialEngine {
         // Prepare containers
         val detectedPlanes = mutableListOf<DetectedPlane>()
         val anchorsList = mutableListOf<AnchorState>()
+        val trackedImages = mutableListOf<TrackedImage>()
 
         // frame.anchors is an NSArray - iterate safely
         val anchorsArray = frame.anchors
         for (i in 0 until anchorsArray.size) {
             val raw = anchorsArray[i] as? ARAnchor ?: continue
-            if (raw is ARPlaneAnchor) {
-                detectedPlanes.add(convertPlaneAnchor(raw))
-                anchorsList.add(
-                    AnchorState(
-                        id = raw.identifier.UUIDString,
-                        pose = convertTransform(raw.transform),
-                        status = AnchorStatus.TRACKING,
-                    ),
-                )
-            } else {
-                // generic anchor
-                anchorsList.add(
-                    AnchorState(
-                        id = raw.identifier.UUIDString,
-                        pose = convertTransform(raw.transform),
-                        status = AnchorStatus.TRACKING,
-                    ),
-                )
+            when (raw) {
+                is ARPlaneAnchor -> {
+                    detectedPlanes.add(convertPlaneAnchor(raw))
+                    anchorsList.add(
+                        AnchorState(
+                            id = raw.identifier.UUIDString,
+                            pose = convertTransform(raw.transform),
+                            status = AnchorStatus.TRACKING,
+                        ),
+                    )
+                }
+
+                is ARImageAnchor -> trackedImages.add(convertImageAnchor(raw))
+
+                else -> {
+                    // generic anchor
+                    anchorsList.add(
+                        AnchorState(
+                            id = raw.identifier.UUIDString,
+                            pose = convertTransform(raw.transform),
+                            status = AnchorStatus.TRACKING,
+                        ),
+                    )
+                }
             }
         }
 
@@ -570,9 +628,29 @@ public class ARKitEngine : SpatialEngine {
             trackingState = trackingState,
             detectedPlanes = detectedPlanes,
             anchors = anchorsList,
+            trackedImages = trackedImages,
             lightEstimate = lightEstimate,
             projectionMatrix = projectionMatrix,
             viewMatrix = viewMatrix,
+        )
+    }
+
+    /**
+     * Converts an [ARImageAnchor] to the shared [TrackedImage] contract
+     * (M12.2). ARKit keeps image anchors in the session once detected;
+     * `isTracked == false` means the pose is the last known one.
+     */
+    @OptIn(ExperimentalForeignApi::class)
+    private fun convertImageAnchor(anchor: ARImageAnchor): TrackedImage {
+        val reference = anchor.referenceImage
+        val (width, height) =
+            reference.physicalSize.useContents { width.toFloat() to height.toFloat() }
+        return TrackedImage(
+            imageId = reference.name ?: anchor.identifier.UUIDString,
+            status = if (anchor.isTracked()) TrackedImageStatus.TRACKING else TrackedImageStatus.LAST_KNOWN_POSE,
+            pose = convertTransform(anchor.transform),
+            extentX = width,
+            extentZ = height,
         )
     }
 

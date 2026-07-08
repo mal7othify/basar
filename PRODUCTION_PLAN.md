@@ -22,7 +22,7 @@ progress is trackable in PRs; reference the task ID (e.g. `M1.3`) in commit mess
 | M9 | AR realism | Light estimation, shadows, depth occlusion | 🚧 code-complete, device validation pending |
 | M10 | Preview renderer | Non-XR 3D preview for desktop/simulator dev loop | ✅ (browser preview; verified headless) |
 | M11 | 2D UI in space | Text labels, billboards, Compose-content panels | planned |
-| M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | 🚧 M12.1 done (WebXR anchors + planes; device validation pending) |
+| M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | 🚧 M12.1 + M12.2 done (device validation pending); M12.3 open |
 | M13 | Real VR | Per-view stereo rendering + controller input model | planned |
 
 ---
@@ -566,8 +566,21 @@ The "Compose for spatial" pitch implies this.
   as the other platforms. Not validated on an XR device yet (headless
   Chrome only exercises the preview fallback); fold into the combined
   on-device pass.*
-- [ ] M12.2 Image tracking (ARCore Augmented Images / ARKit reference images)
-  behind `supportsImageTracking`.
+- [x] M12.2 Image tracking (ARCore Augmented Images / ARKit reference images)
+  behind `supportsImageTracking`. *Done (2026-07-08): bytes-based shared
+  contract — `EngineConfig.referenceImages: List<ReferenceImage>` (id +
+  encoded PNG/JPEG bytes + required `physicalWidthMeters`; ARKit refuses
+  images without a physical size and ARCore detects much faster with one),
+  detections surfaced per frame as `FrameData.trackedImages:
+  List<TrackedImage>` (pose + measured extents +
+  TRACKING/LAST_KNOWN_POSE/NOT_TRACKING status). ARCore builds an
+  `AugmentedImageDatabase` at initialize; ARKit sets
+  `detectionImages` + `maximumNumberOfTrackedImages` (without which poses
+  freeze at detection). Undecodable/rejected images are skipped with a
+  warning rather than failing session start. WebXR/preview keep reporting
+  `supportsImageTracking = false` (the WebXR image-tracking API is a
+  Chrome-only incubation). Device validation pending on both platforms —
+  fold into the combined on-device pass.*
 - [ ] M12.3 Anchor persistence across sessions (local world map / cloud anchors
   — scope after M8–M10).
 

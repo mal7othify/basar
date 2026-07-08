@@ -1,9 +1,11 @@
 package com.spatialkit.engine.arcore
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.view.Surface
 import com.google.ar.core.Anchor
 import com.google.ar.core.ArCoreApk
+import com.google.ar.core.AugmentedImage
 import com.google.ar.core.AugmentedImageDatabase
 import com.google.ar.core.Camera
 import com.google.ar.core.Config
@@ -39,6 +41,8 @@ import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
+import com.spatialkit.engine.TrackedImage
+import com.spatialkit.engine.TrackedImageStatus
 import com.spatialkit.engine.Vec3
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -170,6 +174,12 @@ public class ARCoreEngine(
                             arSession.isDepthModeSupported(Config.DepthMode.AUTOMATIC)
                         ) {
                             depthMode = Config.DepthMode.AUTOMATIC
+                        }
+
+                        // Image tracking (M12.2): Augmented Images database
+                        // built from the configured reference images
+                        buildImageDatabase(arSession, config.referenceImages)?.let {
+                            augmentedImageDatabase = it
                         }
 
                         // Set focus mode
@@ -533,7 +543,82 @@ public class ARCoreEngine(
             lightEstimate = getLightEstimate(frame),
             inputSources = emptyList(), // ARCore doesn't have controller input
             anchors = getAnchorStates(frame),
+            trackedImages = getTrackedImages(),
         )
+    }
+
+    /**
+     * Builds the Augmented Images database for image tracking (M12.2).
+     * Undecodable images are skipped with a warning so one bad asset doesn't
+     * take down session configuration. Returns null when there is nothing to
+     * track (leaves the session's default database untouched).
+     */
+    private fun buildImageDatabase(
+        arSession: Session,
+        referenceImages: List<com.spatialkit.engine.ReferenceImage>,
+    ): AugmentedImageDatabase? {
+        if (referenceImages.isEmpty()) return null
+
+        val database = AugmentedImageDatabase(arSession)
+        var added = 0
+        referenceImages.forEach { reference ->
+            val bitmap =
+                BitmapFactory.decodeByteArray(reference.imageBytes, 0, reference.imageBytes.size)
+            if (bitmap == null) {
+                SpatialLog.warn(TAG) { "reference image '${reference.id}' could not be decoded, skipping" }
+                return@forEach
+            }
+            try {
+                database.addImage(reference.id, bitmap, reference.physicalWidthMeters)
+                added++
+            } catch (e: Exception) {
+                // ARCore rejects images with too few features
+                SpatialLog.warn(TAG, e) { "reference image '${reference.id}' rejected by ARCore, skipping" }
+            }
+        }
+        SpatialLog.debug(TAG) { "augmented image database: $added/${referenceImages.size} images" }
+        return if (added > 0) database else null
+    }
+
+    /**
+     * Per-frame state of all Augmented Images (M12.2). ARCore keeps every
+     * image that was ever detected in the trackables list; images not yet
+     * seen don't appear at all — matching the [FrameData.trackedImages]
+     * contract.
+     */
+    private fun getTrackedImages(): List<TrackedImage> {
+        if (currentConfig?.referenceImages?.isEmpty() != false) return emptyList()
+        val arSession = session ?: return emptyList()
+
+        return arSession
+            .getAllTrackables(AugmentedImage::class.java)
+            .map { image ->
+                val status =
+                    when {
+                        image.trackingState != TrackingState.TRACKING -> TrackedImageStatus.NOT_TRACKING
+                        image.trackingMethod == AugmentedImage.TrackingMethod.FULL_TRACKING ->
+                            TrackedImageStatus.TRACKING
+                        image.trackingMethod == AugmentedImage.TrackingMethod.LAST_KNOWN_POSE ->
+                            TrackedImageStatus.LAST_KNOWN_POSE
+                        else -> TrackedImageStatus.NOT_TRACKING
+                    }
+                val pose = image.centerPose
+                TrackedImage(
+                    imageId = image.name,
+                    status = status,
+                    pose =
+                        if (status == TrackedImageStatus.NOT_TRACKING) {
+                            null
+                        } else {
+                            EnginePose(
+                                position = Vec3(pose.tx(), pose.ty(), pose.tz()),
+                                rotation = Quaternion(pose.qx(), pose.qy(), pose.qz(), pose.qw()),
+                            )
+                        },
+                    extentX = image.extentX,
+                    extentZ = image.extentZ,
+                )
+            }
     }
 
     private fun getProjectionMatrix(camera: Camera): FloatArray {

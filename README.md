@@ -288,6 +288,33 @@ Check `session.capabilities?.supportsDepthOcclusion` before promising
 occlusion in UX: the iOS (SceneKit) and WebXR renderers report `false` and
 render without occlusion.
 
+### Image tracking
+
+Where `capabilities.supportsImageTracking` is true (ARCore and ARKit),
+supply reference images and react to detections each frame:
+
+```kotlin
+SpatialView(
+    config = EngineConfig(
+        referenceImages = listOf(
+            ReferenceImage(
+                id = "poster",
+                imageBytes = posterPngBytes,
+                // Real-world width of the printed image — required
+                physicalWidthMeters = 0.3f,
+            ),
+        ),
+    ),
+    onFrame = { frame ->
+        frame.trackedImages.forEach { image ->
+            if (image.status == TrackedImageStatus.TRACKING) {
+                // image.pose: center of the image, +y = its normal
+            }
+        }
+    },
+) { /* scene */ }
+```
+
 ## Platform Support
 
 | Platform | Math | Scene Graph | DSL | Compose | Rendering            |

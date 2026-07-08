@@ -73,7 +73,22 @@ Also fixed latent WebXR GLB crash (`Float32Array` external `set` operator →
 `TypedArray.set(value, offset)`; Kotlin `FloatArray` IS `Float32Array` at
 runtime — pass buffers directly).
 
-🚧 **Pending: combined on-device validation pass** (M7.12 + M8.5 + M9.4):
+🚧 **M12 (tracking & persistence) — M12.1 + M12.2 code-complete** (M11
+deliberately skipped for now). M12.1: WebXR anchors are XRAnchor-backed
+(created from `SceneData.anchors` on the XR frame, plane anchors in
+`planeSpace`, stale ones deleted; software-anchor fallback without the
+module) and `XRFrame.detectedPlanes` feeds `FrameData.detectedPlanes`;
+`performHitTest` intersects detected planes via the shared `PlaneRaycaster`
+(spatial-engine commonMain, unit-tested). M12.2: image tracking behind
+`supportsImageTracking` — `EngineConfig.referenceImages` (bytes +
+required physical width) → `FrameData.trackedImages` on ARCore
+(AugmentedImageDatabase) and ARKit (`detectionImages` +
+`maximumNumberOfTrackedImages`); WebXR/preview report false. M12.3
+(anchor persistence) open — scoping decision needed (local world map vs
+cloud anchors).
+
+🚧 **Pending: combined on-device validation pass** (M7.12 + M8.5 + M9.4 +
+M12.1 WebXR + M12.2 on both AR platforms):
 Android already validated through M8; needs an M9 re-run (lighting response,
 shadows, occlusion on a Depth phone). iPhone (`scripts/run-ios.sh`) + WebXR
 runs pending — no iOS device on hand as of 2026-07-08.
@@ -87,8 +102,8 @@ runs pending — no iOS device on hand as of 2026-07-08.
 ### Roadmap (after M10)
 
 Tracked milestone-by-milestone in PRODUCTION_PLAN.md:
-- **M11** 2D UI in space (labels, billboards, Compose panels)
-- **M12** Tracking & persistence (image tracking, anchor persistence, WebXR anchors)
+- **M11** 2D UI in space (labels, billboards, Compose panels) — skipped ahead to M12, still open
+- **M12** Tracking & persistence — M12.1 (WebXR anchors/planes) + M12.2 (image tracking) done; M12.3 (anchor persistence) open
 - **M13** Real VR (stereo rendering + controllers) — or narrow the AR/VR claim
 - First Maven Central release: pending — cut a `v*` tag (workflow exists)
 

@@ -234,6 +234,9 @@ public sealed interface SessionMode {
  *   behind it (AR). Only honored where
  *   [EngineCapabilities.supportsDepthOcclusion] is true — currently the
  *   ARCore engine (Depth API); it costs GPU time per frame, so it is opt-in.
+ * @property referenceImages Images to detect and track in the real world
+ *   (M12.2). Only honored where [EngineCapabilities.supportsImageTracking]
+ *   is true; detections surface as [FrameData.trackedImages]
  * @property nearPlane Near clipping plane distance in meters
  * @property farPlane Far clipping plane distance in meters
  */
@@ -242,6 +245,7 @@ public data class EngineConfig(
     val enablePlaneDetection: Boolean = true,
     val enableLightEstimation: Boolean = true,
     val enableDepthOcclusion: Boolean = false,
+    val referenceImages: List<ReferenceImage> = emptyList(),
     val nearPlane: Float = 0.1f,
     val farPlane: Float = 100f,
 )

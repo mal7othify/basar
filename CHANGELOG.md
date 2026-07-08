@@ -9,6 +9,21 @@ binary-compatibility validator dumps in each module's `api/` directory).
 
 ## [Unreleased]
 
+### Added (M12.2 — image tracking; device validation pending)
+- Image tracking behind `EngineCapabilities.supportsImageTracking`: supply
+  `EngineConfig.referenceImages` (`ReferenceImage`: id, encoded PNG/JPEG
+  bytes, and the image's physical width in meters — required, since ARKit
+  refuses reference images without a physical size and ARCore detects much
+  faster with one). Detections surface each frame as
+  `FrameData.trackedImages`: center pose, measured extents, and a
+  `TRACKING` / `LAST_KNOWN_POSE` / `NOT_TRACKING` status.
+- ARCore builds an Augmented Images database from the configured references
+  at initialize; ARKit sets `detectionImages` and
+  `maximumNumberOfTrackedImages` so image poses stay live while visible.
+  Undecodable or feature-poor images are skipped with a warning instead of
+  failing session start. The WebXR and preview engines honestly report
+  `supportsImageTracking = false`.
+
 ### Added (M12.1 — WebXR anchors + plane detection; device validation pending)
 - WebXR anchors are now backed by real `XRAnchor`s: the engine requests the
   `anchors` optional feature, resolves `SceneData.anchors` requests on the XR
