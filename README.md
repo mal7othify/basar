@@ -305,6 +305,7 @@ render without occlusion.
 | `spatial-engine-arcore` | ARCore renderer (Android)                     |
 | `spatial-engine-webxr`  | WebXR renderer (Web/Three.js)                 |
 | `spatial-engine-arkit`  | ARKit renderer (iOS/SceneKit)                 |
+| `spatial-engine-preview`| Non-XR preview renderer (browser orbit camera, no AR hardware needed) |
 | `spatial-scene`         | Scene graph and session management            |
 | `spatial-dsl`           | Kotlin DSL builders and extensions            |
 | `spatial-compose`       | Compose Multiplatform integration             |
@@ -315,7 +316,9 @@ render without occlusion.
 - **Compose Multiplatform**: 1.6+
 - **Android**: API 24+ (for ARCore)
 - **iOS**: iOS 13+, physical device (ARKit does not run in the Simulator)
-- **Web**: Modern browser with WebXR support
+- **Web**: Modern browser. Immersive AR/VR needs WebXR support; without it
+  (e.g. any desktop browser) `SpatialView` automatically renders a non-XR
+  orbit-camera preview — the fastest way to develop scenes
 
 ## Building
 
@@ -346,7 +349,9 @@ Tracked in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**. Foundation milestones
 CI and API stability) are done. **M7 (textured 3D models), M8 (gestures:
 tap / drag / pinch / twist on nodes) and M9 (AR realism: light estimation,
 soft shadows, depth occlusion) are code-complete**, with a combined on-device
-validation pass pending. Next up: a non-XR preview renderer (M10), Compose UI
+validation pass pending. **M10 (non-XR preview renderer) is done**: on
+browsers without immersive XR, `SpatialView` falls back to a camera-orbit
+preview so scenes can be developed without AR hardware. Next up: Compose UI
 in space (M11), tracking & persistence (M12), and real VR support (M13).
 First Maven Central release is pending — the release workflow exists and just
 needs a tag.

@@ -58,6 +58,21 @@ nodes (shared `SceneBounds` + native per-renderer discs), and ARCore depth
 occlusion behind opt-in `EngineConfig.enableDepthOcclusion` (iOS/Web report
 `supportsDepthOcclusion = false` honestly — SceneKit can't composite depth).
 
+✅ **M10 (non-XR preview renderer) — done, verified in headless Chrome.**
+`spatial-engine-preview` (js + jvm targets): `PreviewEngine` renders via the
+Three.js scene sync shared with WebXR (extracted as public
+`ThreeSceneRenderer` in `spatial-engine-webxr`), with an orbit camera
+(`OrbitCameraModel` in commonMain, jvm-tested), a y=0 grid reported as a
+synthetic plane (`performHitTest` → `planeId="preview-floor"`), and taps
+forwarded via `onTap`. `SpatialSurface.js` defaults to `WebAutoEngine`,
+which picks WebXR vs preview inside `initialize()` (async capability probe;
+the frame pipeline binds to one engine per session — don't try to swap
+engines after `runtime.start`). Desktop-JVM OpenGL variant deliberately
+dropped: composeApp has no desktop target; the browser is the dev loop.
+Also fixed latent WebXR GLB crash (`Float32Array` external `set` operator →
+`TypedArray.set(value, offset)`; Kotlin `FloatArray` IS `Float32Array` at
+runtime — pass buffers directly).
+
 🚧 **Pending: combined on-device validation pass** (M7.12 + M8.5 + M9.4):
 Android already validated through M8; needs an M9 re-run (lighting response,
 shadows, occlusion on a Depth phone). iPhone (`scripts/run-ios.sh`) + WebXR
@@ -66,13 +81,12 @@ runs pending — no iOS device on hand as of 2026-07-08.
 ### Platform Status
 
 - **Android**: ARCore engine + Compose integration ✅ (only renderer with depth occlusion)
-- **Web**: WebXR engine + Compose integration ✅ (anchors/planes not XRAnchor-backed yet; light estimation needs Chrome's `light-estimation` feature)
+- **Web**: WebXR engine + Compose integration ✅ (anchors/planes not XRAnchor-backed yet; light estimation needs Chrome's `light-estimation` feature); non-XR preview fallback on browsers without immersive XR ✅
 - **iOS**: ARKit engine (SceneKit) + Compose integration ✅ (custom meshes done; on-device validation pending)
 
-### Roadmap (after M9)
+### Roadmap (after M10)
 
 Tracked milestone-by-milestone in PRODUCTION_PLAN.md:
-- **M10** Non-XR preview renderer (desktop/simulator dev loop)
 - **M11** 2D UI in space (labels, billboards, Compose panels)
 - **M12** Tracking & persistence (image tracking, anchor persistence, WebXR anchors)
 - **M13** Real VR (stereo rendering + controllers) — or narrow the AR/VR claim

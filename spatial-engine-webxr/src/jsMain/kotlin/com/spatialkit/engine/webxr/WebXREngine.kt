@@ -9,21 +9,15 @@ import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.EngineError
 import com.spatialkit.engine.EngineState
 import com.spatialkit.engine.FrameData
-import com.spatialkit.engine.GeometryData
-import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.HitTestResult
 import com.spatialkit.engine.InputSource
-import com.spatialkit.engine.MaterialData
-import com.spatialkit.engine.MaterialType
 import com.spatialkit.engine.Pose
 import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneData
-import com.spatialkit.engine.SceneNode
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.TrackingState
-import com.spatialkit.engine.Transform
 import com.spatialkit.engine.Vec3
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -40,10 +34,12 @@ import com.spatialkit.engine.Hand as ControllerHand
  * Uses Three.js for rendering and WebXR Device API for AR/VR capabilities.
  * Delegates all XR rendering to Three.js's built-in WebXR manager, which
  * handles framebuffer binding, camera matrix updates, and viewport management.
+ * Scene-graph synchronization lives in [ThreeSceneRenderer], shared with the
+ * non-XR preview engine.
  */
 public class WebXREngine : SpatialEngine {
     // Three.js components
-    private var scene: Scene? = null
+    private var sceneRenderer: ThreeSceneRenderer? = null
     private var camera: PerspectiveCamera? = null
     private var renderer: WebGLRenderer? = null
 
@@ -57,26 +53,11 @@ public class WebXREngine : SpatialEngine {
     private var _capabilities: EngineCapabilities? = null
     private var currentConfig: EngineConfig? = null
     private var frameCallback: ((FrameData) -> Unit)? = null
-
-    // Scene management
-    private val nodeMap = mutableMapOf<String, Object3D>()
-    private val appliedMaterials = mutableMapOf<String, MaterialData>()
-    private val appliedGeometry = mutableMapOf<String, GeometryData>()
-    private val textureCache = ThreeTextureCache()
     private var lastFrameTime = 0.0
 
     // M9.1 light estimation: scene lights driven by the XR light probe
-    private var ambientLight: AmbientLight? = null
-    private var directionalLight: DirectionalLight? = null
     private var xrLightProbe: dynamic = null
     private var lastLightEstimate: com.spatialkit.engine.LightEstimate? = null
-
-    // M9.2 blob shadows: one radial-gradient plane per shadow-casting subtree
-    private val shadowMeshMap = mutableMapOf<String, Mesh>()
-    private var blobShadowTexture: Texture? = null
-
-    // Cached local AABBs for custom meshes (submitScene runs per frame)
-    private val customMeshLocalBounds = mutableMapOf<String, com.spatialkit.engine.Aabb?>()
 
     /**
      * Invoked when an immersive XR session starts. The hosting UI should hide
@@ -116,20 +97,9 @@ public class WebXREngine : SpatialEngine {
         currentConfig = config
 
         try {
-            // Create Three.js scene with lighting. The lights are kept as
-            // fields so the XR light estimate can drive them (M9.1).
-            val ambient = AmbientLight(0xffffff, 0.6)
-            val directional =
-                DirectionalLight(0xffffff, 0.8).apply {
-                    position.set(1.0, 1.0, 1.0)
-                }
-            ambientLight = ambient
-            directionalLight = directional
-            scene =
-                Scene().apply {
-                    add(ambient)
-                    add(directional)
-                }
+            // Scene + lights live in the shared renderer; the XR light
+            // estimate drives its lights each frame (M9.1).
+            sceneRenderer = ThreeSceneRenderer()
             camera = PerspectiveCamera(75.0, 1.0, 0.1, 1000.0)
 
             val canvas = document.createElement("canvas") as HTMLCanvasElement
@@ -370,7 +340,7 @@ public class WebXREngine : SpatialEngine {
         time: Double,
         xrFrame: dynamic,
     ) {
-        val threeScene = scene ?: return
+        val threeScene = sceneRenderer?.scene ?: return
         val threeCamera = camera ?: return
         val threeRenderer = renderer ?: return
 
@@ -435,8 +405,8 @@ public class WebXREngine : SpatialEngine {
         // Scale the baseline lights (0.6 ambient / 0.8 directional at a
         // nominally lit scene) by the estimate
         val ambientScale = luminance.coerceIn(0f, 2f)
-        ambientLight?.asDynamic()?.intensity = 0.6 * ambientScale
-        directionalLight?.let { light ->
+        sceneRenderer?.ambientLight?.asDynamic()?.intensity = 0.6 * ambientScale
+        sceneRenderer?.directionalLight?.let { light ->
             light.asDynamic().intensity = 0.8 * directionalIntensity
             // primaryLightDirection points toward the light source; a Three
             // directional light shines from its position toward the origin
@@ -482,21 +452,10 @@ public class WebXREngine : SpatialEngine {
     override fun dispose() {
         stopSession()
 
-        // Release GPU resources held by cached meshes
-        nodeMap.values.forEach { disposeObject(it) }
-        nodeMap.clear()
-        appliedMaterials.clear()
-        appliedGeometry.clear()
-        textureCache.disposeAll()
-        shadowMeshMap.values.forEach { disposeObject(it) }
-        shadowMeshMap.clear()
-        blobShadowTexture?.dispose()
-        blobShadowTexture = null
-        customMeshLocalBounds.clear()
-        ambientLight = null
-        directionalLight = null
+        // Release GPU resources held by the scene renderer
+        sceneRenderer?.dispose()
+        sceneRenderer = null
 
-        scene = null
         camera = null
         renderer?.domElement?.remove()
         renderer = null
@@ -509,132 +468,7 @@ public class WebXREngine : SpatialEngine {
     }
 
     override fun submitScene(scene: SceneData) {
-        val threeScene = this.scene ?: return
-
-        // Remove old nodes that aren't in new scene and free their GPU resources
-        val newNodeIds = collectNodeIds(scene.nodes)
-        val toRemove = nodeMap.keys.filter { it !in newNodeIds }
-        toRemove.forEach { id ->
-            nodeMap[id]?.let { obj ->
-                obj.asDynamic().parent?.remove(obj)
-                threeScene.remove(obj)
-                disposeObject(obj)
-            }
-            nodeMap.remove(id)
-            appliedMaterials.remove(id)?.baseColorTexture?.let { textureCache.release(it.id) }
-            appliedGeometry.remove(id)
-            customMeshLocalBounds.remove(id)
-        }
-
-        // Add or update nodes
-        scene.nodes.forEach { node ->
-            processSceneNodeIntoScene(node, threeScene)
-        }
-
-        updateBlobShadows(scene, threeScene)
-    }
-
-    /**
-     * Maintains one blob-shadow plane (M9.2) under each shadow-casting
-     * subtree: a radial-gradient disc at the base of the subtree's world
-     * AABB, sized slightly beyond its footprint. Runs per submitScene (once
-     * per frame), so shadows follow dragged/scaled content.
-     */
-    private fun updateBlobShadows(
-        sceneData: SceneData,
-        threeScene: Scene,
-    ) {
-        val casters =
-            com.spatialkit.engine.SceneBounds.shadowCasters(sceneData.nodes) { mesh ->
-                if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
-                    customMeshLocalBounds.getOrPut(mesh.id) {
-                        com.spatialkit.engine.SceneBounds
-                            .localBounds(mesh.geometry)
-                    }
-                } else {
-                    com.spatialkit.engine.SceneBounds
-                        .localBounds(mesh.geometry)
-                }
-            }
-
-        val liveIds = mutableSetOf<String>()
-        casters.forEach { (node, bounds) ->
-            val size = bounds.size
-            val diameter = maxOf(size.x, size.z) * SHADOW_FOOTPRINT_SCALE
-            if (diameter <= 0f) return@forEach
-            liveIds.add(node.id)
-
-            val shadow =
-                shadowMeshMap.getOrPut(node.id) {
-                    createBlobShadowMesh().also { threeScene.add(it) }
-                }
-            shadow.position.set(
-                bounds.center.x.toDouble(),
-                // Slightly above the base to avoid z-fighting the surface
-                (bounds.min.y + 0.002f).toDouble(),
-                bounds.center.z.toDouble(),
-            )
-            // Plane local XY spans world XZ after the flat rotation
-            shadow.scale.set(diameter.toDouble(), diameter.toDouble(), 1.0)
-        }
-
-        (shadowMeshMap.keys - liveIds).forEach { id ->
-            shadowMeshMap.remove(id)?.let { mesh ->
-                threeScene.remove(mesh)
-                mesh.geometry.dispose()
-                mesh.material.dispose()
-            }
-        }
-    }
-
-    /**
-     * A 1×1 plane rotated flat with a radial-gradient "blob" texture:
-     * transparent, non-depth-writing, and excluded from raycasts so it never
-     * intercepts node picking.
-     */
-    private fun createBlobShadowMesh(): Mesh {
-        val texture =
-            blobShadowTexture ?: createBlobShadowTexture().also { blobShadowTexture = it }
-
-        val params = js("{}")
-        params.map = texture
-        params.transparent = true
-        params.depthWrite = false
-        val material = MeshBasicMaterial(params)
-
-        val mesh = Mesh(PlaneGeometry(1.0, 1.0), material)
-        // Three.js planes face +Z; rotate to face +Y (flat on the ground)
-        mesh.rotation.x = -kotlin.math.PI / 2
-        // Opt out of raycasting (performRaycast/performHitTest walk the scene)
-        mesh.asDynamic().raycast = js("function() {}")
-        return mesh
-    }
-
-    /** Radial gradient matching the other renderers' blob shadows. */
-    private fun createBlobShadowTexture(): Texture {
-        val canvas = document.createElement("canvas") as HTMLCanvasElement
-        canvas.width = 128
-        canvas.height = 128
-        val ctx = canvas.asDynamic().getContext("2d")
-        val gradient = ctx.createRadialGradient(64.0, 64.0, 0.0, 64.0, 64.0, 64.0)
-        gradient.addColorStop(0.0, "rgba(0,0,0,$SHADOW_OPACITY)")
-        gradient.addColorStop(0.55, "rgba(0,0,0,${SHADOW_OPACITY * 0.75})")
-        gradient.addColorStop(1.0, "rgba(0,0,0,0)")
-        ctx.fillStyle = gradient
-        ctx.fillRect(0, 0, 128, 128)
-
-        return Texture(canvas).apply { needsUpdate = true }
-    }
-
-    private fun processSceneNodeIntoScene(
-        node: SceneNode,
-        scene: Scene,
-    ) {
-        processSceneNode(node) { obj ->
-            if (obj.asDynamic().parent == null) {
-                scene.add(obj)
-            }
-        }
+        sceneRenderer?.submitScene(scene)
     }
 
     override fun performHitTest(
@@ -645,281 +479,14 @@ public class WebXREngine : SpatialEngine {
         // arbitrary screen points (that requires transient-input hit-test
         // sources). This casts a camera ray through the normalized screen
         // point against scene content instead.
-        val threeScene = scene ?: return null
         val threeCamera = camera ?: return null
-
-        // Normalized (0..1, top-left origin) -> NDC (-1..1, bottom-left origin)
-        val ndc = Vector2((screenX * 2f - 1f).toDouble(), (1f - screenY * 2f).toDouble())
-        val raycaster = Raycaster()
-        raycaster.setFromCamera(ndc, threeCamera)
-
-        val hit = raycaster.intersectObjects(threeScene.children, recursive = true).firstOrNull() ?: return null
-        return HitTestResult(
-            position = Vec3(hit.point.x.toFloat(), hit.point.y.toFloat(), hit.point.z.toFloat()),
-            normal = hit.worldNormal(),
-            distance = hit.distance.toFloat(),
-            planeId = null,
-        )
+        return sceneRenderer?.performHitTest(screenX, screenY, threeCamera)
     }
 
     override fun performRaycast(
         origin: Vec3,
         direction: Vec3,
-    ): RaycastResult? {
-        val threeScene = scene ?: return null
-
-        val raycaster =
-            Raycaster(
-                Vector3(origin.x.toDouble(), origin.y.toDouble(), origin.z.toDouble()),
-                Vector3(direction.x.toDouble(), direction.y.toDouble(), direction.z.toDouble()),
-            )
-
-        val intersections = raycaster.intersectObjects(threeScene.children, recursive = true)
-
-        return intersections.firstOrNull()?.let { hit ->
-            RaycastResult(
-                position = Vec3(hit.point.x.toFloat(), hit.point.y.toFloat(), hit.point.z.toFloat()),
-                normal = hit.worldNormal(),
-                distance = hit.distance.toFloat(),
-                nodeId = hit.`object`.name.takeIf { it.isNotEmpty() },
-            )
-        }
-    }
-
-    /**
-     * Extracts the intersected face normal in world space, falling back to +Y.
-     */
-    private fun Intersection.worldNormal(): Vec3 {
-        val face = this.face ?: return Vec3(0f, 1f, 0f)
-        val normal =
-            Vector3(
-                (face.normal.x as Number).toDouble(),
-                (face.normal.y as Number).toDouble(),
-                (face.normal.z as Number).toDouble(),
-            )
-        // Face normals are in object space; rotate into world space
-        val worldQuaternion = Quaternion()
-        this.`object`.asDynamic().getWorldQuaternion(worldQuaternion)
-        normal.asDynamic().applyQuaternion(worldQuaternion)
-        return Vec3(normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
-    }
-
-    // === Private Implementation ===
-
-    private fun processSceneNode(
-        node: SceneNode,
-        attach: (Object3D) -> Unit,
-    ) {
-        when (node) {
-            is SceneNode.Mesh -> {
-                val mesh =
-                    nodeMap.getOrPut(node.id) {
-                        createMesh(node)
-                    } as Mesh
-                updateMeshData(node, mesh)
-                updateTransform(mesh, node.transform)
-                mesh.visible = node.visible
-                attach(mesh)
-            }
-
-            is SceneNode.Group -> {
-                val group =
-                    nodeMap.getOrPut(node.id) {
-                        Group().also { it.name = node.id }
-                    }
-                updateTransform(group, node.transform)
-                group.visible = node.visible
-                attach(group)
-
-                node.children.forEach { child ->
-                    processSceneNode(child) { obj ->
-                        if (obj.asDynamic().parent == null) {
-                            group.add(obj)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Applies material/geometry changes to an already-created mesh, disposing
-     * the replaced GPU resources.
-     */
-    private fun updateMeshData(
-        node: SceneNode.Mesh,
-        mesh: Mesh,
-    ) {
-        val previousMaterial = appliedMaterials[node.id]
-        if (previousMaterial != node.material) {
-            if (previousMaterial != null) {
-                mesh.material.dispose()
-                previousMaterial.baseColorTexture?.let { textureCache.release(it.id) }
-            }
-            mesh.material = createMaterial(node.material)
-            appliedMaterials[node.id] = node.material
-        }
-
-        val previousGeometry = appliedGeometry[node.id]
-        if (previousGeometry != node.geometry) {
-            if (previousGeometry != null) {
-                mesh.geometry.dispose()
-            }
-            mesh.geometry = createGeometry(node.geometry)
-            appliedGeometry[node.id] = node.geometry
-        }
-    }
-
-    /**
-     * Releases GPU resources of a cached object (geometry + material of meshes).
-     */
-    private fun disposeObject(obj: Object3D) {
-        if (obj is Mesh) {
-            obj.geometry.dispose()
-            obj.material.dispose()
-        }
-    }
-
-    private fun createMesh(node: SceneNode.Mesh): Mesh {
-        val geometry = createGeometry(node.geometry)
-        val material = createMaterial(node.material)
-        appliedMaterials[node.id] = node.material
-        appliedGeometry[node.id] = node.geometry
-        return Mesh(geometry, material).also { it.name = node.id }
-    }
-
-    private fun createGeometry(data: GeometryData): BufferGeometry =
-        when (data.type) {
-            GeometryType.CUBE -> {
-                BoxGeometry(1.0, 1.0, 1.0)
-            }
-
-            GeometryType.SPHERE -> {
-                SphereGeometry(0.5, 32, 16)
-            }
-
-            GeometryType.PLANE -> {
-                PlaneGeometry(1.0, 1.0)
-            }
-
-            GeometryType.CYLINDER -> {
-                CylinderGeometry(0.5, 0.5, 1.0, 32)
-            }
-
-            GeometryType.CAPSULE -> {
-                CapsuleGeometry(0.5, 1.0, 4, 8)
-            }
-
-            GeometryType.CUSTOM_MESH -> {
-                val geometry = BufferGeometry()
-                data.vertices?.let { vertices ->
-                    val positions = Float32Array(vertices.size)
-                    vertices.forEachIndexed { i, v -> positions[i] = v }
-                    geometry.setAttribute("position", BufferAttribute(positions, 3))
-                }
-                data.normals?.let { normals ->
-                    val normalsArray = Float32Array(normals.size)
-                    normals.forEachIndexed { i, v -> normalsArray[i] = v }
-                    geometry.setAttribute("normal", BufferAttribute(normalsArray, 3))
-                }
-                data.uvs?.let { uvs ->
-                    val uvArray = Float32Array(uvs.size)
-                    uvs.forEachIndexed { i, v -> uvArray[i] = v }
-                    geometry.setAttribute("uv", BufferAttribute(uvArray, 2))
-                }
-                data.indices?.let { indices ->
-                    // Uint16 only addresses 65535 vertices; switch to Uint32 beyond that
-                    val needsWideIndices = indices.any { it > 0xFFFF }
-                    val indicesArray =
-                        if (needsWideIndices) {
-                            js("new Uint32Array(indices)")
-                        } else {
-                            js("new Uint16Array(indices)")
-                        }
-                    geometry.setIndex(BufferAttribute(indicesArray, 1))
-                }
-                geometry
-            }
-        }
-
-    /**
-     * Creates a Three.js material from MaterialData.
-     *
-     * Three.js expects color as a hex integer (e.g. 0xFF0000 for red),
-     * not as an {r, g, b} object. We convert the float RGB components (0.0-1.0)
-     * to a single packed integer. Three multiplies `map` by `color`, matching
-     * glTF's baseColorFactor × baseColorTexture semantics.
-     *
-     * Texture decode is asynchronous: the material starts with its base color
-     * and gets `map` assigned when the cache delivers the texture. The matching
-     * release happens where the applied material is replaced or removed.
-     */
-    private fun createMaterial(data: MaterialData): Material {
-        val r = (data.baseColor.x * 255).toInt().coerceIn(0, 255)
-        val g = (data.baseColor.y * 255).toInt().coerceIn(0, 255)
-        val b = (data.baseColor.z * 255).toInt().coerceIn(0, 255)
-        val colorHex = (r shl 16) or (g shl 8) or b
-
-        val material =
-            when (data.type) {
-                MaterialType.UNLIT -> {
-                    val params = js("{}")
-                    params.color = colorHex
-                    if (data.doubleSided) params.side = 2 // THREE.DoubleSide
-                    MeshBasicMaterial(params)
-                }
-
-                MaterialType.LIT, MaterialType.PBR -> {
-                    val params = js("{}")
-                    params.color = colorHex
-                    params.metalness = data.metallic.toDouble()
-                    params.roughness = data.roughness.toDouble()
-                    if (data.doubleSided) params.side = 2 // THREE.DoubleSide
-                    MeshStandardMaterial(params)
-                }
-            }
-
-        data.baseColorTexture?.let { textureData ->
-            textureCache.acquire(textureData) { texture ->
-                material.asDynamic().map = texture
-                material.asDynamic().needsUpdate = true
-            }
-        }
-
-        return material
-    }
-
-    private fun updateTransform(
-        obj: Object3D,
-        transform: Transform,
-    ) {
-        obj.position.set(
-            transform.position.x.toDouble(),
-            transform.position.y.toDouble(),
-            transform.position.z.toDouble(),
-        )
-        obj.quaternion.set(
-            transform.rotation.x.toDouble(),
-            transform.rotation.y.toDouble(),
-            transform.rotation.z.toDouble(),
-            transform.rotation.w.toDouble(),
-        )
-        obj.scale.set(
-            transform.scale.x.toDouble(),
-            transform.scale.y.toDouble(),
-            transform.scale.z.toDouble(),
-        )
-    }
-
-    private fun collectNodeIds(nodes: List<SceneNode>): Set<String> =
-        buildSet {
-            nodes.forEach { node ->
-                add(node.id)
-                if (node is SceneNode.Group) {
-                    addAll(collectNodeIds(node.children))
-                }
-            }
-        }
+    ): RaycastResult? = sceneRenderer?.performRaycast(origin, direction)
 
     /**
      * Builds [FrameData] from the viewer pose.
@@ -1099,11 +666,6 @@ public class WebXREngine : SpatialEngine {
 
     private companion object {
         const val TAG = "WebXREngine"
-
-        // Blob shadows (M9.2): quad size relative to the caster's footprint,
-        // and peak darkness at the blob center — matches the other renderers
-        const val SHADOW_FOOTPRINT_SCALE = 1.25f
-        const val SHADOW_OPACITY = 0.35
     }
 }
 

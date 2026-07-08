@@ -57,6 +57,8 @@ kotlin {
         jsMain.dependencies {
             // WebXR engine for JavaScript/Browser
             implementation(project(":spatial-engine-webxr"))
+            // Non-XR preview fallback for browsers without immersive XR (M10)
+            implementation(project(":spatial-engine-preview"))
         }
 
         commonTest.dependencies {

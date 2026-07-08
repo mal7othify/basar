@@ -20,7 +20,7 @@ progress is trackable in PRs; reference the task ID (e.g. `M1.3`) in commit mess
 | M7 | Textured 3D models | Load a textured GLB and render it identically on all 3 platforms | 🚧 code-complete, device validation pending |
 | M8 | Interaction | Tap/drag/pinch/rotate gestures on nodes | 🚧 code-complete, Android ✅; iPhone + WebXR validation pending |
 | M9 | AR realism | Light estimation, shadows, depth occlusion | 🚧 code-complete, device validation pending |
-| M10 | Preview renderer | Non-XR 3D preview for desktop/simulator dev loop | planned |
+| M10 | Preview renderer | Non-XR 3D preview for desktop/simulator dev loop | ✅ (browser preview; verified headless) |
 | M11 | 2D UI in space | Text labels, billboards, Compose-content panels | planned |
 | M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | planned |
 | M13 | Real VR | Per-view stereo rendering + controller input model | planned |
@@ -505,11 +505,37 @@ Placed objects currently "float". Ship the three highest-impact cues:
 
 Biggest dev-loop improvement: see a scene without AR hardware.
 
-- [ ] M10.1 `spatial-engine-preview`: camera-orbit 3D renderer implementing
-  `SpatialEngine` (desktop JVM via OpenGL, and/or browser via Three.js without
-  XR session).
-- [ ] M10.2 `SpatialView` falls back to preview when no XR engine is available
-  (replaces the render-nothing `FallbackEngine` path for development).
+- [x] M10.1 `spatial-engine-preview`: camera-orbit 3D renderer implementing
+  `SpatialEngine` — browser via Three.js without an XR session. *Scope call
+  (2026-07-08): the "desktop JVM via OpenGL" variant was dropped — the app has
+  no desktop JVM target, so the browser (`jsBrowserDevelopmentRun` on any
+  desktop browser) is the actual dev loop. The Three.js scene sync was
+  extracted from `WebXREngine` into a shared `ThreeSceneRenderer` so preview
+  and AR render identically. `PreviewEngine` adds an orbit camera
+  (drag=orbit, right/shift-drag=pan, wheel/pinch=zoom; pure-Kotlin
+  `OrbitCameraModel` in commonMain with jvm unit tests), a grid at y=0 that
+  doubles as a synthetic `DetectedPlane` + `performHitTest` floor
+  (`planeId="preview-floor"`), and canvas taps surfaced via `onTap`.*
+- [x] M10.2 `SpatialView` falls back to preview when no XR engine is available
+  (replaces the render-nothing `FallbackEngine` path for development). *Done
+  via `WebAutoEngine`: the capability probe is async and the frame pipeline
+  binds to one engine per session, so the XR-vs-preview choice happens inside
+  `initialize()` — WebXR when an immersive session is supported, preview
+  otherwise. `SpatialSurface.js` defaults to it, only shows the "Start AR"
+  overlay when XR is real, and forwards preview-canvas taps into the M8
+  interaction manager (the preview canvas covers the Compose canvas, so
+  Compose gestures never fire on web preview).*
+- [x] M10.3 (found during validation) Fixed a latent WebXR custom-mesh bug:
+  `createGeometry` copied vertex data element-wise through the external
+  `Float32Array` `set` operator, which compiles to
+  `TypedArray.prototype.set(value, offset)` and throws
+  `RangeError: offset is out of bounds` for negative coordinates — any GLB
+  model would have crashed the JS render loop (M7's web validation was still
+  pending, so it had never run). Kotlin `FloatArray`/`IntArray` **are**
+  `Float32Array`/`Int32Array` at runtime, so the buffers now pass to Three.js
+  directly. *Verified end-to-end in headless Chrome (SwiftShader): the sample
+  scene (flower primitives, textured crate GLB, star GLB) renders on the
+  preview grid with no console errors.*
 
 ### M11 — 2D UI in space
 

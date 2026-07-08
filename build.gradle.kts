@@ -43,6 +43,7 @@ dependencies {
     dokka(project(":spatial-engine-arcore"))
     dokka(project(":spatial-engine-arkit"))
     dokka(project(":spatial-engine-webxr"))
+    dokka(project(":spatial-engine-preview"))
     dokka(project(":spatial-scene"))
     dokka(project(":spatial-dsl"))
     dokka(project(":spatial-compose"))

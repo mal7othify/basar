@@ -9,6 +9,33 @@ binary-compatibility validator dumps in each module's `api/` directory).
 
 ## [Unreleased]
 
+### Added (M10 — non-XR preview renderer)
+- New `spatial-engine-preview` module (M10.1): `PreviewEngine` renders scenes
+  with Three.js in a plain browser window — no WebXR, no AR hardware — so the
+  scene DSL can be iterated on in any desktop browser. It shares the WebXR
+  engine's scene synchronization (new public `ThreeSceneRenderer` in
+  `spatial-engine-webxr`), so preview output matches the AR path: geometry,
+  textured GLB models, blob shadows, content raycasts. Includes an orbit
+  camera (`OrbitCameraModel`, pure Kotlin: drag orbits, right/shift-drag
+  pans, wheel/pinch zooms), a ground grid at y = 0 that is also reported as a
+  synthetic `DetectedPlane` and hit by `performHitTest`
+  (`planeId = "preview-floor"`), and tap forwarding via `PreviewEngine.onTap`.
+- `WebAutoEngine` (M10.2): resolves to immersive WebXR or the preview at
+  `initialize()` time (the capability probe is async). `SpatialSurface` on
+  web now defaults to it, replacing the render-nothing path on desktop
+  browsers: the "Start AR" overlay only appears when an immersive session is
+  actually supported, and preview-canvas taps feed the M8 gesture pipeline
+  (`onTapMissed`/tap-to-place work in preview).
+
+### Fixed (M10)
+- WebXR custom meshes (GLB models) no longer crash the render loop with
+  `RangeError: offset is out of bounds`: vertex/normal/uv buffers were copied
+  through the external `Float32Array` `set` operator, which compiles to a
+  `TypedArray.prototype.set(value, offset)` call and throws for negative
+  coordinates. Kotlin `FloatArray`/`IntArray` are `Float32Array`/`Int32Array`
+  at runtime and now pass to Three.js directly (latent since M7 — the web
+  model path had not been exercised yet).
+
 ### Added (M9 — AR realism; on-device validation pending)
 - Light estimation feeds renderer lighting (M9.1). `LightEstimate` is now
   normalized cross-platform: `ambientIntensity` 1.0 ≈ a nominally lit indoor

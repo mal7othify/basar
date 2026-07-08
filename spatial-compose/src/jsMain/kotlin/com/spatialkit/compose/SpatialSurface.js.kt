@@ -8,10 +8,14 @@ import androidx.compose.ui.Modifier
 import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.engine.EngineState
 import com.spatialkit.engine.SessionMode
-import com.spatialkit.engine.webxr.WebXREngine
+import com.spatialkit.engine.SpatialEngine
+import com.spatialkit.engine.preview.PreviewEngine
+import com.spatialkit.engine.preview.WebAutoEngine
+import com.spatialkit.scene.GestureEvent
 import com.spatialkit.scene.SpatialScene
 import com.spatialkit.scene.SpatialSession
 import kotlinx.browser.document
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLCanvasElement
@@ -21,11 +25,21 @@ import org.w3c.dom.HTMLDivElement
  * JavaScript/Browser implementation of SpatialSurface.
  *
  * Uses the engine provided through [SpatialView] (parameter or
- * [LocalSpatialEngine]) when there is one, and defaults to a bundled
- * [WebXREngine] otherwise.
+ * [LocalSpatialEngine]) when there is one, and defaults to a [WebAutoEngine]
+ * otherwise: immersive WebXR where the browser supports it, and the non-XR
+ * camera-orbit preview (`spatial-engine-preview`, M10.2) everywhere else —
+ * so desktop browsers render the scene instead of nothing.
  *
- * WebXR needs a user gesture to start an AR session, so this surface shows a
- * "Start AR" overlay button that (re)requests the session with gesture context.
+ * WebXR needs a user gesture to start an AR session, so when the engine
+ * resolves to immersive XR this surface shows a "Start AR" overlay button
+ * that (re)requests the session with gesture context. The preview needs no
+ * gesture and starts immediately, with no overlay.
+ *
+ * In preview mode the Three.js canvas sits above the Compose canvas, so
+ * Compose never sees pointer input; taps are forwarded from the preview
+ * canvas into the session's interaction manager (M8 gestures) here. Drags,
+ * pinches and wheel input drive the preview's orbit camera instead of node
+ * gestures.
  */
 @Composable
 public actual fun SpatialSurface(
@@ -39,7 +53,7 @@ public actual fun SpatialSurface(
     val engine =
         remember {
             session.runtime.getEngine()
-                ?: WebXREngine()
+                ?: WebAutoEngine()
                     .apply {
                         // Hide the Compose canvas while immersive XR runs (it would
                         // otherwise cover the camera feed), and restore it afterwards.
@@ -66,73 +80,119 @@ public actual fun SpatialSurface(
 
     val scope = rememberCoroutineScope()
 
-    // Note: SpatialView will auto-call session.start() which will fail without user gesture.
-    // The button below retries with proper user gesture context.
+    // Note: SpatialView will auto-call session.start(). In preview mode that
+    // succeeds directly; an immersive XR request fails without a user gesture,
+    // and the overlay button below retries with proper gesture context.
 
-    DisposableEffect(Unit) {
-        // Create overlay with "Start AR" button
-        val overlay = document.createElement("div") as HTMLDivElement
-        overlay.id = "ar-start-overlay"
-        overlay.style.apply {
-            position = "fixed"
-            top = "0"
-            left = "0"
-            width = "100%"
-            height = "100%"
-            display = "flex"
-            alignItems = "center"
-            justifyContent = "center"
-            backgroundColor = "rgba(0, 0, 0, 0.8)"
-            zIndex = "1000"
+    DisposableEffect(engine) {
+        // Preview-canvas taps feed the same gesture pipeline the Compose
+        // pointer modifier uses on the other platforms (M8).
+        val forwardTap: (Float, Float) -> Unit = { x, y ->
+            session.interactions.submit(GestureEvent.Tap(screenX = x, screenY = y))
         }
 
-        val button = document.createElement("button") as HTMLButtonElement
-        button.textContent = "Start AR Experience"
-        button.style.apply {
-            padding = "16px 32px"
-            fontSize = "18px"
-            backgroundColor = "#667eea"
-            color = "white"
-            border = "none"
-            borderRadius = "8px"
-            cursor = "pointer"
-            fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-        }
+        var overlay: HTMLDivElement? = null
 
-        var starting = false
-        button.onclick = {
-            if (!starting) {
-                starting = true
-                SpatialLog.debug("SpatialSurface") { "start button clicked, starting WebXR session" }
-                // startSession is a suspend fun; the coroutine dispatches soon
-                // enough that the browser's transient user activation from the
-                // click still covers the XR session request.
-                scope.launch {
-                    try {
-                        // Engine is already initialized, just start the session
-                        engine.startSession(SessionMode.AR)
-                        if (engine.state.value is EngineState.Running) {
-                            overlay.style.display = "none"
-                            SpatialLog.debug("SpatialSurface") { "WebXR session running" }
-                        } else {
-                            button.textContent = "Failed to start AR. Tap to retry."
-                            starting = false
-                        }
-                    } catch (e: Throwable) {
-                        SpatialLog.error("SpatialSurface", e) { "failed to start AR" }
-                        button.textContent = "Failed to start AR. Tap to retry."
-                        starting = false
+        when (engine) {
+            is WebAutoEngine -> {
+                engine.onTap = forwardTap
+                // Only immersive XR needs the gesture-context overlay
+                engine.onResolved = { isPreview ->
+                    if (!isPreview && overlay == null) {
+                        overlay = createStartAROverlay(scope, engine)
                     }
                 }
             }
-            null
-        }
 
-        overlay.appendChild(button)
-        document.body?.appendChild(overlay)
+            is PreviewEngine -> engine.onTap = forwardTap
+
+            // Provided XR/custom engine: assume immersive behavior
+            else -> overlay = createStartAROverlay(scope, engine)
+        }
 
         onDispose {
-            document.body?.removeChild(overlay)
+            overlay?.let { document.body?.removeChild(it) }
+            when (engine) {
+                is WebAutoEngine -> {
+                    engine.onTap = null
+                    engine.onResolved = null
+                }
+
+                is PreviewEngine -> engine.onTap = null
+
+                else -> {}
+            }
         }
     }
+}
+
+/**
+ * Full-page overlay with a "Start AR Experience" button. WebXR session
+ * requests need transient user activation, so the button (re)starts the
+ * session from a click handler.
+ */
+private fun createStartAROverlay(
+    scope: CoroutineScope,
+    engine: SpatialEngine,
+): HTMLDivElement {
+    val overlay = document.createElement("div") as HTMLDivElement
+    overlay.id = "ar-start-overlay"
+    overlay.style.apply {
+        position = "fixed"
+        top = "0"
+        left = "0"
+        width = "100%"
+        height = "100%"
+        display = "flex"
+        alignItems = "center"
+        justifyContent = "center"
+        backgroundColor = "rgba(0, 0, 0, 0.8)"
+        zIndex = "1000"
+    }
+
+    val button = document.createElement("button") as HTMLButtonElement
+    button.textContent = "Start AR Experience"
+    button.style.apply {
+        padding = "16px 32px"
+        fontSize = "18px"
+        backgroundColor = "#667eea"
+        color = "white"
+        border = "none"
+        borderRadius = "8px"
+        cursor = "pointer"
+        fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    }
+
+    var starting = false
+    button.onclick = {
+        if (!starting) {
+            starting = true
+            SpatialLog.debug("SpatialSurface") { "start button clicked, starting WebXR session" }
+            // startSession is a suspend fun; the coroutine dispatches soon
+            // enough that the browser's transient user activation from the
+            // click still covers the XR session request.
+            scope.launch {
+                try {
+                    // Engine is already initialized, just start the session
+                    engine.startSession(SessionMode.AR)
+                    if (engine.state.value is EngineState.Running) {
+                        overlay.style.display = "none"
+                        SpatialLog.debug("SpatialSurface") { "WebXR session running" }
+                    } else {
+                        button.textContent = "Failed to start AR. Tap to retry."
+                        starting = false
+                    }
+                } catch (e: Throwable) {
+                    SpatialLog.error("SpatialSurface", e) { "failed to start AR" }
+                    button.textContent = "Failed to start AR. Tap to retry."
+                    starting = false
+                }
+            }
+        }
+        null
+    }
+
+    overlay.appendChild(button)
+    document.body?.appendChild(overlay)
+    return overlay
 }
