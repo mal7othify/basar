@@ -1,3 +1,19 @@
+public final class com/spatialkit/engine/Aabb {
+	public fun <init> (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)V
+	public final fun component1 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun component2 ()Lcom/spatialkit/core/math/Vec3;
+	public final fun copy (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/Aabb;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/Aabb;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;ILjava/lang/Object;)Lcom/spatialkit/engine/Aabb;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCenter ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getMax ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getMin ()Lcom/spatialkit/core/math/Vec3;
+	public final fun getSize ()Lcom/spatialkit/core/math/Vec3;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public final fun union (Lcom/spatialkit/engine/Aabb;)Lcom/spatialkit/engine/Aabb;
+}
+
 public final class com/spatialkit/engine/AnchorRequest {
 	public fun <init> (Ljava/lang/String;Lcom/spatialkit/engine/AnchorType;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -171,16 +187,18 @@ public final class com/spatialkit/engine/EngineCapabilities {
 
 public final class com/spatialkit/engine/EngineConfig {
 	public fun <init> ()V
-	public fun <init> (Lcom/spatialkit/engine/SessionMode;ZZFF)V
-	public synthetic fun <init> (Lcom/spatialkit/engine/SessionMode;ZZFFILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/spatialkit/engine/SessionMode;ZZZFF)V
+	public synthetic fun <init> (Lcom/spatialkit/engine/SessionMode;ZZZFFILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lcom/spatialkit/engine/SessionMode;
 	public final fun component2 ()Z
 	public final fun component3 ()Z
-	public final fun component4 ()F
+	public final fun component4 ()Z
 	public final fun component5 ()F
-	public final fun copy (Lcom/spatialkit/engine/SessionMode;ZZFF)Lcom/spatialkit/engine/EngineConfig;
-	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineConfig;Lcom/spatialkit/engine/SessionMode;ZZFFILjava/lang/Object;)Lcom/spatialkit/engine/EngineConfig;
+	public final fun component6 ()F
+	public final fun copy (Lcom/spatialkit/engine/SessionMode;ZZZFF)Lcom/spatialkit/engine/EngineConfig;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/EngineConfig;Lcom/spatialkit/engine/SessionMode;ZZZFFILjava/lang/Object;)Lcom/spatialkit/engine/EngineConfig;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnableDepthOcclusion ()Z
 	public final fun getEnableLightEstimation ()Z
 	public final fun getEnablePlaneDetection ()Z
 	public final fun getFarPlane ()F
@@ -633,6 +651,15 @@ public final class com/spatialkit/engine/RaycastResult {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class com/spatialkit/engine/SceneBounds {
+	public static final field INSTANCE Lcom/spatialkit/engine/SceneBounds;
+	public final fun localBounds (Lcom/spatialkit/engine/GeometryData;)Lcom/spatialkit/engine/Aabb;
+	public final fun shadowCasters (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/List;
+	public static synthetic fun shadowCasters$default (Lcom/spatialkit/engine/SceneBounds;Ljava/util/List;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/util/List;
+	public final fun worldBounds (Lcom/spatialkit/engine/SceneNode;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/engine/Aabb;
+	public static synthetic fun worldBounds$default (Lcom/spatialkit/engine/SceneBounds;Lcom/spatialkit/engine/SceneNode;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/engine/Aabb;
+}
+
 public final class com/spatialkit/engine/SceneData {
 	public fun <init> (Ljava/util/List;Ljava/util/List;)V
 	public final fun component1 ()Ljava/util/List;
@@ -647,21 +674,24 @@ public final class com/spatialkit/engine/SceneData {
 }
 
 public abstract interface class com/spatialkit/engine/SceneNode {
+	public abstract fun getCastsShadow ()Z
 	public abstract fun getId ()Ljava/lang/String;
 	public abstract fun getTransform ()Lcom/spatialkit/core/math/Transform;
 	public abstract fun getVisible ()Z
 }
 
 public final class com/spatialkit/engine/SceneNode$Group : com/spatialkit/engine/SceneNode {
-	public fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;)V
-	public synthetic fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Lcom/spatialkit/core/math/Transform;
 	public final fun component3 ()Z
 	public final fun component4 ()Ljava/util/List;
-	public final fun copy (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;)Lcom/spatialkit/engine/SceneNode$Group;
-	public static synthetic fun copy$default (Lcom/spatialkit/engine/SceneNode$Group;Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;ILjava/lang/Object;)Lcom/spatialkit/engine/SceneNode$Group;
+	public final fun component5 ()Z
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;Z)Lcom/spatialkit/engine/SceneNode$Group;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/SceneNode$Group;Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLjava/util/List;ZILjava/lang/Object;)Lcom/spatialkit/engine/SceneNode$Group;
 	public fun equals (Ljava/lang/Object;)Z
+	public fun getCastsShadow ()Z
 	public final fun getChildren ()Ljava/util/List;
 	public fun getId ()Ljava/lang/String;
 	public fun getTransform ()Lcom/spatialkit/core/math/Transform;
@@ -671,16 +701,18 @@ public final class com/spatialkit/engine/SceneNode$Group : com/spatialkit/engine
 }
 
 public final class com/spatialkit/engine/SceneNode$Mesh : com/spatialkit/engine/SceneNode {
-	public fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;)V
-	public synthetic fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Lcom/spatialkit/core/math/Transform;
 	public final fun component3 ()Z
 	public final fun component4 ()Lcom/spatialkit/engine/GeometryData;
 	public final fun component5 ()Lcom/spatialkit/engine/MaterialData;
-	public final fun copy (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;)Lcom/spatialkit/engine/SceneNode$Mesh;
-	public static synthetic fun copy$default (Lcom/spatialkit/engine/SceneNode$Mesh;Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;ILjava/lang/Object;)Lcom/spatialkit/engine/SceneNode$Mesh;
+	public final fun component6 ()Z
+	public final fun copy (Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;Z)Lcom/spatialkit/engine/SceneNode$Mesh;
+	public static synthetic fun copy$default (Lcom/spatialkit/engine/SceneNode$Mesh;Ljava/lang/String;Lcom/spatialkit/core/math/Transform;ZLcom/spatialkit/engine/GeometryData;Lcom/spatialkit/engine/MaterialData;ZILjava/lang/Object;)Lcom/spatialkit/engine/SceneNode$Mesh;
 	public fun equals (Ljava/lang/Object;)Z
+	public fun getCastsShadow ()Z
 	public final fun getGeometry ()Lcom/spatialkit/engine/GeometryData;
 	public fun getId ()Ljava/lang/String;
 	public final fun getMaterial ()Lcom/spatialkit/engine/MaterialData;
@@ -688,6 +720,15 @@ public final class com/spatialkit/engine/SceneNode$Mesh : com/spatialkit/engine/
 	public fun getVisible ()Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/spatialkit/engine/SceneRaycaster {
+	public static final field INSTANCE Lcom/spatialkit/engine/SceneRaycaster;
+	public final fun raycast (Ljava/util/List;Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/RaycastResult;
+}
+
+public final class com/spatialkit/engine/ScreenRayKt {
+	public static final fun screenPointToRay (Lcom/spatialkit/engine/FrameData;FF)Lcom/spatialkit/core/types/Ray;
 }
 
 public abstract interface class com/spatialkit/engine/SessionMode {

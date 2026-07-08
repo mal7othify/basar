@@ -134,12 +134,22 @@ public enum class PlaneType {
 /**
  * Estimated lighting in the environment (AR).
  *
- * Used to match virtual object lighting to the real world.
+ * Used to match virtual object lighting to the real world. Engines feed this
+ * estimate into their own renderer lighting automatically (M9.1) when
+ * [EngineConfig.enableLightEstimation] is on; it is also surfaced here so
+ * apps can react to it (e.g. dim UI content in a dark room).
  *
- * @property ambientIntensity Overall ambient light intensity (0-1+)
- * @property ambientColor RGB color of ambient light
- * @property directionalIntensity Intensity of primary directional light
- * @property directionalDirection Direction vector of primary light
+ * Intensity values are normalized so **1.0 ≈ a nominally lit indoor scene**
+ * on every platform (ARCore's pixel intensity is divided by its 0.466
+ * middle-grey reference, ARKit's lumens by 1000). Values above 1 mean a
+ * brighter-than-nominal environment.
+ *
+ * @property ambientIntensity Overall ambient light intensity (1.0 = nominal)
+ * @property ambientColor RGB color balance of ambient light (1,1,1 = neutral)
+ * @property directionalIntensity Intensity of the primary directional light
+ *   (0 when the platform provides no directional estimate)
+ * @property directionalDirection Direction the primary light travels
+ *   (world space, pointing away from the light source)
  */
 public data class LightEstimate(
     val ambientIntensity: Float,

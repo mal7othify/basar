@@ -262,6 +262,32 @@ fun Interactive() {
 
 **See [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md) for more examples.**
 
+### AR Realism (light, shadows, occlusion)
+
+Light estimation is on by default: each renderer matches virtual lighting to
+the real environment every frame (and surfaces the estimate as
+`FrameData.lightEstimate`, normalized so `1.0` ≈ a nominally lit room).
+Ground placed content with a soft shadow by flagging the node, and opt in to
+depth occlusion where the device supports it:
+
+```kotlin
+SpatialView(
+    // Depth occlusion is opt-in (costs GPU time); it only takes effect on
+    // engines/devices where capabilities.supportsDepthOcclusion is true —
+    // currently ARCore phones with the Depth API.
+    config = EngineConfig(enableDepthOcclusion = true),
+) {
+    model(chair) {
+        position = vec3(0f, 0f, -1f)
+        castsShadow = true // soft blob shadow under the whole model
+    }
+}
+```
+
+Check `session.capabilities?.supportsDepthOcclusion` before promising
+occlusion in UX: the iOS (SceneKit) and WebXR renderers report `false` and
+render without occlusion.
+
 ## Platform Support
 
 | Platform | Math | Scene Graph | DSL | Compose | Rendering            |
@@ -317,12 +343,13 @@ fun Interactive() {
 
 Tracked in **[PRODUCTION_PLAN.md](PRODUCTION_PLAN.md)**. Foundation milestones
 (M0–M6 — hygiene, packaging, correctness, logging, renderers, API hardening,
-CI and API stability) are done. **M7 (textured 3D models) and M8 (gestures:
-tap / drag / pinch / twist on nodes) are code-complete**, with a combined
-on-device validation pass pending. Next up: AR realism (M9), a non-XR preview
-renderer (M10), Compose UI in space (M11), tracking & persistence (M12), and
-real VR support (M13). First Maven Central release is pending — the release
-workflow exists and just needs a tag.
+CI and API stability) are done. **M7 (textured 3D models), M8 (gestures:
+tap / drag / pinch / twist on nodes) and M9 (AR realism: light estimation,
+soft shadows, depth occlusion) are code-complete**, with a combined on-device
+validation pass pending. Next up: a non-XR preview renderer (M10), Compose UI
+in space (M11), tracking & persistence (M12), and real VR support (M13).
+First Maven Central release is pending — the release workflow exists and just
+needs a tag.
 
 ## Documentation
 

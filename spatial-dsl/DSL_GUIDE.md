@@ -220,6 +220,40 @@ spatialScene {
 
 ---
 
+## Shadows & Realism
+
+Every node exposes `castsShadow` (default off). Flagging a node grounds it
+with a soft blob shadow: a radially faded dark disc drawn on the horizontal
+plane at the base of the node's bounds, sized to its footprint. For
+hierarchies — groups and glTF models — set it on the **root** node; one
+shadow covers the whole subtree (flags on nodes inside a flagged subtree are
+ignored).
+
+```kotlin
+spatialScene {
+    model(chair) {
+        position = vec3(0f, 0f, -1f)
+        castsShadow = true // one shadow under the whole model
+    }
+
+    group(id = "robot") {
+        node.castsShadow = true // groups: flag via `node`
+        cube(size = 10.cm) { /* ... */ }
+        sphere(radius = 4.cm) { /* ... */ }
+    }
+}
+```
+
+Shadows follow the node when it is dragged, scaled, or animated, never
+occlude other content, and are invisible to raycasts and gestures.
+
+Two related realism features live at the engine level (see the README):
+light estimation is on by default (`EngineConfig.enableLightEstimation`),
+and depth occlusion is opt-in (`EngineConfig.enableDepthOcclusion`, honored
+where `capabilities.supportsDepthOcclusion` is true).
+
+---
+
 ## Anchors
 
 Anchors pin content to the real world in AR.

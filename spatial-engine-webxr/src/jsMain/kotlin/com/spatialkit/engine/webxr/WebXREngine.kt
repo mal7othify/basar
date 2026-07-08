@@ -65,6 +65,19 @@ public class WebXREngine : SpatialEngine {
     private val textureCache = ThreeTextureCache()
     private var lastFrameTime = 0.0
 
+    // M9.1 light estimation: scene lights driven by the XR light probe
+    private var ambientLight: AmbientLight? = null
+    private var directionalLight: DirectionalLight? = null
+    private var xrLightProbe: dynamic = null
+    private var lastLightEstimate: com.spatialkit.engine.LightEstimate? = null
+
+    // M9.2 blob shadows: one radial-gradient plane per shadow-casting subtree
+    private val shadowMeshMap = mutableMapOf<String, Mesh>()
+    private var blobShadowTexture: Texture? = null
+
+    // Cached local AABBs for custom meshes (submitScene runs per frame)
+    private val customMeshLocalBounds = mutableMapOf<String, com.spatialkit.engine.Aabb?>()
+
     /**
      * Invoked when an immersive XR session starts. The hosting UI should hide
      * any overlay content (e.g. its 2D canvas) so the camera feed is visible.
@@ -103,15 +116,19 @@ public class WebXREngine : SpatialEngine {
         currentConfig = config
 
         try {
-            // Create Three.js scene with lighting
+            // Create Three.js scene with lighting. The lights are kept as
+            // fields so the XR light estimate can drive them (M9.1).
+            val ambient = AmbientLight(0xffffff, 0.6)
+            val directional =
+                DirectionalLight(0xffffff, 0.8).apply {
+                    position.set(1.0, 1.0, 1.0)
+                }
+            ambientLight = ambient
+            directionalLight = directional
             scene =
                 Scene().apply {
-                    add(AmbientLight(0xffffff, 0.6))
-                    add(
-                        DirectionalLight(0xffffff, 0.8).apply {
-                            position.set(1.0, 1.0, 1.0)
-                        },
-                    )
+                    add(ambient)
+                    add(directional)
                 }
             camera = PerspectiveCamera(75.0, 1.0, 0.1, 1000.0)
 
@@ -207,7 +224,11 @@ public class WebXREngine : SpatialEngine {
 
         val optionalFeatures =
             if (mode is SessionMode.AR) {
-                arrayOf("camera-access", "hit-test", "hand-tracking")
+                if (currentConfig?.enableLightEstimation != false) {
+                    arrayOf("camera-access", "hit-test", "hand-tracking", "light-estimation")
+                } else {
+                    arrayOf("camera-access", "hit-test", "hand-tracking")
+                }
             } else {
                 arrayOf("hand-tracking", "local")
             }
@@ -294,6 +315,21 @@ public class WebXREngine : SpatialEngine {
                 .catch { null }
         }
 
+        // Light probe for light estimation (M9.1); optional feature, only
+        // granted where the browser supports it (fire-and-forget)
+        if (mode is SessionMode.AR && currentConfig?.enableLightEstimation != false) {
+            val sessionDyn = session.asDynamic()
+            if (sessionDyn.requestLightProbe != undefined) {
+                sessionDyn
+                    .requestLightProbe()
+                    .then { probe -> xrLightProbe = probe }
+                    .catch { e ->
+                        SpatialLog.debug(TAG) { "light probe unavailable: $e" }
+                        null
+                    }
+            }
+        }
+
         // === Let Three.js manage the XR session ===
         // This tells Three.js to handle framebuffer binding, camera matrices,
         // viewport setup, and all the WebGL/XR plumbing internally.
@@ -350,6 +386,7 @@ public class WebXREngine : SpatialEngine {
         // Build FrameData if we have an XR frame and reference space
         if (xrFrame != null && xrFrame != undefined && xrReferenceSpace != null) {
             val frame = xrFrame.unsafeCast<XRFrame>()
+            updateLightEstimate(xrFrame)
             val viewerPose = frame.getViewerPose(xrReferenceSpace!!)
 
             if (viewerPose != null) {
@@ -362,10 +399,71 @@ public class WebXREngine : SpatialEngine {
         threeRenderer.render(threeScene, threeCamera)
     }
 
+    /**
+     * Reads the XR light estimate for this frame (M9.1) and feeds it into the
+     * scene's ambient + directional lights; also cached for [FrameData].
+     *
+     * The ambient term comes from the L0 spherical-harmonics band (Y00 =
+     * 0.282095), the directional term from the probe's primary light. Both
+     * are clamped so a pathological estimate can't black out or blow out the
+     * scene.
+     */
+    private fun updateLightEstimate(xrFrame: dynamic) {
+        val probe = xrLightProbe ?: return
+        val estimate = xrFrame.getLightEstimate(probe) ?: return
+
+        val sh = estimate.sphericalHarmonicsCoefficients ?: return
+        val y00 = 0.282095f
+        val r = ((sh[0] as Number).toFloat() * y00).coerceAtLeast(0f)
+        val g = ((sh[1] as Number).toFloat() * y00).coerceAtLeast(0f)
+        val b = ((sh[2] as Number).toFloat() * y00).coerceAtLeast(0f)
+        val luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
+
+        val primaryIntensity = estimate.primaryLightIntensity
+        val directionalIntensity =
+            maxOf(
+                (primaryIntensity.x as Number).toFloat(),
+                (primaryIntensity.y as Number).toFloat(),
+                (primaryIntensity.z as Number).toFloat(),
+            ).coerceIn(0f, 2f)
+
+        val direction = estimate.primaryLightDirection
+        val dirX = (direction.x as Number).toFloat()
+        val dirY = (direction.y as Number).toFloat()
+        val dirZ = (direction.z as Number).toFloat()
+
+        // Scale the baseline lights (0.6 ambient / 0.8 directional at a
+        // nominally lit scene) by the estimate
+        val ambientScale = luminance.coerceIn(0f, 2f)
+        ambientLight?.asDynamic()?.intensity = 0.6 * ambientScale
+        directionalLight?.let { light ->
+            light.asDynamic().intensity = 0.8 * directionalIntensity
+            // primaryLightDirection points toward the light source; a Three
+            // directional light shines from its position toward the origin
+            light.position.set(dirX.toDouble(), dirY.toDouble(), dirZ.toDouble())
+        }
+
+        lastLightEstimate =
+            com.spatialkit.engine.LightEstimate(
+                ambientIntensity = ambientScale,
+                ambientColor =
+                    if (luminance > 1e-4f) {
+                        Vec3(r / luminance, g / luminance, b / luminance)
+                    } else {
+                        Vec3(1f, 1f, 1f)
+                    },
+                directionalIntensity = directionalIntensity,
+                // Contract: the direction light travels (away from source)
+                directionalDirection = Vec3(-dirX, -dirY, -dirZ),
+            )
+    }
+
     private fun handleSessionEnded() {
         xrSession = null
         xrReferenceSpace = null
         hitTestSource = null
+        xrLightProbe = null
+        lastLightEstimate = null
         lastFrameTime = 0.0
 
         // Stop the animation loop
@@ -390,6 +488,13 @@ public class WebXREngine : SpatialEngine {
         appliedMaterials.clear()
         appliedGeometry.clear()
         textureCache.disposeAll()
+        shadowMeshMap.values.forEach { disposeObject(it) }
+        shadowMeshMap.clear()
+        blobShadowTexture?.dispose()
+        blobShadowTexture = null
+        customMeshLocalBounds.clear()
+        ambientLight = null
+        directionalLight = null
 
         scene = null
         camera = null
@@ -418,12 +523,107 @@ public class WebXREngine : SpatialEngine {
             nodeMap.remove(id)
             appliedMaterials.remove(id)?.baseColorTexture?.let { textureCache.release(it.id) }
             appliedGeometry.remove(id)
+            customMeshLocalBounds.remove(id)
         }
 
         // Add or update nodes
         scene.nodes.forEach { node ->
             processSceneNodeIntoScene(node, threeScene)
         }
+
+        updateBlobShadows(scene, threeScene)
+    }
+
+    /**
+     * Maintains one blob-shadow plane (M9.2) under each shadow-casting
+     * subtree: a radial-gradient disc at the base of the subtree's world
+     * AABB, sized slightly beyond its footprint. Runs per submitScene (once
+     * per frame), so shadows follow dragged/scaled content.
+     */
+    private fun updateBlobShadows(
+        sceneData: SceneData,
+        threeScene: Scene,
+    ) {
+        val casters =
+            com.spatialkit.engine.SceneBounds.shadowCasters(sceneData.nodes) { mesh ->
+                if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+                    customMeshLocalBounds.getOrPut(mesh.id) {
+                        com.spatialkit.engine.SceneBounds
+                            .localBounds(mesh.geometry)
+                    }
+                } else {
+                    com.spatialkit.engine.SceneBounds
+                        .localBounds(mesh.geometry)
+                }
+            }
+
+        val liveIds = mutableSetOf<String>()
+        casters.forEach { (node, bounds) ->
+            val size = bounds.size
+            val diameter = maxOf(size.x, size.z) * SHADOW_FOOTPRINT_SCALE
+            if (diameter <= 0f) return@forEach
+            liveIds.add(node.id)
+
+            val shadow =
+                shadowMeshMap.getOrPut(node.id) {
+                    createBlobShadowMesh().also { threeScene.add(it) }
+                }
+            shadow.position.set(
+                bounds.center.x.toDouble(),
+                // Slightly above the base to avoid z-fighting the surface
+                (bounds.min.y + 0.002f).toDouble(),
+                bounds.center.z.toDouble(),
+            )
+            // Plane local XY spans world XZ after the flat rotation
+            shadow.scale.set(diameter.toDouble(), diameter.toDouble(), 1.0)
+        }
+
+        (shadowMeshMap.keys - liveIds).forEach { id ->
+            shadowMeshMap.remove(id)?.let { mesh ->
+                threeScene.remove(mesh)
+                mesh.geometry.dispose()
+                mesh.material.dispose()
+            }
+        }
+    }
+
+    /**
+     * A 1×1 plane rotated flat with a radial-gradient "blob" texture:
+     * transparent, non-depth-writing, and excluded from raycasts so it never
+     * intercepts node picking.
+     */
+    private fun createBlobShadowMesh(): Mesh {
+        val texture =
+            blobShadowTexture ?: createBlobShadowTexture().also { blobShadowTexture = it }
+
+        val params = js("{}")
+        params.map = texture
+        params.transparent = true
+        params.depthWrite = false
+        val material = MeshBasicMaterial(params)
+
+        val mesh = Mesh(PlaneGeometry(1.0, 1.0), material)
+        // Three.js planes face +Z; rotate to face +Y (flat on the ground)
+        mesh.rotation.x = -kotlin.math.PI / 2
+        // Opt out of raycasting (performRaycast/performHitTest walk the scene)
+        mesh.asDynamic().raycast = js("function() {}")
+        return mesh
+    }
+
+    /** Radial gradient matching the other renderers' blob shadows. */
+    private fun createBlobShadowTexture(): Texture {
+        val canvas = document.createElement("canvas") as HTMLCanvasElement
+        canvas.width = 128
+        canvas.height = 128
+        val ctx = canvas.asDynamic().getContext("2d")
+        val gradient = ctx.createRadialGradient(64.0, 64.0, 0.0, 64.0, 64.0, 64.0)
+        gradient.addColorStop(0.0, "rgba(0,0,0,$SHADOW_OPACITY)")
+        gradient.addColorStop(0.55, "rgba(0,0,0,${SHADOW_OPACITY * 0.75})")
+        gradient.addColorStop(1.0, "rgba(0,0,0,0)")
+        ctx.fillStyle = gradient
+        ctx.fillRect(0, 0, 128, 128)
+
+        return Texture(canvas).apply { needsUpdate = true }
     }
 
     private fun processSceneNodeIntoScene(
@@ -763,7 +963,7 @@ public class WebXREngine : SpatialEngine {
             viewMatrix = transform.matrix.toFloatArray(),
             trackingState = TrackingState.NORMAL,
             detectedPlanes = emptyList(),
-            lightEstimate = null,
+            lightEstimate = lastLightEstimate,
             inputSources = convertInputSources(session.inputSources, frame),
             anchors = emptyList(),
         )
@@ -899,6 +1099,11 @@ public class WebXREngine : SpatialEngine {
 
     private companion object {
         const val TAG = "WebXREngine"
+
+        // Blob shadows (M9.2): quad size relative to the caster's footprint,
+        // and peak darkness at the blob center — matches the other renderers
+        const val SHADOW_FOOTPRINT_SCALE = 1.25f
+        const val SHADOW_OPACITY = 0.35
     }
 }
 

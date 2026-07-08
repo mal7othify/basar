@@ -23,6 +23,7 @@ import com.spatialkit.core.math.cm
 import com.spatialkit.core.math.degrees
 import com.spatialkit.dsl.rgb
 import com.spatialkit.dsl.vec3
+import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.SessionMode
@@ -143,6 +144,10 @@ fun App() {
             SpatialView(
                 modifier = Modifier.fillMaxSize(),
                 mode = SessionMode.AR,
+                // M9: light estimation is on by default; depth occlusion is
+                // opt-in (real-world geometry hides virtual content where
+                // supportsDepthOcclusion — currently ARCore Depth devices)
+                config = EngineConfig(preferredMode = SessionMode.AR, enableDepthOcclusion = true),
                 onSessionReady = { spatialSession ->
                     sessionReady = true
                     session = spatialSession
@@ -194,6 +199,8 @@ fun App() {
                         lastTapInfo = "Hit: ${event.node.id.take(12)} at ${event.distance.round2()}m"
                         bounce(event.node)
                     }
+                    // M9.2: one blob shadow grounds the whole flower
+                    node.castsShadow = true
                     // Stem - green cylinder
                     cylinder(
                         radius = 0.5f.cm,
@@ -383,6 +390,7 @@ fun App() {
                         draggable()
                         scalable(minFactor = 0.3f, maxFactor = 3f)
                         rotatable()
+                        castsShadow = true // M9.2: soft blob shadow underneath
                     }
                 }
 
@@ -432,6 +440,7 @@ private fun placeCrate(
     node.draggable()
     node.scalable(minFactor = 0.3f, maxFactor = 3f)
     node.rotatable()
+    node.castsShadow = true // M9.2: grounds the crate on its surface
     session.scene.add(node)
 }
 

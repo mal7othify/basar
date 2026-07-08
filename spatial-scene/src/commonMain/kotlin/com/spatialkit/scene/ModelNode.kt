@@ -41,6 +41,7 @@ public class ModelNode(
                     scale = scale,
                 ),
             visible = visible,
+            castsShadow = castsShadow,
             children = children.map { it.toSceneNode() },
         )
 }

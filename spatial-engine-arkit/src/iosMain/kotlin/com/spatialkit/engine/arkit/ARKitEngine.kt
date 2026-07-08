@@ -3,6 +3,7 @@ package com.spatialkit.engine.arkit
 import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
+import com.spatialkit.engine.Aabb
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
 import com.spatialkit.engine.DetectedPlane
@@ -19,6 +20,7 @@ import com.spatialkit.engine.MaterialType
 import com.spatialkit.engine.PlaneType
 import com.spatialkit.engine.Pose
 import com.spatialkit.engine.RaycastResult
+import com.spatialkit.engine.SceneBounds
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SceneNode
 import com.spatialkit.engine.SessionMode
@@ -34,8 +36,10 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.FloatVar
 import kotlinx.cinterop.Vector128
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.autoreleasepool
 import kotlinx.cinterop.get
+import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
@@ -50,7 +54,6 @@ import platform.ARKit.ARCamera
 import platform.ARKit.ARConfiguration
 import platform.ARKit.ARFaceTrackingConfiguration
 import platform.ARKit.ARFrame
-import platform.ARKit.ARFrameSemanticPersonSegmentationWithDepth
 import platform.ARKit.ARHitTestResult
 import platform.ARKit.ARHitTestResultTypeExistingPlaneUsingExtent
 import platform.ARKit.ARImageTrackingConfiguration
@@ -64,6 +67,10 @@ import platform.ARKit.ARSession
 import platform.ARKit.ARTrackingState
 import platform.ARKit.ARWorldAlignment
 import platform.ARKit.ARWorldTrackingConfiguration
+import platform.CoreGraphics.CGColorSpaceCreateDeviceRGB
+import platform.CoreGraphics.CGContextDrawRadialGradient
+import platform.CoreGraphics.CGFloatVar
+import platform.CoreGraphics.CGGradientCreateWithColorComponents
 import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRect
 import platform.CoreGraphics.CGSize
@@ -87,6 +94,10 @@ import platform.SceneKit.SCNGeometrySourceSemanticNormal
 import platform.SceneKit.SCNGeometrySourceSemanticTexcoord
 import platform.SceneKit.SCNGeometrySourceSemanticVertex
 import platform.SceneKit.SCNHitTestResult
+import platform.SceneKit.SCNLight
+import platform.SceneKit.SCNLightTypeAmbient
+import platform.SceneKit.SCNLightTypeDirectional
+import platform.SceneKit.SCNLightingModelConstant
 import platform.SceneKit.SCNLightingModelPhysicallyBased
 import platform.SceneKit.SCNMaterial
 import platform.SceneKit.SCNMaterialProperty
@@ -103,6 +114,10 @@ import platform.SceneKit.SCNWrapModeMirror
 import platform.SceneKit.SCNWrapModeRepeat
 import platform.UIKit.UIApplication
 import platform.UIKit.UIColor
+import platform.UIKit.UIGraphicsBeginImageContextWithOptions
+import platform.UIKit.UIGraphicsEndImageContext
+import platform.UIKit.UIGraphicsGetCurrentContext
+import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
 import platform.UIKit.UIImage
 import platform.UIKit.UIInterfaceOrientation
 import platform.UIKit.UIInterfaceOrientationPortrait
@@ -148,6 +163,21 @@ public class ARKitEngine : SpatialEngine {
     private val contentRoot = SCNNode()
     private val sceneNodeMap = mutableMapOf<String, SCNNode>()
 
+    // M9.1 explicit light rig (replaces autoenablesDefaultLighting so the
+    // ARKit light estimate can drive intensities)
+    private val ambientLight = SCNLight()
+    private val directionalLight = SCNLight()
+    private val ambientLightNode = SCNNode()
+    private val directionalLightNode = SCNNode()
+
+    // M9.2 blob shadow nodes under contentRoot, keyed by caster node id
+    private val shadowNodeMap = mutableMapOf<String, SCNNode>()
+    private var blobShadowImage: UIImage? = null
+
+    // Cached local AABBs for custom meshes (vertex scans are O(n) and
+    // submitScene runs per frame)
+    private val customMeshLocalBounds = mutableMapOf<String, Aabb?>()
+
     // Last applied material per node id, to skip redundant per-frame
     // SCNMaterial updates (each one invalidates SceneKit's render caches)
     private val materialCache = mutableMapOf<String, MaterialData>()
@@ -179,11 +209,12 @@ public class ARKitEngine : SpatialEngine {
                 supportsImageTracking = ARImageTrackingConfiguration.isSupported,
                 supportsFaceTracking = ARFaceTrackingConfiguration.isSupported,
                 supportsHandTracking = false, // ARKit doesn't provide generic hand tracking
-                // depth occlusion (person-segmentation-with-depth) check
-                supportsDepthOcclusion =
-                    ARWorldTrackingConfiguration.supportsFrameSemantics(
-                        ARFrameSemanticPersonSegmentationWithDepth,
-                    ),
+                // The SceneKit backend cannot composite ARKit scene depth
+                // over rendered content (that needs a custom Metal pipeline
+                // or RealityKit), so environment occlusion is honestly
+                // unsupported here. Person occlusion (a different feature)
+                // is out of scope.
+                supportsDepthOcclusion = false,
                 // anchors exist; persistent / cloud anchors are separate concern
                 supportsSpatialAnchors = true,
                 maxAnchors = 100, // heuristic only; ARKit does not publish a hard limit
@@ -247,11 +278,54 @@ public class ARKitEngine : SpatialEngine {
         // Attach content root to the AR scene
         view.scene?.rootNode?.addChildNode(contentRoot)
 
-        // Enable default lighting for better visuals
-        view.autoenablesDefaultLighting = true
+        // M9.1: explicit ambient + directional rig instead of SceneKit's
+        // automatic lights, so the ARKit light estimate can drive it (see
+        // applyLightEstimate). Disable both automatics to avoid double
+        // lighting.
+        view.autoenablesDefaultLighting = false
+        view.automaticallyUpdatesLighting = false
+        setupLightRig(view)
 
         // Set the delegate for efficient frame updates
         view.delegate = viewDelegate
+    }
+
+    private fun setupLightRig(view: ARSCNView) {
+        val root = view.scene?.rootNode ?: return
+
+        ambientLight.type = SCNLightTypeAmbient
+        ambientLight.intensity = NOMINAL_LUMENS
+        ambientLightNode.light = ambientLight
+        if (ambientLightNode.parentNode == null) {
+            root.addChildNode(ambientLightNode)
+        }
+
+        directionalLight.type = SCNLightTypeDirectional
+        directionalLight.intensity = NOMINAL_LUMENS
+        directionalLightNode.light = directionalLight
+        // Shine down and slightly forward (SceneKit directional lights emit
+        // along the node's -Z axis)
+        directionalLightNode.eulerAngles = SCNVector3Make((-kotlin.math.PI / 3).toFloat(), 0f, 0f)
+        if (directionalLightNode.parentNode == null) {
+            root.addChildNode(directionalLightNode)
+        }
+    }
+
+    /**
+     * Feeds the sampled ARKit light estimate into the rig (M9.1). ARKit's
+     * ambientIntensity is in lumens (1000 = nominal); the engine's
+     * [com.spatialkit.engine.LightEstimate] is normalized to 1.0 = nominal,
+     * so scale back up here. The color temperature shifts both lights.
+     */
+    private fun applyLightEstimate(
+        normalizedIntensity: Float,
+        colorTemperature: Float,
+    ) {
+        val lumens = (normalizedIntensity * NOMINAL_LUMENS).coerceIn(0.0, 2 * NOMINAL_LUMENS)
+        ambientLight.intensity = lumens
+        directionalLight.intensity = lumens
+        ambientLight.temperature = colorTemperature.toDouble()
+        directionalLight.temperature = colorTemperature.toDouble()
     }
 
     public fun updateViewportSize(
@@ -475,12 +549,18 @@ public class ARKitEngine : SpatialEngine {
         val projectionMatrix = getProjectionMatrix(frame.camera)
         val viewMatrix = getViewMatrix(frame.camera)
 
-        // Get light estimate if available
+        // Light estimate: normalize lumens so 1.0 = nominal (the cross-
+        // platform LightEstimate contract), and feed it into the SceneKit
+        // light rig (M9.1)
         val lightEstimate =
             frame.lightEstimate?.let { light ->
+                applyLightEstimate(
+                    normalizedIntensity = (light.ambientIntensity / NOMINAL_LUMENS).toFloat(),
+                    colorTemperature = light.ambientColorTemperature.toFloat(),
+                )
                 com.spatialkit.engine.LightEstimate(
-                    ambientIntensity = (light.ambientIntensity / 1000.0).toFloat(), // Normalize to ~0-1
-                    ambientColor = Vec3(1f, 1f, 1f), // ARKit doesn't provide color directly in basic estimate
+                    ambientIntensity = (light.ambientIntensity / NOMINAL_LUMENS).toFloat(),
+                    ambientColor = Vec3(1f, 1f, 1f), // ARKit reports temperature, not RGB
                     directionalIntensity = 0f,
                     directionalDirection = Vec3.DOWN,
                 )
@@ -703,6 +783,7 @@ public class ARKitEngine : SpatialEngine {
             sceneNodeMap.remove(id)
             materialCache.remove(id)
             appliedScales.remove(id)
+            customMeshLocalBounds.remove(id)
         }
 
         // Drop cached images whose textures left the scene
@@ -717,6 +798,131 @@ public class ARKitEngine : SpatialEngine {
         scene.nodes.forEach { node ->
             processSceneNode(node, contentRoot)
         }
+
+        updateBlobShadows(scene)
+    }
+
+    /**
+     * Maintains one blob-shadow plane (M9.2) under each shadow-casting
+     * subtree: a radial-gradient disc at the base of the subtree's world
+     * AABB, sized slightly beyond its footprint. Runs per submitScene (once
+     * per frame), so shadows follow dragged/scaled content.
+     */
+    private fun updateBlobShadows(scene: SceneData) {
+        val casters =
+            SceneBounds.shadowCasters(scene.nodes) { mesh ->
+                if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+                    customMeshLocalBounds.getOrPut(mesh.id) { SceneBounds.localBounds(mesh.geometry) }
+                } else {
+                    SceneBounds.localBounds(mesh.geometry)
+                }
+            }
+
+        val liveIds = mutableSetOf<String>()
+        casters.forEach { (node, bounds) ->
+            val size = bounds.size
+            val diameter = maxOf(size.x, size.z) * SHADOW_FOOTPRINT_SCALE
+            if (diameter <= 0f) return@forEach
+            liveIds.add(node.id)
+
+            val shadowNode = shadowNodeMap.getOrPut(node.id) { createBlobShadowNode() }
+            shadowNode.position =
+                SCNVector3Make(
+                    bounds.center.x,
+                    // Slightly above the base to avoid z-fighting the surface
+                    bounds.min.y + 0.002f,
+                    bounds.center.z,
+                )
+            // Unit plane scaled in its local XY (rotated flat, so XY spans XZ)
+            shadowNode.scale = SCNVector3Make(diameter, diameter, 1f)
+        }
+
+        (shadowNodeMap.keys - liveIds).forEach { id ->
+            shadowNodeMap.remove(id)?.removeFromParentNode()
+        }
+    }
+
+    /**
+     * A 1×1 SCNPlane rotated flat with a radial-gradient "blob" texture:
+     * unlit, non-depth-writing, so it darkens the camera image under content
+     * without ever occluding anything.
+     */
+    private fun createBlobShadowNode(): SCNNode {
+        val plane = SCNPlane.planeWithWidth(1.0, height = 1.0)
+        val material = SCNMaterial()
+        material.diffuse.contents = blobShadowImage ?: createBlobShadowImage().also { blobShadowImage = it }
+        material.lightingModelName = SCNLightingModelConstant
+        material.writesToDepthBuffer = false
+        material.doubleSided = true
+        plane.firstMaterial = material
+
+        val node = SCNNode.nodeWithGeometry(plane)
+        // SCNPlane faces +Z; rotate to face +Y (flat on the ground)
+        node.eulerAngles = SCNVector3Make((-kotlin.math.PI / 2).toFloat(), 0f, 0f)
+        // Never intercept content raycasts (performRaycast walks contentRoot)
+        node.categoryBitMask = 0uL
+        contentRoot.addChildNode(node)
+        return node
+    }
+
+    /**
+     * Renders the blob-shadow gradient once with CoreGraphics: black fading
+     * from [SHADOW_OPACITY] alpha at the center to transparent at the rim.
+     */
+    @OptIn(ExperimentalForeignApi::class)
+    private fun createBlobShadowImage(): UIImage? {
+        val sizePx = 128.0
+        UIGraphicsBeginImageContextWithOptions(CGSizeMake(sizePx, sizePx), false, 1.0)
+        val context = UIGraphicsGetCurrentContext()
+        if (context == null) {
+            UIGraphicsEndImageContext()
+            return null
+        }
+
+        memScoped {
+            val colorSpace = CGColorSpaceCreateDeviceRGB()
+            // RGBA stops: opaque-ish black core, soft mid falloff, clear rim
+            val components =
+                allocArray<CGFloatVar>(12).also {
+                    val values =
+                        doubleArrayOf(
+                            0.0,
+                            0.0,
+                            0.0,
+                            SHADOW_OPACITY,
+                            0.0,
+                            0.0,
+                            0.0,
+                            SHADOW_OPACITY * 0.75,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                        )
+                    values.forEachIndexed { i, v -> it[i] = v }
+                }
+            val locations =
+                allocArray<CGFloatVar>(3).also {
+                    it[0] = 0.0
+                    it[1] = 0.55
+                    it[2] = 1.0
+                }
+            val gradient = CGGradientCreateWithColorComponents(colorSpace, components, locations, 3uL)
+            val center = CGPointMake(sizePx / 2, sizePx / 2)
+            CGContextDrawRadialGradient(
+                context,
+                gradient,
+                startCenter = center,
+                startRadius = 0.0,
+                endCenter = center,
+                endRadius = sizePx / 2,
+                options = 0u,
+            )
+        }
+
+        val image = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return image
     }
 
     private fun collectTextureIds(
@@ -1269,10 +1475,15 @@ public class ARKitEngine : SpatialEngine {
         contentRoot.removeFromParentNode()
         sceneNodeMap.values.forEach { it.removeFromParentNode() }
         sceneNodeMap.clear()
+        shadowNodeMap.values.forEach { it.removeFromParentNode() }
+        shadowNodeMap.clear()
+        ambientLightNode.removeFromParentNode()
+        directionalLightNode.removeFromParentNode()
         materialCache.clear()
         imageCache.clear()
         failedTextures.clear()
         appliedScales.clear()
+        customMeshLocalBounds.clear()
 
         _state.value = EngineState.Uninitialized
     }
@@ -1287,6 +1498,15 @@ public class ARKitEngine : SpatialEngine {
 
         // Segment length for scene-content raycasts (meters)
         const val RAYCAST_MAX_DISTANCE = 100f
+
+        // ARKit's nominal ambient intensity in lumens; the engine-level
+        // LightEstimate is normalized so this maps to 1.0
+        const val NOMINAL_LUMENS = 1000.0
+
+        // Blob shadows (M9.2): quad size relative to the caster's footprint,
+        // and peak darkness at the blob center — matches the other renderers
+        const val SHADOW_FOOTPRINT_SCALE = 1.25f
+        const val SHADOW_OPACITY = 0.35
     }
 }
 

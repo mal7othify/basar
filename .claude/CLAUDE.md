@@ -49,24 +49,29 @@ need.
 ✅ **Foundation complete (M0–M6)** — full architecture stack:
 **Compose DSL (@Composable) → Kotlin DSL (spatialScene) → Scene Graph → Engine Interface → Platform Renderers**
 
-🚧 **Current focus: M7 — Textured 3D models** (see PRODUCTION_PLAN.md for the
-task breakdown). Target: load a GLB with a base-color texture + PBR factors and
-render it identically on all three platforms. Non-goals for M7: animations,
-skinning, KHR extensions, Draco, USDZ.
-**Status: code-complete (M7.1–M7.11, M7.13 done); only M7.12 on-device
-validation (physical Android + iPhone + WebXR browser run-through) remains.**
+✅ **M7 (textured GLB models), M8 (gestures), M9 (AR realism) — code-complete**
+(see PRODUCTION_PLAN.md for per-milestone breakdowns).
+M9 shipped: light estimation feeding renderer lighting on all three platforms
+(`enableLightEstimation` defaults to true; `LightEstimate.ambientIntensity`
+normalized so 1.0 = nominal), soft blob shadows via `castsShadow` on
+nodes (shared `SceneBounds` + native per-renderer discs), and ARCore depth
+occlusion behind opt-in `EngineConfig.enableDepthOcclusion` (iOS/Web report
+`supportsDepthOcclusion = false` honestly — SceneKit can't composite depth).
+
+🚧 **Pending: combined on-device validation pass** (M7.12 + M8.5 + M9.4):
+Android already validated through M8; needs an M9 re-run (lighting response,
+shadows, occlusion on a Depth phone). iPhone (`scripts/run-ios.sh`) + WebXR
+runs pending — no iOS device on hand as of 2026-07-08.
 
 ### Platform Status
 
-- **Android**: ARCore engine + Compose integration ✅
-- **Web**: WebXR engine + Compose integration ✅ (anchors/planes not XRAnchor-backed yet)
+- **Android**: ARCore engine + Compose integration ✅ (only renderer with depth occlusion)
+- **Web**: WebXR engine + Compose integration ✅ (anchors/planes not XRAnchor-backed yet; light estimation needs Chrome's `light-estimation` feature)
 - **iOS**: ARKit engine (SceneKit) + Compose integration ✅ (custom meshes done; on-device validation pending)
 
-### Roadmap (after M7)
+### Roadmap (after M9)
 
 Tracked milestone-by-milestone in PRODUCTION_PLAN.md:
-- **M8** Gestures (tap/drag/pinch/rotate on nodes)
-- **M9** AR realism (light estimation, shadows, depth occlusion)
 - **M10** Non-XR preview renderer (desktop/simulator dev loop)
 - **M11** 2D UI in space (labels, billboards, Compose panels)
 - **M12** Tracking & persistence (image tracking, anchor persistence, WebXR anchors)

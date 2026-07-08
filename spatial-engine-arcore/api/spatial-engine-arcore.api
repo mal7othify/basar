@@ -1,4 +1,5 @@
 public final class com/spatialkit/engine/arcore/ARCoreEngine : com/spatialkit/engine/GLSurfaceDrivenEngine, com/spatialkit/engine/SpatialEngine {
+	public static final field MIDDLE_GREY_PIXEL_INTENSITY F
 	public static final field TAG Ljava/lang/String;
 	public fun <init> (Landroid/content/Context;)V
 	public fun dispose ()V
@@ -25,13 +26,16 @@ public final class com/spatialkit/engine/arcore/FactoryKt {
 }
 
 public final class com/spatialkit/engine/arcore/SimpleRenderer {
+	public static final field SHADOW_FOOTPRINT_SCALE F
+	public static final field SHADOW_OPACITY F
 	public static final field TAG Ljava/lang/String;
 	public fun <init> (Landroid/content/Context;)V
 	public final fun destroy ()V
 	public final fun getCameraTextureId ()I
 	public final fun initialize ()V
 	public final fun performRaycast (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/RaycastResult;
-	public final fun render (Lcom/google/ar/core/Frame;Lcom/google/ar/core/Camera;)V
+	public final fun render (Lcom/google/ar/core/Frame;Lcom/google/ar/core/Camera;Lcom/spatialkit/engine/LightEstimate;Landroid/media/Image;)V
+	public static synthetic fun render$default (Lcom/spatialkit/engine/arcore/SimpleRenderer;Lcom/google/ar/core/Frame;Lcom/google/ar/core/Camera;Lcom/spatialkit/engine/LightEstimate;Landroid/media/Image;ILjava/lang/Object;)V
 	public final fun renderCameraOnly (Lcom/google/ar/core/Frame;Lcom/google/ar/core/Camera;)V
 	public final fun resize (II)V
 	public final fun updateScene (Lcom/spatialkit/engine/SceneData;)V

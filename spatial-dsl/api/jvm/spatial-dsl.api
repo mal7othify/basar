@@ -30,6 +30,7 @@ public final class com/spatialkit/dsl/GroupScope {
 	public static synthetic fun customMesh$default (Lcom/spatialkit/dsl/GroupScope;Lcom/spatialkit/engine/GeometryData;Lcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CustomMeshNode;
 	public final fun cylinder (FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/CylinderNode;
 	public static synthetic fun cylinder$default (Lcom/spatialkit/dsl/GroupScope;FFLcom/spatialkit/core/types/Color;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/CylinderNode;
+	public final fun getNode ()Lcom/spatialkit/scene/GroupNode;
 	public final fun group (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/GroupNode;
 	public static synthetic fun group$default (Lcom/spatialkit/dsl/GroupScope;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/spatialkit/scene/GroupNode;
 	public final fun model (Lcom/spatialkit/scene/GltfModel;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/spatialkit/scene/ModelNode;

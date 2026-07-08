@@ -198,6 +198,40 @@ To place a model where the user taps (hit test → anchor → model), see the
 crate demo in `composeApp` — `placeCrate` in `App.kt` shows the full flow
 using `session.performHitTest`, `scene.createAnchor`, and `model.toNode()`.
 
+### Example 3c: AR Realism (light, shadows, occlusion)
+
+Light estimation is on by default — renderers match virtual lighting to the
+room every frame. Add a soft grounding shadow per node with `castsShadow`,
+and opt in to depth occlusion where the device supports it:
+
+```kotlin
+SpatialView(
+    mode = SessionMode.AR,
+    // Occlusion costs GPU time, so it's opt-in; it only takes effect where
+    // capabilities.supportsDepthOcclusion is true (ARCore Depth devices —
+    // the SceneKit and WebXR renderers currently report false)
+    config = EngineConfig(enableDepthOcclusion = true),
+    onFrame = { frame ->
+        // The estimate is also surfaced to app logic, normalized so
+        // 1.0 ≈ a nominally lit room
+        frame.lightEstimate?.let { light ->
+            if (light.ambientIntensity < 0.3f) { /* e.g. hint to turn on lights */ }
+        }
+    },
+) {
+    if (duck != null) {
+        model(duck) {
+            position = vec3(0f, 0f, -1f)
+            castsShadow = true // one blob shadow grounds the whole model
+        }
+    }
+}
+```
+
+The shadow sits at the base of the node's bounds, follows drags/scaling, and
+never intercepts taps or raycasts. For a group built in the DSL, set it via
+`node.castsShadow = true` inside the `group { ... }` block.
+
 ---
 
 ## Compose Integration

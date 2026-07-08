@@ -213,7 +213,12 @@ public object SceneRaycaster {
         val sqrtD = sqrt(discriminant)
         val t1 = (-b - sqrtD) / (2f * a)
         val t2 = (-b + sqrtD) / (2f * a)
-        val t = if (t1 >= 0f) t1 else if (t2 >= 0f) t2 else return null
+        val t =
+            when {
+                t1 >= 0f -> t1
+                t2 >= 0f -> t2
+                else -> return null
+            }
 
         val position = origin + direction * t
         return Hit(t, position, position.normalized())

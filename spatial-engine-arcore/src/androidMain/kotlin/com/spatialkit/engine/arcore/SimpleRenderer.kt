@@ -2,6 +2,7 @@ package com.spatialkit.engine.arcore
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.media.Image
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import android.opengl.GLUtils
@@ -10,9 +11,12 @@ import com.google.ar.core.Camera
 import com.google.ar.core.Coordinates2d
 import com.google.ar.core.Frame
 import com.spatialkit.core.log.SpatialLog
+import com.spatialkit.engine.Aabb
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
+import com.spatialkit.engine.LightEstimate
 import com.spatialkit.engine.RaycastResult
+import com.spatialkit.engine.SceneBounds
 import com.spatialkit.engine.SceneData
 import com.spatialkit.engine.SceneNode
 import com.spatialkit.engine.SceneRaycaster
@@ -92,6 +96,34 @@ public class SimpleRenderer(
     // Cached uniform locations for the texture path (avoids per-frame lookups)
     private var hasTextureLoc = -1
     private var baseColorTexLoc = -1
+
+    // M9.1 light estimation: lit color is scaled by estimate × color correction
+    private var lightColorLoc = -1
+
+    // M9.3 depth occlusion (ARCore Depth API)
+    private var depthTextureId = 0
+    private var hasDepthTexture = false
+    private var useOcclusionLoc = -1
+    private var depthTexLoc = -1
+    private var depthUvOriginLoc = -1
+    private var depthUvDxLoc = -1
+    private var depthUvDyLoc = -1
+    private var viewportLoc = -1
+    private var viewLoc = -1
+    private var viewportWidth = 1
+    private var viewportHeight = 1
+
+    // M9.2 blob shadows
+    private var shadowProgram = 0
+    private var shadowVertexShaderId = 0
+    private var shadowFragmentShaderId = 0
+    private var shadowVao = 0
+    private var shadowVbo = 0
+    private var shadowMvpLoc = -1
+    private var shadowOpacityLoc = -1
+
+    // Local AABBs of custom meshes, cached by node id (vertex scans are O(n))
+    private val customMeshLocalBounds = mutableMapOf<String, Aabb?>()
 
     // Store shader references for cleanup
     private var vertexShader: Int = 0
@@ -286,6 +318,8 @@ public class SimpleRenderer(
         height: Int,
     ) {
         GLES30.glViewport(0, 0, width, height)
+        viewportWidth = width.coerceAtLeast(1)
+        viewportHeight = height.coerceAtLeast(1)
     }
 
     /**
@@ -299,14 +333,30 @@ public class SimpleRenderer(
         }
     }
 
+    /**
+     * Render one full frame: camera background, then scene content.
+     *
+     * @param lightEstimate This frame's light estimate; scales scene lighting
+     *   to match the environment (M9.1). Null renders with neutral lighting.
+     * @param depthImage This frame's ARCore DEPTH16 image for occlusion
+     *   (M9.3), or null. The caller keeps ownership and closes it; the
+     *   renderer copies it into a GL texture. The last uploaded depth image
+     *   keeps occluding when a frame briefly has none.
+     */
     public fun render(
         frame: Frame,
         arCamera: Camera,
+        lightEstimate: LightEstimate? = null,
+        depthImage: Image? = null,
     ) {
         // Ensure initialization happened (should be done in onSurfaceCreated)
         if (!isInitialized) {
             SpatialLog.warn(TAG) { "render() called before initialize()" }
             initialize()
+        }
+
+        if (depthImage != null) {
+            uploadDepthImage(depthImage)
         }
 
         // Clear buffers
@@ -325,7 +375,47 @@ public class SimpleRenderer(
         GLES30.glDepthMask(true)
 
         // Render 3D scene nodes
-        render3DScene(frame, arCamera)
+        render3DScene(frame, arCamera, lightEstimate)
+    }
+
+    /**
+     * Copies an ARCore DEPTH16 image into an R16UI texture (unit 1) for the
+     * occlusion test in the scene shader. DEPTH16 rows may be padded, so the
+     * row stride is passed via GL_UNPACK_ROW_LENGTH (GLES 3.0).
+     */
+    private fun uploadDepthImage(image: Image) {
+        val plane = image.planes.firstOrNull() ?: return
+        val buffer = plane.buffer ?: return
+
+        if (depthTextureId == 0) {
+            val ids = IntArray(1)
+            GLES30.glGenTextures(1, ids, 0)
+            depthTextureId = ids[0]
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, depthTextureId)
+            // Integer textures require NEAREST filtering
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_NEAREST)
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_NEAREST)
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
+        } else {
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, depthTextureId)
+        }
+
+        GLES30.glPixelStorei(GLES30.GL_UNPACK_ROW_LENGTH, plane.rowStride / 2)
+        GLES30.glTexImage2D(
+            GLES30.GL_TEXTURE_2D,
+            0,
+            GLES30.GL_R16UI,
+            image.width,
+            image.height,
+            0,
+            GLES30.GL_RED_INTEGER,
+            GLES30.GL_UNSIGNED_SHORT,
+            buffer,
+        )
+        GLES30.glPixelStorei(GLES30.GL_UNPACK_ROW_LENGTH, 0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
+        hasDepthTexture = true
     }
 
     /**
@@ -368,22 +458,30 @@ public class SimpleRenderer(
 
             uniform mat4 u_MVP;
             uniform mat4 u_Model;
+            uniform mat4 u_View;
 
             out vec3 v_Normal;
             out vec3 v_Position;
             out vec2 v_TexCoord;
+            out vec3 v_ViewPos;
 
             void main() {
+                vec4 worldPos = u_Model * vec4(a_Position, 1.0);
                 gl_Position = u_MVP * vec4(a_Position, 1.0);
                 v_Normal = mat3(u_Model) * a_Normal;
-                v_Position = (u_Model * vec4(a_Position, 1.0)).xyz;
+                v_Position = worldPos.xyz;
                 v_TexCoord = a_TexCoord;
+                v_ViewPos = (u_View * worldPos).xyz;
             }
             """.trimIndent()
 
         // Simple fragment shader with basic lighting.
         // The base-color texture is multiplied with u_Color, matching glTF's
-        // baseColorFactor × baseColorTexture semantics.
+        // baseColorFactor × baseColorTexture semantics. The lit color is
+        // scaled by u_LightColor (light estimate × color correction; (1,1,1)
+        // when estimation is off — M9.1). When u_UseOcclusion is set, the
+        // fragment's view-space depth is tested against the ARCore depth map
+        // and hidden fragments fade out over a soft window (M9.3).
         val fragmentShader =
             """
             #version 300 es
@@ -392,11 +490,20 @@ public class SimpleRenderer(
             in vec3 v_Normal;
             in vec3 v_Position;
             in vec2 v_TexCoord;
+            in vec3 v_ViewPos;
 
             uniform vec3 u_Color;
             uniform vec3 u_LightDir;
+            uniform vec3 u_LightColor;
             uniform bool u_HasTexture;
             uniform sampler2D u_BaseColorTex;
+
+            uniform bool u_UseOcclusion;
+            uniform highp usampler2D u_DepthTex;
+            uniform vec2 u_DepthUvOrigin;
+            uniform vec2 u_DepthUvDx;
+            uniform vec2 u_DepthUvDy;
+            uniform vec2 u_Viewport;
 
             out vec4 fragColor;
 
@@ -407,15 +514,149 @@ public class SimpleRenderer(
                 }
                 vec3 normal = normalize(v_Normal);
                 float diffuse = max(dot(normal, u_LightDir), 0.0);
-                vec3 ambient = baseColor * 0.3;
-                vec3 color = ambient + baseColor * diffuse * 0.7;
-                fragColor = vec4(color, 1.0);
+                vec3 color = (baseColor * 0.3 + baseColor * diffuse * 0.7) * u_LightColor;
+
+                float visibility = 1.0;
+                if (u_UseOcclusion) {
+                    // Screen (0-1, bottom-left origin) -> camera-image UV via
+                    // the display transform sampled at the frame's corners
+                    vec2 s = gl_FragCoord.xy / u_Viewport;
+                    vec2 uv = u_DepthUvOrigin + u_DepthUvDx * s.x + u_DepthUvDy * s.y;
+                    // DEPTH16: low 13 bits = depth in millimeters
+                    uint raw = texture(u_DepthTex, uv).r;
+                    float realMm = float(raw & 0x1FFFu);
+                    if (realMm > 0.0) {
+                        float virtualMm = -v_ViewPos.z * 1000.0;
+                        // Soft 80mm transition band around the depth edge
+                        visibility = clamp((realMm - virtualMm) / 80.0 + 0.5, 0.0, 1.0);
+                    }
+                }
+                fragColor = vec4(color, visibility);
             }
             """.trimIndent()
 
         sceneProgram = createProgram(vertexShader, fragmentShader, saveShaders = true)
         hasTextureLoc = GLES30.glGetUniformLocation(sceneProgram, "u_HasTexture")
         baseColorTexLoc = GLES30.glGetUniformLocation(sceneProgram, "u_BaseColorTex")
+        lightColorLoc = GLES30.glGetUniformLocation(sceneProgram, "u_LightColor")
+        useOcclusionLoc = GLES30.glGetUniformLocation(sceneProgram, "u_UseOcclusion")
+        depthTexLoc = GLES30.glGetUniformLocation(sceneProgram, "u_DepthTex")
+        depthUvOriginLoc = GLES30.glGetUniformLocation(sceneProgram, "u_DepthUvOrigin")
+        depthUvDxLoc = GLES30.glGetUniformLocation(sceneProgram, "u_DepthUvDx")
+        depthUvDyLoc = GLES30.glGetUniformLocation(sceneProgram, "u_DepthUvDy")
+        viewportLoc = GLES30.glGetUniformLocation(sceneProgram, "u_Viewport")
+        viewLoc = GLES30.glGetUniformLocation(sceneProgram, "u_View")
+
+        // The depth sampler is an integer sampler; park it on its own unit so
+        // it never aliases the float base-color sampler on unit 0 (undefined
+        // behavior even when the occlusion branch is not taken)
+        GLES30.glUseProgram(sceneProgram)
+        GLES30.glUniform1i(depthTexLoc, 1)
+        GLES30.glUseProgram(0)
+
+        initializeShadowShader()
+    }
+
+    /**
+     * Blob-shadow pass resources (M9.2): a unit XZ quad faded radially in the
+     * fragment shader, alpha-blended under shadow-casting nodes.
+     */
+    private fun initializeShadowShader() {
+        val vertexShader =
+            """
+            #version 300 es
+            precision mediump float;
+
+            layout(location = 0) in vec2 a_Position;
+
+            uniform mat4 u_MVP;
+
+            out vec2 v_Local;
+
+            void main() {
+                gl_Position = u_MVP * vec4(a_Position.x, 0.0, a_Position.y, 1.0);
+                v_Local = a_Position;
+            }
+            """.trimIndent()
+
+        val fragmentShader =
+            """
+            #version 300 es
+            precision mediump float;
+
+            in vec2 v_Local;
+
+            uniform float u_Opacity;
+
+            out vec4 fragColor;
+
+            void main() {
+                // 0 at the quad center, 1 at the inscribed circle's rim
+                float r = length(v_Local) * 2.0;
+                float alpha = u_Opacity * (1.0 - smoothstep(0.35, 1.0, r));
+                fragColor = vec4(0.0, 0.0, 0.0, alpha);
+            }
+            """.trimIndent()
+
+        val vShader = loadShader(GLES30.GL_VERTEX_SHADER, vertexShader)
+        val fShader = loadShader(GLES30.GL_FRAGMENT_SHADER, fragmentShader)
+        shadowProgram = GLES30.glCreateProgram()
+        GLES30.glAttachShader(shadowProgram, vShader)
+        GLES30.glAttachShader(shadowProgram, fShader)
+        GLES30.glLinkProgram(shadowProgram)
+        val linkStatus = IntArray(1)
+        GLES30.glGetProgramiv(shadowProgram, GLES30.GL_LINK_STATUS, linkStatus, 0)
+        if (linkStatus[0] == 0) {
+            val error = GLES30.glGetProgramInfoLog(shadowProgram)
+            GLES30.glDeleteProgram(shadowProgram)
+            GLES30.glDeleteShader(vShader)
+            GLES30.glDeleteShader(fShader)
+            shadowProgram = 0
+            SpatialLog.error(TAG) { "shadow program link failed: $error" }
+            return
+        }
+        shadowVertexShaderId = vShader
+        shadowFragmentShaderId = fShader
+        shadowMvpLoc = GLES30.glGetUniformLocation(shadowProgram, "u_MVP")
+        shadowOpacityLoc = GLES30.glGetUniformLocation(shadowProgram, "u_Opacity")
+
+        // Unit quad in XZ, two triangles
+        val quad =
+            floatArrayOf(
+                -0.5f,
+                -0.5f,
+                0.5f,
+                -0.5f,
+                -0.5f,
+                0.5f,
+                0.5f,
+                -0.5f,
+                0.5f,
+                0.5f,
+                -0.5f,
+                0.5f,
+            )
+        val vaoIds = IntArray(1)
+        GLES30.glGenVertexArrays(1, vaoIds, 0)
+        shadowVao = vaoIds[0]
+        val vboIds = IntArray(1)
+        GLES30.glGenBuffers(1, vboIds, 0)
+        shadowVbo = vboIds[0]
+
+        val buffer =
+            ByteBuffer
+                .allocateDirect(quad.size * 4)
+                .order(ByteOrder.nativeOrder())
+                .asFloatBuffer()
+                .put(quad)
+                .apply { position(0) }
+        GLES30.glBindVertexArray(shadowVao)
+        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, shadowVbo)
+        GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, quad.size * 4, buffer, GLES30.GL_STATIC_DRAW)
+        GLES30.glEnableVertexAttribArray(0)
+        GLES30.glVertexAttribPointer(0, 2, GLES30.GL_FLOAT, false, 0, 0)
+        GLES30.glBindVertexArray(0)
+        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, 0)
     }
 
     private fun renderBackground(frame: Frame) {
@@ -681,6 +922,7 @@ public class SimpleRenderer(
                 if (stale) deleteGeometryBuffers(buffers)
             }
         }
+        customMeshLocalBounds.keys.retainAll(liveNodeIds)
         textureCache.entries.removeAll { (textureId, glTexture) ->
             (textureId !in liveTextureIds).also { stale ->
                 if (stale) GLES30.glDeleteTextures(1, intArrayOf(glTexture), 0)
@@ -959,6 +1201,7 @@ public class SimpleRenderer(
     private fun render3DScene(
         frame: Frame,
         arCamera: Camera,
+        lightEstimate: LightEstimate?,
     ) {
         // Copy scene nodes under lock to avoid race conditions
         val (nodesToRender, revision) =
@@ -984,14 +1227,56 @@ public class SimpleRenderer(
         // Get camera matrices
         arCamera.getViewMatrix(viewMatrix, 0)
         arCamera.getProjectionMatrix(projectionMatrix, 0, 0.1f, 100f)
+        GLES30.glUniformMatrix4fv(viewLoc, 1, false, viewMatrix, 0)
 
         // Set light direction (from above-front)
         val lightDirLoc = GLES30.glGetUniformLocation(sceneProgram, "u_LightDir")
         GLES30.glUniform3f(lightDirLoc, 0.0f, 0.7f, 0.7f)
 
+        // M9.1: scale lighting by the environment estimate (neutral without one)
+        if (lightEstimate != null) {
+            val intensity = lightEstimate.ambientIntensity.coerceIn(0f, 2f)
+            GLES30.glUniform3f(
+                lightColorLoc,
+                lightEstimate.ambientColor.x * intensity,
+                lightEstimate.ambientColor.y * intensity,
+                lightEstimate.ambientColor.z * intensity,
+            )
+        } else {
+            GLES30.glUniform3f(lightColorLoc, 1f, 1f, 1f)
+        }
+
+        // M9.3: occlusion against the last uploaded depth image. The
+        // screen->camera-UV affine comes from the same display transform the
+        // camera background was drawn with this frame (see renderBackground).
+        val useOcclusion = hasDepthTexture && depthTextureId != 0
+        GLES30.glUniform1i(useOcclusionLoc, if (useOcclusion) 1 else 0)
+        if (useOcclusion) {
+            GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, depthTextureId)
+            GLES30.glUniform2f(viewportLoc, viewportWidth.toFloat(), viewportHeight.toFloat())
+            GLES30.glUniform2f(depthUvOriginLoc, transformedUvs[0], transformedUvs[1])
+            GLES30.glUniform2f(
+                depthUvDxLoc,
+                transformedUvs[2] - transformedUvs[0],
+                transformedUvs[3] - transformedUvs[1],
+            )
+            GLES30.glUniform2f(
+                depthUvDyLoc,
+                transformedUvs[4] - transformedUvs[0],
+                transformedUvs[5] - transformedUvs[1],
+            )
+            GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+        }
+
+        // Occluded fragments (and blob shadows) blend against the background
+        GLES30.glEnable(GLES30.GL_BLEND)
+        GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
+
         // Render each node recursively, composing parent transforms so
         // groups (and glTF model hierarchies) carry their children
         val rootMatrix = FloatArray(16).also { Matrix.setIdentityM(it, 0) }
+
         fun renderNodes(
             nodes: List<SceneNode>,
             parentMatrix: FloatArray,
@@ -1010,6 +1295,61 @@ public class SimpleRenderer(
             }
         }
         renderNodes(nodesToRender, rootMatrix)
+
+        renderShadows(nodesToRender)
+
+        GLES30.glDisable(GLES30.GL_BLEND)
+    }
+
+    /**
+     * Local bounds provider for [SceneBounds.worldBounds]; custom-mesh vertex
+     * scans are cached by node id (evicted with the mesh's GPU buffers).
+     */
+    private fun cachedLocalBounds(mesh: SceneNode.Mesh): Aabb? =
+        if (mesh.geometry.type == GeometryType.CUSTOM_MESH) {
+            customMeshLocalBounds.getOrPut(mesh.id) { SceneBounds.localBounds(mesh.geometry) }
+        } else {
+            SceneBounds.localBounds(mesh.geometry)
+        }
+
+    /**
+     * Draws a soft blob shadow (M9.2) under each shadow-casting subtree: a
+     * radially faded dark quad at the base of the subtree's world AABB,
+     * sized slightly beyond its footprint. Depth-tested but not depth-written,
+     * so shadows never occlude content. Requires blending to be enabled.
+     */
+    private fun renderShadows(nodes: List<SceneNode>) {
+        if (shadowProgram == 0) return
+        val casters = SceneBounds.shadowCasters(nodes, ::cachedLocalBounds)
+        if (casters.isEmpty()) return
+
+        GLES30.glUseProgram(shadowProgram)
+        GLES30.glDepthMask(false)
+        GLES30.glBindVertexArray(shadowVao)
+
+        val model = FloatArray(16)
+        val viewModel = FloatArray(16)
+        val mvp = FloatArray(16)
+
+        casters.forEach { (_, bounds) ->
+            val size = bounds.size
+            val diameter = maxOf(size.x, size.z) * SHADOW_FOOTPRINT_SCALE
+            if (diameter <= 0f) return@forEach
+
+            Matrix.setIdentityM(model, 0)
+            // Slightly above the base to avoid z-fighting with the surface
+            Matrix.translateM(model, 0, bounds.center.x, bounds.min.y + 0.002f, bounds.center.z)
+            Matrix.scaleM(model, 0, diameter, 1f, diameter)
+            Matrix.multiplyMM(viewModel, 0, viewMatrix, 0, model, 0)
+            Matrix.multiplyMM(mvp, 0, projectionMatrix, 0, viewModel, 0)
+
+            GLES30.glUniformMatrix4fv(shadowMvpLoc, 1, false, mvp, 0)
+            GLES30.glUniform1f(shadowOpacityLoc, SHADOW_OPACITY)
+            GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 6)
+        }
+
+        GLES30.glBindVertexArray(0)
+        GLES30.glDepthMask(true)
     }
 
     private fun renderMesh(
@@ -1107,6 +1447,12 @@ public class SimpleRenderer(
             cameraTextureId = 0
         }
 
+        if (depthTextureId != 0) {
+            GLES30.glDeleteTextures(1, intArrayOf(depthTextureId), 0)
+            depthTextureId = 0
+            hasDepthTexture = false
+        }
+
         // Delete programs
         if (backgroundProgram != 0) {
             GLES30.glDeleteProgram(backgroundProgram)
@@ -1115,6 +1461,26 @@ public class SimpleRenderer(
         if (sceneProgram != 0) {
             GLES30.glDeleteProgram(sceneProgram)
             sceneProgram = 0
+        }
+        if (shadowProgram != 0) {
+            GLES30.glDeleteProgram(shadowProgram)
+            shadowProgram = 0
+        }
+        if (shadowVertexShaderId != 0) {
+            GLES30.glDeleteShader(shadowVertexShaderId)
+            shadowVertexShaderId = 0
+        }
+        if (shadowFragmentShaderId != 0) {
+            GLES30.glDeleteShader(shadowFragmentShaderId)
+            shadowFragmentShaderId = 0
+        }
+        if (shadowVao != 0) {
+            GLES30.glDeleteVertexArrays(1, intArrayOf(shadowVao), 0)
+            shadowVao = 0
+        }
+        if (shadowVbo != 0) {
+            GLES30.glDeleteBuffers(1, intArrayOf(shadowVbo), 0)
+            shadowVbo = 0
         }
 
         // Delete shaders
@@ -1148,6 +1514,7 @@ public class SimpleRenderer(
             textureCache.clear()
         }
         failedTextures.clear()
+        customMeshLocalBounds.clear()
         renderedRevision = -1
 
         // Clear scene data under lock
@@ -1161,5 +1528,10 @@ public class SimpleRenderer(
 
     private companion object {
         const val TAG = "SimpleRenderer"
+
+        // Blob shadows (M9.2): quad size relative to the caster's footprint,
+        // and peak darkness at the blob center
+        const val SHADOW_FOOTPRINT_SCALE = 1.25f
+        const val SHADOW_OPACITY = 0.35f
     }
 }

@@ -92,6 +92,7 @@ public abstract class MeshNode(
                 visible = visible,
                 geometry = buildGeometry(),
                 material = material,
+                castsShadow = castsShadow,
             )
         } else {
             // A mesh with children renders as a group carrying the node's
@@ -106,6 +107,7 @@ public abstract class MeshNode(
                         scale = scale,
                     ),
                 visible = visible,
+                castsShadow = castsShadow,
                 children =
                     buildList {
                         add(
@@ -275,6 +277,7 @@ public class GroupNode(
                     scale = scale,
                 ),
             visible = visible,
+            castsShadow = castsShadow,
             children = children.map { it.toSceneNode() },
         )
 }

@@ -144,7 +144,11 @@ public interface SpatialEngine {
  * @property supportsImageTracking Can track reference images
  * @property supportsFaceTracking Can track face
  * @property supportsHandTracking Can track hand/finger poses
- * @property supportsDepthOcclusion Can occlude virtual objects with real world
+ * @property supportsDepthOcclusion Can occlude virtual objects with real-world
+ *   geometry when [EngineConfig.enableDepthOcclusion] is set. Check this
+ *   before relying on occlusion: it depends on both the platform and the
+ *   device (e.g. ARCore's Depth API needs a supported phone; the SceneKit
+ *   and WebXR engines don't implement occlusion yet and report false)
  * @property supportsSpatialAnchors Can create persistent spatial anchors
  * @property maxAnchors Maximum number of simultaneous anchors
  *   (null = no engine-imposed limit, 0 = anchors unsupported)
@@ -223,14 +227,21 @@ public sealed interface SessionMode {
  *
  * @property preferredMode Preferred session mode (engine may fall back)
  * @property enablePlaneDetection Enable plane detection (AR)
- * @property enableLightEstimation Enable light estimation (AR)
+ * @property enableLightEstimation Enable light estimation (AR). When on,
+ *   engines match virtual lighting to the real environment each frame and
+ *   surface the estimate as [FrameData.lightEstimate].
+ * @property enableDepthOcclusion Let real-world geometry hide virtual content
+ *   behind it (AR). Only honored where
+ *   [EngineCapabilities.supportsDepthOcclusion] is true — currently the
+ *   ARCore engine (Depth API); it costs GPU time per frame, so it is opt-in.
  * @property nearPlane Near clipping plane distance in meters
  * @property farPlane Far clipping plane distance in meters
  */
 public data class EngineConfig(
     val preferredMode: SessionMode = SessionMode.AR,
     val enablePlaneDetection: Boolean = true,
-    val enableLightEstimation: Boolean = false,
+    val enableLightEstimation: Boolean = true,
+    val enableDepthOcclusion: Boolean = false,
     val nearPlane: Float = 0.1f,
     val farPlane: Float = 100f,
 )

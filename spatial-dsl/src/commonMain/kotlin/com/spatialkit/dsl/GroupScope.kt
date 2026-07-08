@@ -38,6 +38,7 @@ public class GroupScope(
      * ```
      */
     public val node: GroupNode get() = group
+
     /**
      * Creates a cube node and adds it as a child of this group.
      */

@@ -16,6 +16,6 @@ public final class com/spatialkit/compose/SpatialSurface_androidKt {
 }
 
 public final class com/spatialkit/compose/SpatialViewKt {
-	public static final fun SpatialView (Landroidx/compose/ui/Modifier;Lcom/spatialkit/engine/SessionMode;Lcom/spatialkit/engine/EngineConfig;Lcom/spatialkit/engine/SpatialEngine;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SpatialView (Landroidx/compose/ui/Modifier;Lcom/spatialkit/engine/SessionMode;Lcom/spatialkit/engine/EngineConfig;Lcom/spatialkit/engine/SpatialEngine;ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 }
 

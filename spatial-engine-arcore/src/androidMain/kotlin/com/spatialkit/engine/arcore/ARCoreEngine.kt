@@ -163,8 +163,12 @@ public class ARCoreEngine(
                                 Config.PlaneFindingMode.DISABLED
                             }
 
-                        // Set depth mode if supported
-                        if (arSession.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) {
+                        // Depth for occlusion (M9.3) is opt-in: ARCore computes
+                        // depth maps every frame once enabled, which costs
+                        // battery/GPU even if never sampled
+                        if (config.enableDepthOcclusion &&
+                            arSession.isDepthModeSupported(Config.DepthMode.AUTOMATIC)
+                        ) {
                             depthMode = Config.DepthMode.AUTOMATIC
                         }
 
@@ -423,8 +427,27 @@ public class ARCoreEngine(
             // Invoke callback
             frameCallback?.invoke(frameData)
 
-            // Render full scene (camera + 3D objects)
-            arRenderer.render(frame, camera)
+            // Depth image for occlusion (M9.3); null until ARCore has depth
+            // for this frame. Must be closed after rendering — the depth
+            // image pool is small.
+            val depthImage =
+                if (config?.depthMode == Config.DepthMode.AUTOMATIC) {
+                    try {
+                        frame.acquireDepthImage16Bits()
+                    } catch (e: Exception) {
+                        // NotYetAvailableException while depth warms up
+                        null
+                    }
+                } else {
+                    null
+                }
+
+            try {
+                // Render full scene (camera + 3D objects)
+                arRenderer.render(frame, camera, frameData.lightEstimate, depthImage)
+            } finally {
+                depthImage?.close()
+            }
         } catch (e: CameraNotAvailableException) {
             _state.value =
                 EngineState.Error(
@@ -576,14 +599,17 @@ public class ARCoreEngine(
         estimate.getColorCorrection(colorCorrection, 0)
 
         return LightEstimate(
-            ambientIntensity = estimate.pixelIntensity,
+            // pixelIntensity is average scene luminance where 0.466 is
+            // ARCore's middle-grey reference; divide so 1.0 means "nominally
+            // lit" (the cross-platform LightEstimate contract)
+            ambientIntensity = estimate.pixelIntensity / MIDDLE_GREY_PIXEL_INTENSITY,
             ambientColor =
                 Vec3(
                     colorCorrection[0],
                     colorCorrection[1],
                     colorCorrection[2],
                 ),
-            directionalIntensity = 0f, // Not available in basic mode
+            directionalIntensity = 0f, // Not available in AMBIENT_INTENSITY mode
             directionalDirection = Vec3(0f, -1f, 0f), // Default down
         )
     }
@@ -747,5 +773,9 @@ public class ARCoreEngine(
 
     private companion object {
         const val TAG = "ARCoreEngine"
+
+        // ARCore's documented middle-grey reference for pixelIntensity;
+        // dividing by it normalizes the estimate so 1.0 = nominal lighting
+        const val MIDDLE_GREY_PIXEL_INTENSITY = 0.466f
     }
 }

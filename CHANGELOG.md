@@ -9,6 +9,42 @@ binary-compatibility validator dumps in each module's `api/` directory).
 
 ## [Unreleased]
 
+### Added (M9 — AR realism; on-device validation pending)
+- Light estimation feeds renderer lighting (M9.1). `LightEstimate` is now
+  normalized cross-platform: `ambientIntensity` 1.0 ≈ a nominally lit indoor
+  scene (ARCore pixel intensity ÷ its 0.466 middle-grey reference, ARKit
+  lumens ÷ 1000). Each engine drives its own lights from the estimate when
+  `EngineConfig.enableLightEstimation` is on — **now the default**:
+  - ARCore: the scene shader scales lit color by the ambient estimate and
+    color-correction RGB.
+  - ARKit: an explicit ambient + directional SceneKit light rig (replacing
+    `autoenablesDefaultLighting`) follows the estimate's intensity and color
+    temperature.
+  - WebXR: the engine requests the `light-estimation` feature and an
+    `XRLightProbe`; the Three.js ambient/directional lights follow the
+    spherical-harmonics ambient term and primary light, and
+    `FrameData.lightEstimate` is populated on web for the first time.
+- Soft blob shadows (M9.2): `castsShadow` on `SpatialNode` (scene graph) and
+  `SceneNode` (engine contract). Renderers ground flagged subtrees with a
+  radially faded dark disc at the base of the subtree's world AABB, sized to
+  its footprint — one shadow per flagged root (nested flags are ignored).
+  Implemented natively per renderer (GLES shader quad, SceneKit gradient
+  plane, Three.js canvas-texture plane) with matching visuals; shadows never
+  occlude content and are excluded from raycasts/picking. New shared
+  `SceneBounds` (`spatial-engine`) computes local/world AABBs and shadow
+  casters over `SceneData` for renderers without a native bounds API.
+- Depth occlusion on Android (M9.3): opt-in
+  `EngineConfig.enableDepthOcclusion` enables the ARCore Depth API; the
+  renderer uploads each frame's `DEPTH16` image and the scene shader fades
+  virtual fragments hidden behind real-world geometry (soft 8 cm edge). Check
+  `capabilities.supportsDepthOcclusion` before relying on it — it requires a
+  Depth-supported Android device.
+
+### Fixed (M9)
+- The ARKit engine reported `supportsDepthOcclusion = true` (based on a
+  person-segmentation check) while implementing no occlusion; the SceneKit
+  backend cannot composite scene depth, so it now honestly reports `false`.
+
 ### Added (M8 — interaction/gestures; on-device validation pending)
 - Node picking (M8.1): `screenPointToRay(screenX, screenY)` on `FrameData`
   unprojects a normalized screen point through the frame's actual projection

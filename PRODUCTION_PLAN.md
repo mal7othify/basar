@@ -19,7 +19,7 @@ progress is trackable in PRs; reference the task ID (e.g. `M1.3`) in commit mess
 | M6 | Quality infrastructure | CI, lint, tests, API stability guarantees | ✅ |
 | M7 | Textured 3D models | Load a textured GLB and render it identically on all 3 platforms | 🚧 code-complete, device validation pending |
 | M8 | Interaction | Tap/drag/pinch/rotate gestures on nodes | 🚧 code-complete, Android ✅; iPhone + WebXR validation pending |
-| M9 | AR realism | Light estimation, shadows, depth occlusion | planned |
+| M9 | AR realism | Light estimation, shadows, depth occlusion | 🚧 code-complete, device validation pending |
 | M10 | Preview renderer | Non-XR 3D preview for desktop/simulator dev loop | planned |
 | M11 | 2D UI in space | Text labels, billboards, Compose-content panels | planned |
 | M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | planned |
@@ -452,17 +452,43 @@ M8 follow-ups (deliberately out of scope): drag lifecycle callbacks
 (`onDragStart`/`onDragEnd`, needed for re-anchoring dragged content),
 long-press, two-finger vertical drag for height, per-node hit-test masks.
 
-### M9 — AR realism
+### M9 — AR realism — code-complete
 
 Placed objects currently "float". Ship the three highest-impact cues:
 
-- [ ] M9.1 Light estimation: `FrameData.lightEstimate` already exists — feed it
-  into renderer lighting on all three platforms.
-- [ ] M9.2 Soft shadows: plane-projected shadow or blob shadow under anchored
-  content (per-renderer).
-- [ ] M9.3 Depth occlusion where supported (`supportsDepthOcclusion` is already
-  in `EngineCapabilities`): ARCore Depth API, ARKit scene depth; document the
-  capability check.
+- [x] M9.1 Light estimation: `LightEstimate.ambientIntensity` normalized so
+  1.0 = nominal lighting on every platform (ARCore ÷0.466 middle grey, ARKit
+  ÷1000 lumens), and fed into renderer lighting on all three:
+  ARCore scene-shader `u_LightColor` (estimate × color correction), ARKit
+  explicit ambient+directional SCNLight rig (replaces
+  `autoenablesDefaultLighting`; follows intensity + color temperature), WebXR
+  `light-estimation` feature + `XRLightProbe` driving the Three.js lights
+  (also populates `FrameData.lightEstimate` on web, previously always null).
+  `EngineConfig.enableLightEstimation` now defaults to true.
+- [x] M9.2 Soft shadows: blob shadow (radially faded disc) under nodes flagged
+  `castsShadow`, at the base of the subtree's world AABB, sized to its
+  footprint — chosen over shadow maps for cross-platform visual parity and
+  because the minimal GLES renderer has no shadow-map infrastructure. Shared
+  `SceneBounds` in `spatial-engine` computes bounds/casters (unit-primitive
+  contract + custom-mesh vertex scan, cached per node by renderers); each
+  renderer draws natively (GLES alpha-blended shader quad, SceneKit
+  CoreGraphics-gradient plane, Three.js canvas-gradient plane). Shadows never
+  write depth and are excluded from raycasts. Sample: flower + crates.
+- [x] M9.3 Depth occlusion where supported: **Android implemented** — opt-in
+  `EngineConfig.enableDepthOcclusion` turns on the ARCore Depth API; the
+  renderer uploads `DEPTH16` to an `R16UI` texture and the scene shader fades
+  fragments behind real geometry (soft 8 cm band; screen→camera-UV via the
+  same display transform as the camera background). iOS: SceneKit cannot
+  composite ARKit scene depth without a custom Metal pipeline —
+  `supportsDepthOcclusion` now honestly reports **false** (it previously
+  claimed true via a person-segmentation check while rendering nothing);
+  revisit if the backend moves to RealityKit/custom Metal. WebXR: no
+  occlusion yet, reports false. Capability check documented in README/docs.
+- [ ] M9.4 On-device validation (folds into the pending M7.12/M8.5 pass):
+  Android Depth device — verify lighting responds to room brightness, blob
+  shadows sit under the flower/crates and follow drags, and a hand/couch in
+  front of a crate occludes it. iPhone: lighting + shadows (no occlusion).
+  WebXR (Chrome Android or emulator): lighting + shadows.
 
 ### M10 — Non-XR preview renderer
 

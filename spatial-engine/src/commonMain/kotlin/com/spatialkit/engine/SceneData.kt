@@ -47,6 +47,17 @@ public sealed interface SceneNode {
     public val visible: Boolean
 
     /**
+     * Whether the renderer should ground this node with a soft shadow (M9.2).
+     *
+     * Renderers draw a radially faded dark disc ("blob shadow") on the
+     * horizontal plane at the base of the node's world-space bounds, sized to
+     * its footprint. For hierarchies, set this on the root (one shadow under
+     * the whole model), not on every mesh; a flag on a child inside a flagged
+     * subtree is ignored.
+     */
+    public val castsShadow: Boolean
+
+    /**
      * A renderable mesh with geometry and material.
      */
     public data class Mesh(
@@ -55,6 +66,7 @@ public sealed interface SceneNode {
         override val visible: Boolean = true,
         val geometry: GeometryData,
         val material: MaterialData,
+        override val castsShadow: Boolean = false,
     ) : SceneNode
 
     /**
@@ -67,6 +79,7 @@ public sealed interface SceneNode {
         override val transform: Transform,
         override val visible: Boolean = true,
         val children: List<SceneNode>,
+        override val castsShadow: Boolean = false,
     ) : SceneNode
 }
 

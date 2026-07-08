@@ -51,6 +51,17 @@ public abstract class SpatialNode(
      */
     public var visible: Boolean = true
 
+    /**
+     * Whether the renderer grounds this node with a soft blob shadow (M9.2).
+     *
+     * The shadow is a radially faded dark disc drawn on the horizontal plane
+     * at the base of the node's bounds, sized to its footprint — it visually
+     * anchors placed content to the surface it sits on. For hierarchies
+     * (groups, glTF models), set it on the root node: one shadow covers the
+     * whole subtree.
+     */
+    public var castsShadow: Boolean = false
+
     // === Interaction (M8) ===
     // Configured at build time (or from the frame callback); handlers run on
     // the render thread. A gesture on a mesh resolves to the nearest
