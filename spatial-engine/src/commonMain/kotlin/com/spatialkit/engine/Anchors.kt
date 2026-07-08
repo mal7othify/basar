@@ -58,14 +58,18 @@ public sealed interface AnchorType {
     ) : AnchorType
 
     /**
-     * Persistent cloud anchor (shared across sessions/devices).
+     * Restores an anchor persisted in an earlier session (M12.3).
      *
-     * Requires platform support and network connectivity.
+     * Only honored where [EngineCapabilities.supportsAnchorPersistence] is
+     * true — currently the WebXR engine (persistent-anchor handles); the
+     * anchor reports [AnchorStatus.ERROR] elsewhere. Create handles with
+     * [SpatialEngine.persistAnchor] and store them app-side.
      *
-     * @property cloudId Cloud anchor identifier (platform-specific)
+     * @property handle Opaque persistence handle returned by
+     *   [SpatialEngine.persistAnchor] in a previous session
      */
     public data class Persistent(
-        val cloudId: String,
+        val handle: String,
     ) : AnchorType
 }
 

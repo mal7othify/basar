@@ -764,9 +764,7 @@ public class WebXREngine : SpatialEngine {
                     }
                 }
 
-                is AnchorType.Persistent ->
-                    // M12.3 (anchor persistence) — not implemented yet
-                    failAnchor(request.id, "persistent anchors not supported")
+                is AnchorType.Persistent -> restorePersistedAnchor(request.id, type.handle)
             }
         }
     }
@@ -815,6 +813,65 @@ public class WebXREngine : SpatialEngine {
         pendingAnchorRequests.remove(id)
         failedAnchorIds += id
         SpatialLog.warn(TAG) { "anchor $id failed: $reason" }
+    }
+
+    // === M12.3: anchor persistence (WebXR persistent-anchor handles) ===
+
+    /**
+     * Restores an anchor persisted with [persistAnchor] in an earlier
+     * session via `XRSession.restorePersistentAnchor`.
+     */
+    private fun restorePersistedAnchor(
+        id: String,
+        handle: String,
+    ) {
+        val sessionDyn = xrSession?.asDynamic()
+        if (sessionDyn == null || sessionDyn.restorePersistentAnchor == undefined) {
+            failAnchor(id, "persistent anchors not supported")
+            return
+        }
+        pendingAnchorRequests.remove(id)
+        creatingAnchorIds += id
+        sessionDyn
+            .restorePersistentAnchor(handle)
+            .then { anchor: dynamic ->
+                creatingAnchorIds.remove(id)
+                xrAnchors[id] = anchor.unsafeCast<XRAnchor>()
+                null
+            }.catch { e: dynamic ->
+                creatingAnchorIds.remove(id)
+                failedAnchorIds += id
+                SpatialLog.warn(TAG) { "restorePersistentAnchor failed for $id: $e" }
+                null
+            }
+    }
+
+    override suspend fun persistAnchor(anchorId: String): String? {
+        val anchor = xrAnchors[anchorId] ?: return null
+        val anchorDyn = anchor.asDynamic()
+        if (anchorDyn.requestPersistentHandle == undefined) return null
+        return try {
+            anchorDyn
+                .requestPersistentHandle()
+                .unsafeCast<kotlin.js.Promise<String>>()
+                .await()
+        } catch (e: Throwable) {
+            SpatialLog.warn(TAG) { "requestPersistentHandle failed for $anchorId: ${e.message}" }
+            null
+        }
+    }
+
+    override suspend fun deletePersistedAnchor(handle: String) {
+        val sessionDyn = xrSession?.asDynamic() ?: return
+        if (sessionDyn.deletePersistentAnchor == undefined) return
+        try {
+            sessionDyn
+                .deletePersistentAnchor(handle)
+                .unsafeCast<kotlin.js.Promise<Unit>>()
+                .await()
+        } catch (e: Throwable) {
+            SpatialLog.warn(TAG) { "deletePersistentAnchor failed for $handle: ${e.message}" }
+        }
     }
 
     /**
@@ -993,6 +1050,8 @@ public class WebXREngine : SpatialEngine {
                 supportsDepthOcclusion = false,
                 supportsSpatialAnchors = supportsAR,
                 maxAnchors = null, // WebXR imposes no fixed anchor limit
+                // M12.3: persistent-anchor handles (Chrome's anchors module)
+                supportsAnchorPersistence = supportsAR && hasPersistentAnchorApi(),
             )
         } else {
             EngineCapabilities(
@@ -1011,6 +1070,10 @@ public class WebXREngine : SpatialEngine {
 
     private companion object {
         const val TAG = "WebXREngine"
+
+        /** Whether the browser exposes the persistent-anchor API (M12.3). */
+        fun hasPersistentAnchorApi(): Boolean =
+            js("typeof XRSession !== 'undefined' && 'restorePersistentAnchor' in XRSession.prototype") as Boolean
     }
 }
 

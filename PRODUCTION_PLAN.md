@@ -22,7 +22,7 @@ progress is trackable in PRs; reference the task ID (e.g. `M1.3`) in commit mess
 | M9 | AR realism | Light estimation, shadows, depth occlusion | 🚧 code-complete, device validation pending |
 | M10 | Preview renderer | Non-XR 3D preview for desktop/simulator dev loop | ✅ (browser preview; verified headless) |
 | M11 | 2D UI in space | Text labels, billboards, Compose-content panels | planned |
-| M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | 🚧 M12.1 + M12.2 done (device validation pending); M12.3 open |
+| M12 | Tracking & persistence | Image tracking, anchor persistence, WebXR anchors/planes | ✅ code-complete (persistence WebXR-only; device validation pending) |
 | M13 | Real VR | Per-view stereo rendering + controller input model | planned |
 
 ---
@@ -581,8 +581,25 @@ The "Compose for spatial" pitch implies this.
   `supportsImageTracking = false` (the WebXR image-tracking API is a
   Chrome-only incubation). Device validation pending on both platforms —
   fold into the combined on-device pass.*
-- [ ] M12.3 Anchor persistence across sessions (local world map / cloud anchors
-  — scope after M8–M10).
+- [x] M12.3 Anchor persistence across sessions (local world map / cloud anchors
+  — scope after M8–M10). *Done (2026-07-08), scoped to local persistence:
+  shared contract — `SpatialEngine.persistAnchor(anchorId): String?` returns
+  an opaque handle to store app-side, `AnchorType.Persistent(handle)`
+  restores it next session, `deletePersistedAnchor(handle)` frees the
+  platform storage, all behind new
+  `EngineCapabilities.supportsAnchorPersistence` (interface default
+  implementations return null/no-op so engines opt in). Implemented on
+  WebXR via Chrome's persistent-anchor handles
+  (`requestPersistentHandle`/`restorePersistentAnchor`, feature-detected).
+  **Deferred with honest `supportsAnchorPersistence = false`:** ARKit
+  world-map persistence (different model — whole-session ARWorldMap
+  save/restore with relocalization UX) and ARCore, which has no local
+  persistence at all (Cloud Anchors need a Google Cloud project + API keys
+  — out of scope like multi-user sessions). Found & fixed along the way:
+  the ARKit engine silently ignored `SceneData.anchors` — iOS now creates/
+  removes real ARAnchors from anchor requests and reports request-keyed
+  `AnchorState`s like ARCore/WebXR (raw plane/image ARAnchors no longer
+  leak into `FrameData.anchors` with UUID ids).*
 
 ### M13 — Real VR (or narrow the claim)
 

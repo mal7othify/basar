@@ -9,6 +9,27 @@ binary-compatibility validator dumps in each module's `api/` directory).
 
 ## [Unreleased]
 
+### Added (M12.3 — anchor persistence; WebXR-only, device validation pending)
+- Anchor persistence across sessions behind new
+  `EngineCapabilities.supportsAnchorPersistence`:
+  `SpatialEngine.persistAnchor(anchorId)` returns an opaque handle to store
+  app-side, `AnchorType.Persistent(handle)` recreates the anchor in a later
+  session, and `deletePersistedAnchor(handle)` frees the platform storage.
+  Implemented on WebXR via persistent-anchor handles (feature-detected;
+  Chrome's anchors module). ARKit (world maps) and ARCore (Cloud Anchors
+  require a Google Cloud project) report `false` for now.
+- `AnchorType.Persistent.cloudId` renamed to `handle` — it now carries the
+  engine-issued persistence handle rather than a cloud anchor id.
+
+### Fixed (M12.3)
+- The ARKit engine now honors `SceneData.anchors`: anchor requests create
+  real ARAnchors (world/hit-test/plane, with plane requests resolving
+  against detected planes and retrying until the plane appears), anchors
+  dropped from the scene are removed from the session, and
+  `FrameData.anchors` reports request-keyed `AnchorState`s. Previously iOS
+  silently ignored anchor requests while reporting raw plane/generic
+  ARAnchors under their UUIDs — noise that matched no request id.
+
 ### Added (M12.2 — image tracking; device validation pending)
 - Image tracking behind `EngineCapabilities.supportsImageTracking`: supply
   `EngineConfig.referenceImages` (`ReferenceImage`: id, encoded PNG/JPEG

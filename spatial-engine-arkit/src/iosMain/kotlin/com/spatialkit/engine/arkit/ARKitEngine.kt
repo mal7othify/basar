@@ -1,11 +1,14 @@
 package com.spatialkit.engine.arkit
 
 import com.spatialkit.core.log.SpatialLog
+import com.spatialkit.core.math.Matrix4
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.engine.Aabb
+import com.spatialkit.engine.AnchorRequest
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
+import com.spatialkit.engine.AnchorType
 import com.spatialkit.engine.DetectedPlane
 import com.spatialkit.engine.EngineCapabilities
 import com.spatialkit.engine.EngineConfig
@@ -40,6 +43,7 @@ import kotlinx.cinterop.Vector128
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.autoreleasepool
+import kotlinx.cinterop.cValue
 import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
@@ -178,6 +182,12 @@ public class ARKitEngine : SpatialEngine {
     // M9.2 blob shadow nodes under contentRoot, keyed by caster node id
     private val shadowNodeMap = mutableMapOf<String, SCNNode>()
     private var blobShadowImage: UIImage? = null
+
+    // M12.3 groundwork: ARAnchors created from the scene's AnchorRequests
+    // (request id -> anchor) with the reverse UUID index for per-frame state
+    // reporting. Previously iOS silently ignored SceneData.anchors.
+    private val anchorMap = mutableMapOf<String, ARAnchor>()
+    private val anchorIdByUuid = mutableMapOf<String, String>()
 
     // Cached local AABBs for custom meshes (vertex scans are O(n) and
     // submitScene runs per frame)
@@ -574,32 +584,34 @@ public class ARKitEngine : SpatialEngine {
 
         // frame.anchors is an NSArray - iterate safely
         val anchorsArray = frame.anchors
+        val seenRequestIds = mutableSetOf<String>()
         for (i in 0 until anchorsArray.size) {
             val raw = anchorsArray[i] as? ARAnchor ?: continue
             when (raw) {
-                is ARPlaneAnchor -> {
-                    detectedPlanes.add(convertPlaneAnchor(raw))
-                    anchorsList.add(
-                        AnchorState(
-                            id = raw.identifier.UUIDString,
-                            pose = convertTransform(raw.transform),
-                            status = AnchorStatus.TRACKING,
-                        ),
-                    )
-                }
-
+                is ARPlaneAnchor -> detectedPlanes.add(convertPlaneAnchor(raw))
                 is ARImageAnchor -> trackedImages.add(convertImageAnchor(raw))
+                else -> {}
+            }
 
-                else -> {
-                    // generic anchor
-                    anchorsList.add(
-                        AnchorState(
-                            id = raw.identifier.UUIDString,
-                            pose = convertTransform(raw.transform),
-                            status = AnchorStatus.TRACKING,
-                        ),
-                    )
-                }
+            // Only request-backed anchors surface as AnchorStates, keyed by
+            // their request id (plane/image anchors are reported through
+            // detectedPlanes/trackedImages instead, matching ARCore/WebXR)
+            anchorIdByUuid[raw.identifier.UUIDString]?.let { requestId ->
+                seenRequestIds += requestId
+                anchorsList.add(
+                    AnchorState(
+                        id = requestId,
+                        pose = convertTransform(raw.transform),
+                        status = AnchorStatus.TRACKING,
+                    ),
+                )
+            }
+        }
+
+        // Anchors added but not in this frame yet (or dropped by ARKit)
+        anchorMap.keys.forEach { requestId ->
+            if (requestId !in seenRequestIds) {
+                anchorsList.add(AnchorState(id = requestId, status = AnchorStatus.PENDING, pose = null))
             }
         }
 
@@ -878,6 +890,76 @@ public class ARKitEngine : SpatialEngine {
         }
 
         updateBlobShadows(scene)
+
+        syncAnchorRequests(scene.anchors)
+    }
+
+    /**
+     * Creates/removes ARAnchors to match the scene's declarative anchor
+     * requests (mirrors the ARCore and WebXR engines). Plane requests whose
+     * plane hasn't been detected yet are retried on the next submit.
+     */
+    private fun syncAnchorRequests(requests: List<AnchorRequest>) {
+        val session = arSession ?: return
+
+        val requestedIds = HashSet<String>(requests.size)
+        requests.forEach { request ->
+            requestedIds += request.id
+            if (request.id !in anchorMap) createAnchorFromRequest(session, request)
+        }
+
+        val staleIds = anchorMap.keys.filter { it !in requestedIds }
+        staleIds.forEach { id ->
+            anchorMap.remove(id)?.let { anchor ->
+                anchorIdByUuid.remove(anchor.identifier.UUIDString)
+                session.removeAnchor(anchor)
+            }
+        }
+    }
+
+    private fun createAnchorFromRequest(
+        session: ARSession,
+        request: AnchorRequest,
+    ) {
+        val pose =
+            when (val type = request.type) {
+                is AnchorType.World -> Pose(type.position, type.rotation)
+
+                is AnchorType.HitTest -> Pose(type.hitPoint, Quaternion.IDENTITY)
+
+                is AnchorType.Plane -> {
+                    // Resolve against the sampled plane list (touching an
+                    // ARFrame here would retain it — see onRenderTick)
+                    val plane =
+                        sampledFrameInfo?.detectedPlanes?.firstOrNull { it.id == type.planeId }
+                            ?: return // plane not detected yet: retried next submit
+                    Pose(
+                        position = plane.centerPose.position + plane.centerPose.rotation * type.offsetFromCenter,
+                        rotation = plane.centerPose.rotation,
+                    )
+                }
+
+                // Anchor persistence is not implemented on ARKit yet (M12.3)
+                is AnchorType.Persistent -> return
+            }
+
+        val anchor = ARAnchor(transform = poseToSimdTransform(pose))
+        session.addAnchor(anchor)
+        anchorMap[request.id] = anchor
+        anchorIdByUuid[anchor.identifier.UUIDString] = request.id
+    }
+
+    @OptIn(ExperimentalForeignApi::class)
+    private fun poseToSimdTransform(pose: Pose): CValue<simd_float4x4> {
+        val matrix = Matrix4.trs(pose.position, pose.rotation, Vec3.ONE)
+        return cValue<simd_float4x4> {
+            for (col in 0 until 4) {
+                val colPtr = columns[col].ptr.reinterpret<FloatVar>()
+                for (row in 0 until 4) {
+                    colPtr[row] = matrix[col * 4 + row]
+                }
+            }
+        }
     }
 
     /**
@@ -1548,6 +1630,8 @@ public class ARKitEngine : SpatialEngine {
         currentScene = null
         sampledFrameInfo = null
         lastFrameTime = 0L
+        anchorMap.clear()
+        anchorIdByUuid.clear()
 
         // Clean up SceneKit nodes
         contentRoot.removeFromParentNode()

@@ -2,6 +2,7 @@ public final class com/spatialkit/engine/arcore/ARCoreEngine : com/spatialkit/en
 	public static final field MIDDLE_GREY_PIXEL_INTENSITY F
 	public static final field TAG Ljava/lang/String;
 	public fun <init> (Landroid/content/Context;)V
+	public fun deletePersistedAnchor (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun dispose ()V
 	public fun getCapabilities ()Lcom/spatialkit/engine/EngineCapabilities;
 	public fun getState ()Lkotlinx/coroutines/flow/StateFlow;
@@ -12,6 +13,7 @@ public final class com/spatialkit/engine/arcore/ARCoreEngine : com/spatialkit/en
 	public fun onSurfaceCreated ()V
 	public fun performHitTest (FF)Lcom/spatialkit/engine/HitTestResult;
 	public fun performRaycast (Lcom/spatialkit/core/math/Vec3;Lcom/spatialkit/core/math/Vec3;)Lcom/spatialkit/engine/RaycastResult;
+	public fun persistAnchor (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun startSession (Lcom/spatialkit/engine/SessionMode;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun stopSession ()V
 	public fun submitScene (Lcom/spatialkit/engine/SceneData;)V

@@ -160,6 +160,12 @@ public class WebAutoEngine : SpatialEngine {
         direction: Vec3,
     ): RaycastResult? = delegate?.performRaycast(origin, direction)
 
+    override suspend fun persistAnchor(anchorId: String): String? = delegate?.persistAnchor(anchorId)
+
+    override suspend fun deletePersistedAnchor(handle: String) {
+        delegate?.deletePersistedAnchor(handle)
+    }
+
     private companion object {
         const val TAG = "WebAutoEngine"
     }

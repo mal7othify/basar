@@ -130,6 +130,29 @@ public interface SpatialEngine {
         origin: Vec3,
         direction: Vec3,
     ): RaycastResult?
+
+    /**
+     * Persists a tracked anchor so it can be restored in a later session
+     * (M12.3). Only meaningful where
+     * [EngineCapabilities.supportsAnchorPersistence] is true.
+     *
+     * Store the returned handle app-side (e.g. in settings) and recreate the
+     * anchor next session by requesting [AnchorType.Persistent] with it.
+     *
+     * @param anchorId Id of a currently tracked anchor (from
+     *   [SceneData.anchors])
+     * @return An opaque persistence handle, or null when the anchor isn't
+     *   currently tracked or the engine doesn't support persistence
+     */
+    public suspend fun persistAnchor(anchorId: String): String? = null
+
+    /**
+     * Deletes a persisted anchor handle created by [persistAnchor] (M12.3),
+     * freeing the platform-side storage. The live anchor, if any, is
+     * unaffected. No-op where persistence is unsupported or the handle is
+     * unknown.
+     */
+    public suspend fun deletePersistedAnchor(handle: String) {}
 }
 
 /**
@@ -149,9 +172,13 @@ public interface SpatialEngine {
  *   before relying on occlusion: it depends on both the platform and the
  *   device (e.g. ARCore's Depth API needs a supported phone; the SceneKit
  *   and WebXR engines don't implement occlusion yet and report false)
- * @property supportsSpatialAnchors Can create persistent spatial anchors
+ * @property supportsSpatialAnchors Can create spatial anchors
  * @property maxAnchors Maximum number of simultaneous anchors
  *   (null = no engine-imposed limit, 0 = anchors unsupported)
+ * @property supportsAnchorPersistence Can persist anchors across sessions
+ *   via [SpatialEngine.persistAnchor] / [AnchorType.Persistent] (M12.3).
+ *   Currently the WebXR engine on browsers with persistent-anchor support;
+ *   ARKit (world maps) and ARCore (Cloud Anchors) are not implemented yet
  */
 public data class EngineCapabilities(
     val supportsAR: Boolean,
@@ -163,6 +190,7 @@ public data class EngineCapabilities(
     val supportsDepthOcclusion: Boolean,
     val supportsSpatialAnchors: Boolean,
     val maxAnchors: Int? = null,
+    val supportsAnchorPersistence: Boolean = false,
 )
 
 /**
