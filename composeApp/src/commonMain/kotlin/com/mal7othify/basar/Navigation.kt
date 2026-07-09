@@ -19,23 +19,28 @@ import androidx.compose.ui.unit.dp
  * The app's screens: a home screen plus one screen per business use case.
  */
 enum class DemoScreen(
+    val route: String,
     val title: String,
     val tagline: String,
 ) {
-    HOME("Basar Demos", ""),
+    HOME("home", "Basar Demos", ""),
     FURNITURE(
+        "furniture",
         "Furniture Preview",
         "Retail: place and arrange products on real surfaces",
     ),
     MEASURE(
+        "measure",
         "Tape Measure",
         "Construction: measure distances by tapping surfaces",
     ),
     SOLAR_SYSTEM(
+        "solar",
         "Solar System",
         "Education: animated, tappable 3D lesson content",
     ),
     SHOWCASE(
+        "showcase",
         "API Showcase",
         "Playground: primitives, custom meshes, glTF, gestures",
     ),
