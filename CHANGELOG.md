@@ -21,6 +21,15 @@ binary-compatibility validator dumps in each module's `api/` directory).
 - `AnchorType.Persistent.cloudId` renamed to `handle` — it now carries the
   engine-issued persistence handle rather than a cloud anchor id.
 
+### Fixed (on-device iOS validation)
+- iOS gestures now reach the scene: the ARSCNView interop view was
+  interactive and swallowed all touches before Compose's pointer input, so
+  no M8 gesture worked on iOS — no tap-to-place, no drag/pinch/twist
+  (rendering was unaffected, which made the scene look fine). The view is
+  now a non-interactive interop view (`UIKitInteropProperties(interactionMode
+  = null)`); it only renders, and input flows through the shared
+  `spatialGestures` modifier like on Android.
+
 ### Fixed (M12.3)
 - The ARKit engine now honors `SceneData.anchors`: anchor requests create
   real ARAnchors (world/hit-test/plane, with plane requests resolving

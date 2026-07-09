@@ -2,7 +2,9 @@ package com.spatialkit.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import com.spatialkit.engine.arkit.ARKitEngine
 import com.spatialkit.scene.SpatialScene
@@ -21,7 +23,7 @@ import platform.CoreGraphics.CGRectMake
  * created and connected to it; the engine handles all SceneKit rendering via
  * submitScene().
  */
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(ExperimentalForeignApi::class, ExperimentalComposeUiApi::class)
 @Composable
 public actual fun SpatialSurface(
     modifier: Modifier,
@@ -68,5 +70,12 @@ public actual fun SpatialSurface(
                 arkitEngine.updateViewportSize(size.width, size.height)
             }
         },
+        // The ARSCNView must NOT be an interactive interop view: interop
+        // views swallow touches before Compose's pointer input, which killed
+        // every M8 gesture on iOS (no tap-to-place, no drag/pinch/twist —
+        // found in on-device validation). The view only renders; all
+        // interaction flows through the spatialGestures modifier into the
+        // session's InteractionManager, exactly like Android.
+        properties = UIKitInteropProperties(interactionMode = null),
     )
 }
