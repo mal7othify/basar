@@ -625,6 +625,14 @@ tag) already exists; using it is the single highest-leverage remaining step.
 - `1.0.0`: on-device validation on all platforms + samples + docs; no known
   contract bugs.
 
+## Beyond M13: realism-first v2
+
+A from-scratch redesign prioritizing Pokémon GO-class realism (single
+Filament renderer, tracking-only ARCore/ARKit adapters, glTF animation,
+geospatial anchors) is drafted in
+**[docs/V2_REALISM_REWRITE.md](docs/V2_REALISM_REWRITE.md)** — design only,
+not scheduled; v1 milestones above remain the shipping plan.
+
 ## Explicitly out of scope (tracked separately)
 
 - Physics engine integration
