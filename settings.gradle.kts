@@ -54,5 +54,7 @@ include(":spatial-dsl")
 include(":spatial-compose")
 include(":spatial-render")
 include(":spatial-render-filament")
+include(":spatial-tracking")
+include(":spatial-tracking-arcore")
 // v2 (Filament rewrite): spatial-engine-webxr and spatial-engine-preview are
 // off the build — the web tier is revisited post-R8 (docs/V2_REALISM_REWRITE.md §3).
