@@ -22,8 +22,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // api: SceneRenderer signatures expose core math types
+            // api: SceneRenderer signatures expose core math types and
+            // consume TrackingFrame from the tracking contract
             api(project(":spatial-core"))
+            api(project(":spatial-tracking"))
 
             implementation(libs.kotlinx.coroutines.core)
         }

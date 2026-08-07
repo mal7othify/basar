@@ -56,6 +56,15 @@ public class FilamentRenderer : SceneRenderer {
      */
     public fun makeView(): UIView = fbr_make_view(engine)
 
+    override fun render(
+        frame: com.spatialkit.tracking.TrackingFrame?,
+        frameTimeNanos: Long,
+    ) {
+        // R0/R1: the bridge view's internal display link drives rendering and
+        // animation on iOS; AR frame consumption (camera matrices + captured
+        // image) is wired through the bridge in R2.
+    }
+
     override suspend fun loadModel(glb: ByteArray): ModelHandle {
         check(!disposed) { "Renderer is disposed" }
         require(glb.isNotEmpty()) { "Empty GLB buffer" }

@@ -1,0 +1,34 @@
+// AR camera background (flat variant): draws the camera image as a
+// fullscreen clip-space quad behind all scene content. UVs come from the
+// per-frame display transform (ARCore transformCoordinates2d / ARKit
+// displayTransform), uploaded by the renderer into the quad's uv0 buffer.
+//
+// depthWrite off + quad at the far plane: scene content simply depth-tests
+// over it. The R5 occlusion variant (camera_depth.mat) additionally writes
+// real-world depth.
+//
+// Compiled by scripts/compile-materials.sh with the version-pinned matc —
+// .filamat files are matc-version-locked to the Filament runtime.
+material {
+    name : camera_flat,
+    shadingModel : unlit,
+    vertexDomain : device,
+    depthWrite : false,
+    depthCulling : false,
+    culling : none,
+    requires : [ uv0 ],
+    parameters : [
+        {
+            type : samplerExternal,
+            name : cameraTexture
+        }
+    ],
+    variantFilter : [ skinning, shadowReceiver, vsm, fog, ssr ]
+}
+
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        material.baseColor = texture(materialParams_cameraTexture, getUV0());
+    }
+}

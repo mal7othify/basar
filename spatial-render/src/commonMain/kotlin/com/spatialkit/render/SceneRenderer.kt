@@ -19,6 +19,26 @@ public interface SceneRenderer {
     public val capabilities: RenderCapabilities
 
     /**
+     * Renders one frame.
+     *
+     * With a [frame], the renderer drives its camera from the tracked pose
+     * (view/projection matrices) and composites the camera image behind the
+     * scene. With null (non-AR: the R0 spike, previews) it renders with its
+     * fixed default camera and skybox.
+     *
+     * Called by the runtime's frame ticker on the frame thread — except on
+     * platforms whose surface drives itself (the iOS bridge view's display
+     * link at R0/R1); there the platform host documents who calls this.
+     *
+     * @param frameTimeNanos The vsync timestamp for this frame (drives
+     *   animation clocks)
+     */
+    public fun render(
+        frame: com.spatialkit.tracking.TrackingFrame?,
+        frameTimeNanos: Long,
+    )
+
+    /**
      * Loads a binary glTF (.glb) asset and returns a handle to the live model
      * instance. The model is added to the scene immediately; position it with
      * [setModelTransform] and animate it with [setAnimation].

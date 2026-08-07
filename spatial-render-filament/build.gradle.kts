@@ -68,6 +68,9 @@ android {
                 .toInt()
     }
 
+    // Compiled .filamat packages (scripts/compile-materials.sh, checked in)
+    // ship as AAR assets from src/androidMain/assets/materials/.
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

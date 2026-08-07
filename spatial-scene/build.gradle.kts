@@ -21,9 +21,7 @@ kotlin {
 
     jvm()
 
-    js(IR) {
-        browser()
-    }
+    // v2: js target removed with the web tier (revisit post-R8).
 
     sourceSets {
         commonMain.dependencies {
@@ -31,6 +29,10 @@ kotlin {
             // (Vec3, Quaternion, FrameData, SpatialRuntime, ...)
             api(project(":spatial-engine"))
             api(project(":spatial-core"))
+
+            // v2 runtime composition: TrackingProvider + SceneRenderer
+            api(project(":spatial-tracking"))
+            api(project(":spatial-render"))
 
             // glTF parsing (GltfLoader); internal only
             implementation(libs.kotlinx.serialization.json)

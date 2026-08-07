@@ -36,6 +36,9 @@ kotlin {
             // Platform-specific: ARCore engine
             implementation(project(":spatial-engine-arcore"))
             implementation(libs.arcore)
+
+            // v2: ARCore tracking-only provider
+            implementation(project(":spatial-tracking-arcore"))
         }
         commonMain.dependencies {
             implementation(compose.runtime)

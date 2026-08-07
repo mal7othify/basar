@@ -49,6 +49,11 @@ enum class DemoScreen(
         "Filament Spike (v2 R0)",
         "Rewrite spike: animated PBR glTF through the Filament renderer",
     ),
+    AR_CUBE(
+        "arcube",
+        "AR Filament (v2 R1)",
+        "Rewrite: camera through Filament, tap a plane to place a crate",
+    ),
     ;
 
     companion object {
@@ -60,6 +65,7 @@ enum class DemoScreen(
                 "solar", "solarsystem", "solar-system" -> SOLAR_SYSTEM
                 "showcase" -> SHOWCASE
                 "filament" -> FILAMENT_SPIKE
+                "arcube" -> AR_CUBE
                 else -> HOME
             }
     }

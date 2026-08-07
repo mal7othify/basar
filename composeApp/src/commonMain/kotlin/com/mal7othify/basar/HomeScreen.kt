@@ -28,6 +28,7 @@ fun HomeScreen(onOpen: (DemoScreen) -> Unit) {
             DemoScreen.SOLAR_SYSTEM,
             DemoScreen.SHOWCASE,
             DemoScreen.FILAMENT_SPIKE,
+            DemoScreen.AR_CUBE,
         )
 
     LazyColumn(

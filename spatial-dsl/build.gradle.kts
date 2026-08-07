@@ -20,9 +20,7 @@ kotlin {
 
     jvm()
 
-    js(IR) {
-        browser()
-    }
+    // v2: js target removed with the web tier (revisit post-R8).
 
     sourceSets {
         commonMain.dependencies {

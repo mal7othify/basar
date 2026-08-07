@@ -42,6 +42,7 @@ fun App(
             composable(DemoScreen.SOLAR_SYSTEM.route) { SolarSystemDemo(onBack = goHome) }
             composable(DemoScreen.SHOWCASE.route) { ShowcaseDemo(onBack = goHome) }
             composable(DemoScreen.FILAMENT_SPIKE.route) { FilamentSpikeScreen(onBack = goHome) }
+            composable(DemoScreen.AR_CUBE.route) { ArCubeScreen(onBack = goHome) }
         }
     }
 

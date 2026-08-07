@@ -1,5 +1,7 @@
 package com.spatialkit.render.filament
 
+import android.content.Context
+import android.opengl.Matrix
 import com.google.android.filament.Camera
 import com.google.android.filament.Engine
 import com.google.android.filament.EntityManager
@@ -19,25 +21,35 @@ import com.spatialkit.render.AnimationState
 import com.spatialkit.render.ModelHandle
 import com.spatialkit.render.RenderCapabilities
 import com.spatialkit.render.SceneRenderer
+import com.spatialkit.tracking.TrackingFrame
+import com.spatialkit.tracking.TrackingState
 import java.nio.ByteBuffer
 
 /**
  * Android Filament implementation of [SceneRenderer].
  *
- * R0 scope: renders loaded glTF models with a fixed camera, a directional sun
- * and a solid-color skybox in a non-AR view. The AR camera feed, IBL,
- * occlusion and `SceneData` sync arrive in R1/R4/R5.
+ * Two modes, decided per frame by [render]'s argument:
+ * - **Non-AR** (null frame — the R0 spike, previews): fixed camera,
+ *   directional sun, solid-color skybox.
+ * - **AR** (a [TrackingFrame]): camera driven by the tracked pose, the
+ *   camera image composited behind the scene via [CameraStream]. Requires
+ *   the constructor's [context] (to load the camera material) and
+ *   [sharedEglContext] (the [EglContextHelper] context the camera OES
+ *   texture lives on).
  *
- * All calls (including construction) must happen on the frame thread — for
- * Android that is the main thread, where [FilamentSurfaceHost]'s Choreographer
- * callback runs.
+ * All calls (including construction) must happen on the frame thread — the
+ * main thread, where the Choreographer-driven hosts run.
  */
-public class FilamentRenderer : SceneRenderer {
+public class FilamentRenderer(
+    private val context: Context? = null,
+    sharedEglContext: Any? = null,
+) : SceneRenderer {
     init {
         FilamentInit.ensure()
     }
 
-    internal val engine: Engine = Engine.create()
+    internal val engine: Engine =
+        if (sharedEglContext != null) Engine.create(sharedEglContext) else Engine.create()
     internal val renderer: Renderer = engine.createRenderer()
     internal val scene: Scene = engine.createScene()
     internal val view: View = engine.createView()
@@ -69,6 +81,12 @@ public class FilamentRenderer : SceneRenderer {
     private var nextModelId = 1L
     internal var swapChain: SwapChain? = null
 
+    private var cameraStream: CameraStream? = null
+    private var arMode = false
+    private var surfaceWidth = 0
+    private var surfaceHeight = 0
+    private val cameraToWorld = FloatArray(16)
+
     override val capabilities: RenderCapabilities =
         RenderCapabilities(
             supportsIbl = true, // wired in R4; the engine itself is capable
@@ -92,6 +110,43 @@ public class FilamentRenderer : SceneRenderer {
         scene.addEntity(sunEntity)
     }
 
+    override fun render(
+        frame: TrackingFrame?,
+        frameTimeNanos: Long,
+    ) {
+        advanceAnimations(frameTimeNanos)
+
+        if (frame != null) {
+            if (!arMode) {
+                // First AR frame: the camera feed replaces the skybox.
+                arMode = true
+                scene.skybox = null
+            }
+            frame.cameraImage?.let { image ->
+                val stream =
+                    cameraStream ?: CameraStream(engine, scene, loadCameraMaterial()).also {
+                        cameraStream = it
+                    }
+                stream.update(image)
+            }
+            if (frame.trackingState == TrackingState.NORMAL) {
+                camera.setCustomProjection(
+                    DoubleArray(16) { i -> frame.projectionMatrix[i].toDouble() },
+                    NEAR_PLANE,
+                    FAR_PLANE,
+                )
+                Matrix.invertM(cameraToWorld, 0, frame.viewMatrix, 0)
+                camera.setModelMatrix(cameraToWorld)
+            }
+        }
+
+        val sc = swapChain ?: return
+        if (renderer.beginFrame(sc, frameTimeNanos)) {
+            renderer.render(view)
+            renderer.endFrame()
+        }
+    }
+
     override suspend fun loadModel(glb: ByteArray): ModelHandle {
         val buffer =
             ByteBuffer.allocateDirect(glb.size).apply {
@@ -100,15 +155,15 @@ public class FilamentRenderer : SceneRenderer {
             }
         val asset =
             requireNotNull(assetLoader.createAsset(buffer)) { "gltfio could not parse the GLB asset" }
-        // Synchronous resource load is fine at R0 asset sizes; async streaming
-        // (asyncBeginLoad + per-frame asyncUpdateLoad) replaces this in R3.
+        // Synchronous resource load is fine at R0/R1 asset sizes; async
+        // streaming (asyncBeginLoad + per-frame asyncUpdateLoad) lands in R3.
         resourceLoader.loadResources(asset)
         asset.releaseSourceData()
         scene.addEntities(asset.entities)
 
         val id = nextModelId++
         models[id] = LoadedModel(asset, animation = null)
-        fitToUnitishCube(asset)
+        if (!arMode) fitToUnitishCube(asset)
 
         val animator = asset.instance.animator
         val clips =
@@ -147,27 +202,19 @@ public class FilamentRenderer : SceneRenderer {
         assetLoader.destroyAsset(model.asset)
     }
 
-    /**
-     * Renders one frame. Driven by [FilamentSurfaceHost]'s Choreographer
-     * callback; not part of the common contract at R0 (R1 replaces this with
-     * `render(TrackingFrame)`).
-     */
-    public fun renderFrame(frameTimeNanos: Long) {
-        advanceAnimations(frameTimeNanos)
-        val sc = swapChain ?: return
-        if (renderer.beginFrame(sc, frameTimeNanos)) {
-            renderer.render(view)
-            renderer.endFrame()
-        }
-    }
-
     internal fun onResized(
         width: Int,
         height: Int,
     ) {
+        surfaceWidth = width
+        surfaceHeight = height
         view.viewport = Viewport(0, 0, width, height)
-        val aspect = if (height == 0) 1.0 else width.toDouble() / height.toDouble()
-        camera.setProjection(45.0, aspect, 0.05, 100.0, Camera.Fov.VERTICAL)
+        if (!arMode) {
+            // AR projection comes from the TrackingFrame; only the non-AR
+            // camera needs an aspect-derived projection.
+            val aspect = if (height == 0) 1.0 else width.toDouble() / height.toDouble()
+            camera.setProjection(45.0, aspect, NEAR_PLANE, FAR_PLANE, Camera.Fov.VERTICAL)
+        }
     }
 
     override fun dispose() {
@@ -176,6 +223,8 @@ public class FilamentRenderer : SceneRenderer {
             assetLoader.destroyAsset(model.asset)
         }
         models.clear()
+        cameraStream?.destroy()
+        cameraStream = null
         resourceLoader.destroy()
         assetLoader.destroy()
 
@@ -190,6 +239,14 @@ public class FilamentRenderer : SceneRenderer {
         engine.destroyCameraComponent(cameraEntity)
         engine.entityManager.destroy(cameraEntity)
         engine.destroy()
+    }
+
+    private fun loadCameraMaterial(): ByteArray {
+        val ctx =
+            requireNotNull(context) {
+                "FilamentRenderer needs a Context to load the AR camera material"
+            }
+        return ctx.assets.open("materials/camera_flat.filamat").use { it.readBytes() }
     }
 
     private fun advanceAnimations(frameTimeNanos: Long) {
@@ -214,9 +271,10 @@ public class FilamentRenderer : SceneRenderer {
     }
 
     /**
-     * R0 convenience: scales/centers the asset so any model shows up nicely in
-     * the fixed spike camera (Fox.glb is ~100 units tall). Overwritten by any
-     * later [setModelTransform] call.
+     * Non-AR convenience: scales/centers the asset so any model shows up in
+     * the fixed spike camera (Fox.glb is ~100 units tall). Overwritten by
+     * any later [setModelTransform] call; skipped in AR mode where real
+     * scale is the point.
      */
     private fun fitToUnitishCube(asset: FilamentAsset) {
         val box = asset.boundingBox
@@ -225,32 +283,23 @@ public class FilamentRenderer : SceneRenderer {
         val maxExtent = 2f * maxOf(halfExtent[0], halfExtent[1], halfExtent[2])
         if (maxExtent <= 0f) return
         val scale = 1.5f / maxExtent
-        // Column-major TRS: uniform scale, then translate so the box center
-        // sits slightly above the origin (model roughly fills the camera).
         val tx = -center[0] * scale
         val ty = -center[1] * scale + 0.4f
         val tz = -center[2] * scale
         val matrix =
             floatArrayOf(
-                scale,
-                0f,
-                0f,
-                0f,
-                0f,
-                scale,
-                0f,
-                0f,
-                0f,
-                0f,
-                scale,
-                0f,
-                tx,
-                ty,
-                tz,
-                1f,
+                scale, 0f, 0f, 0f,
+                0f, scale, 0f, 0f,
+                0f, 0f, scale, 0f,
+                tx, ty, tz, 1f,
             )
         val tm = engine.transformManager
         tm.setTransform(tm.getInstance(asset.root), matrix)
+    }
+
+    private companion object {
+        const val NEAR_PLANE = 0.1
+        const val FAR_PLANE = 100.0
     }
 }
 
@@ -260,10 +309,8 @@ internal object FilamentInit {
 
     fun ensure() {
         if (!initialized) {
-            com.google.android.filament.Filament
-                .init()
-            com.google.android.filament.gltfio.Gltfio
-                .init()
+            com.google.android.filament.Filament.init()
+            com.google.android.filament.gltfio.Gltfio.init()
             initialized = true
         }
     }
