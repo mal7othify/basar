@@ -41,6 +41,7 @@ fun App(
             composable(DemoScreen.MEASURE.route) { MeasureDemo(onBack = goHome) }
             composable(DemoScreen.SOLAR_SYSTEM.route) { SolarSystemDemo(onBack = goHome) }
             composable(DemoScreen.SHOWCASE.route) { ShowcaseDemo(onBack = goHome) }
+            composable(DemoScreen.FILAMENT_SPIKE.route) { FilamentSpikeScreen(onBack = goHome) }
         }
     }
 

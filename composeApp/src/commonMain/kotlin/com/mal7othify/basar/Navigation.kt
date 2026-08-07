@@ -44,6 +44,11 @@ enum class DemoScreen(
         "API Showcase",
         "Playground: primitives, custom meshes, glTF, gestures",
     ),
+    FILAMENT_SPIKE(
+        "filament",
+        "Filament Spike (v2 R0)",
+        "Rewrite spike: animated PBR glTF through the Filament renderer",
+    ),
     ;
 
     companion object {
@@ -54,6 +59,7 @@ enum class DemoScreen(
                 "measure" -> MEASURE
                 "solar", "solarsystem", "solar-system" -> SOLAR_SYSTEM
                 "showcase" -> SHOWCASE
+                "filament" -> FILAMENT_SPIKE
                 else -> HOME
             }
     }

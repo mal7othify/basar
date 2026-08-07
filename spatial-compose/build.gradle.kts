@@ -23,9 +23,7 @@ kotlin {
 
     jvm()
 
-    js(IR) {
-        browser()
-    }
+    // v2: js target removed with the WebXR/preview engines (revisit post-R8).
 
     sourceSets {
         commonMain.dependencies {
@@ -52,13 +50,6 @@ kotlin {
         iosMain.dependencies {
             // ARKit engine for iOS
             implementation(project(":spatial-engine-arkit"))
-        }
-
-        jsMain.dependencies {
-            // WebXR engine for JavaScript/Browser
-            implementation(project(":spatial-engine-webxr"))
-            // Non-XR preview fallback for browsers without immersive XR (M10)
-            implementation(project(":spatial-engine-preview"))
         }
 
         commonTest.dependencies {

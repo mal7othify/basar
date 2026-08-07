@@ -28,6 +28,9 @@ ktlintGradle = "13.1.0"
 # AR/VR Libraries
 arcore = "1.44.0"
 play-services-location = "21.3.0"
+# Pinned in lockstep with the iOS release tgz and the matc host tools —
+# .filamat files are matc-version-locked (see docs/V2_REALISM_REWRITE.md).
+filament = "1.74.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -54,6 +57,9 @@ ktor-serverTestHost = { module = "io.ktor:ktor-server-test-host-jvm", version.re
 # AR/VR Libraries
 arcore = { module = "com.google.ar:core", version.ref = "arcore" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "play-services-location" }
+filament-android = { module = "com.google.android.filament:filament-android", version.ref = "filament" }
+filament-gltfio = { module = "com.google.android.filament:gltfio-android", version.ref = "filament" }
+filament-utils = { module = "com.google.android.filament:filament-utils-android", version.ref = "filament" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

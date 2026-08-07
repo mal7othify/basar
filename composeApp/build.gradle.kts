@@ -25,14 +25,8 @@ kotlin {
         }
     }
 
-    js(IR) {
-        browser {
-            commonWebpackConfig {
-                outputFileName = "app.js"
-            }
-        }
-        binaries.executable()
-    }
+    // v2: no js target — the web tier (WebXR/preview engines) is off the
+    // build until revisited post-R8 (docs/V2_REALISM_REWRITE.md §3).
 
     sourceSets {
         androidMain.dependencies {
@@ -61,22 +55,23 @@ kotlin {
             implementation(project(":spatial-scene"))
             implementation(project(":spatial-engine"))
             implementation(project(":spatial-core"))
+
+            // v2 (Filament rewrite) renderer stack
+            implementation(project(":spatial-render"))
+            implementation(project(":spatial-render-filament"))
         }
         iosMain.dependencies {
             // Platform-specific: ARKit engine
             implementation(project(":spatial-engine-arkit"))
         }
-        jsMain.dependencies {
-            // Platform-specific: WebXR engine
-            implementation(project(":spatial-engine-webxr"))
-
-            // NPM libs
-            implementation(npm("three", "0.160.0"))
-        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
     }
+}
+
+compose.resources {
+    packageOfResClass = "com.mal7othify.basar.resources"
 }
 
 android {

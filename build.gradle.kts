@@ -11,16 +11,12 @@ plugins {
     alias(libs.plugins.ktor) apply false
     alias(libs.plugins.mavenPublish) apply false
     alias(libs.plugins.ktlint) apply false
-    alias(libs.plugins.binaryCompatibilityValidator)
     alias(libs.plugins.dokka)
 }
 
-// Track the public API of the library modules: `apiCheck` (part of `check`)
-// fails on any signature change until it is intentionally recorded with
-// `apiDump` (committed .api files under each module's /api directory).
-apiValidation {
-    ignoredProjects += listOf("composeApp", "server", "shared")
-}
+// Binary-compatibility validation is suspended on the v2 branch — every
+// milestone intentionally breaks the (unreleased) public API. Re-enable and
+// regenerate the api/ dumps at R8 (docs/V2_REALISM_REWRITE.md).
 
 // ── Kotlin/JS npm toolchain security pins ───────────────────────────────
 // Clears the Dependabot alerts on kotlin-js-store/package-lock.json. All of
@@ -83,9 +79,9 @@ dependencies {
     dokka(project(":spatial-engine"))
     dokka(project(":spatial-engine-arcore"))
     dokka(project(":spatial-engine-arkit"))
-    dokka(project(":spatial-engine-webxr"))
-    dokka(project(":spatial-engine-preview"))
     dokka(project(":spatial-scene"))
     dokka(project(":spatial-dsl"))
     dokka(project(":spatial-compose"))
+    dokka(project(":spatial-render"))
+    dokka(project(":spatial-render-filament"))
 }

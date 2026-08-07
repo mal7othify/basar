@@ -1,0 +1,7 @@
+language = Objective-C
+headers = FilamentBridge.h
+headerFilter = FilamentBridge.h
+package = com.spatialkit.render.filament.bridge
+
+# No linkerOpts: the bridge static library (FilamentBridge.xcframework) is
+# linked by the consuming app's Xcode project. Kotlin only needs the header.
