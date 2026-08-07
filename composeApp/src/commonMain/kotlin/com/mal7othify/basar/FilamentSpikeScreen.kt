@@ -24,7 +24,7 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun FilamentSpikeScreen(onBack: () -> Unit) {
-    var status by remember { mutableStateOf("Loading Fox.glb…") }
+    var status by remember { mutableStateOf("Loading CesiumMan.glb…") }
     val renderer = rememberFilamentRenderer()
 
     DemoScaffold(screen = DemoScreen.FILAMENT_SPIKE, status = status, onBack = onBack) {
@@ -32,14 +32,16 @@ fun FilamentSpikeScreen(onBack: () -> Unit) {
     }
 
     LaunchedEffect(renderer) {
-        val glb = Res.readBytes("files/Fox.glb")
+        // CesiumMan rather than the classic Fox: Fox.glb ships without NORMAL
+        // attributes, which a PBR renderer (correctly) lights to black.
+        val glb = Res.readBytes("files/CesiumMan.glb")
         val model = renderer.loadModel(glb)
         if (model.animations.isEmpty()) {
             status = "Loaded ${glb.size / 1024} KB — no animation clips"
             return@LaunchedEffect
         }
-        // Cycle through the clips (Fox: Survey → Walk → Run) to show live
-        // animation control through the common contract.
+        // Cycle through the clips to show live animation control through the
+        // common contract (CesiumMan has one walk clip; multi-clip assets cycle).
         var index = 0
         while (true) {
             val clip = model.animations[index]

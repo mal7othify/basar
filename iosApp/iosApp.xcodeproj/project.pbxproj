@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FB100000000000000000AB02 /* FilamentBridge.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB100000000000000000AB01 /* FilamentBridge.xcframework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		DE7718159349AA58363D95FA /* Basar AR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Basar AR.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FB100000000000000000AB01 /* FilamentBridge.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = FilamentBridge.xcframework; path = "../native/filament-bridge/dist/FilamentBridge.xcframework"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -41,6 +46,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FB100000000000000000AB02 /* FilamentBridge.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -52,6 +58,7 @@
 			children = (
 				3BC6ADE82A1C0BC1EBA26051 /* Configuration */,
 				EB8D6DFE7957C9EF56AC1C44 /* iosApp */,
+				FB100000000000000000AB01 /* FilamentBridge.xcframework */,
 				BC4346407542B8F544870E42 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -189,6 +196,14 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+					"-framework",
+					Metal,
+					"-framework",
+					MetalKit,
+				);
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -216,6 +231,14 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+					"-framework",
+					Metal,
+					"-framework",
+					MetalKit,
 				);
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

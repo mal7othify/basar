@@ -57,8 +57,11 @@ class MainActivity : ComponentActivity() {
                     // Android has no default engine (ARCore needs a Context),
                     // so SpatialView renders nothing unless one is provided here.
                     val engine = remember { createARCoreEngine(this@MainActivity) }
+                    // Intent-extra deep link, mirroring the web's `?demo=`:
+                    //   adb shell am start ... -e demo filament
+                    val initialScreen = remember { DemoScreen.fromDeepLink(intent.getStringExtra("demo")) }
                     CompositionLocalProvider(LocalSpatialEngine provides engine) {
-                        App()
+                        App(initialScreen = initialScreen)
                     }
                 } else {
                     PermissionScreen {
