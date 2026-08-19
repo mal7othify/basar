@@ -342,6 +342,9 @@ internal class SceneGraphSync(
                     .levels(0xff) // full mip chain
                     // Base-color images are sRGB-encoded per the SceneData contract.
                     .format(Texture.InternalFormat.SRGB8_A8)
+                    // generateMipmaps() requires GEN_MIPMAPPABLE on top of the
+                    // default UPLOADABLE|SAMPLEABLE usage.
+                    .usage(Texture.Usage.DEFAULT or Texture.Usage.GEN_MIPMAPPABLE)
                     .build(engine)
             TextureHelper.setBitmap(engine, texture, 0, bitmap)
             bitmap.recycle()
