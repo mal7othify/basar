@@ -10,13 +10,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import com.spatialkit.render.ModelHandle
 import com.spatialkit.render.filament.EglContextHelper
 import com.spatialkit.render.filament.FilamentRenderer
 import com.spatialkit.render.filament.FilamentSurfaceHost
@@ -24,7 +22,6 @@ import com.spatialkit.scene.SpatialRuntime2
 import com.spatialkit.tracking.TrackingConfig
 import com.spatialkit.tracking.TrackingState
 import com.spatialkit.tracking.arcore.ARCoreTrackingProvider
-import kotlinx.coroutines.launch
 
 @Composable
 actual fun ArCubeContent(
@@ -32,7 +29,6 @@ actual fun ArCubeContent(
     modifier: Modifier,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // EGL context + OES texture on the main thread; Filament shares it so
     // ARCore's camera image is sampleable (see EglContextHelper docs).
@@ -41,7 +37,7 @@ actual fun ArCubeContent(
     val provider = remember { ARCoreTrackingProvider(context) }
     val runtime = remember { SpatialRuntime2(provider, renderer) }
 
-    var crate by remember { mutableStateOf<ModelHandle?>(null) }
+    val crateGlb = remember { createCrateGltf().encodeToByteArray() }
     var planesSeen by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
@@ -92,25 +88,56 @@ actual fun ArCubeContent(
                             onStatus("No surface there yet — aim at a textured floor")
                             return@detectTapGestures
                         }
-                    scope.launch {
-                        val model = crate ?: renderer.loadModel(createCrateGltf().encodeToByteArray()).also { crate = it }
-                        renderer.setModelTransform(
-                            model,
-                            floatArrayOf(
-                                1f, 0f, 0f, 0f,
-                                0f, 1f, 0f, 0f,
-                                0f, 0f, 1f, 0f,
-                                hit.position.x, hit.position.y, hit.position.z, 1f,
-                            ),
-                        )
-                        onStatus(
-                            "Crate at (%.2f, %.2f, %.2f) — walk around it".format(
-                                hit.position.x,
-                                hit.position.y,
-                                hit.position.z,
-                            ),
-                        )
-                    }
+                    // R3 smoke test: place through the retained submitScene
+                    // path — a Model node (GLB crate) plus a lit Mesh cube.
+                    val p = hit.position
+                    renderer.submitScene(
+                        com.spatialkit.render.SceneData(
+                            nodes =
+                                listOf(
+                                    com.spatialkit.render.SceneNode.Model(
+                                        id = "crate",
+                                        // The crate GLB is a 10cm cube centered at its
+                                        // origin; lift by its half-height so it sits on
+                                        // the plane instead of half-buried.
+                                        transform =
+                                            com.spatialkit.core.math.Transform(
+                                                position =
+                                                    com.spatialkit.core.math
+                                                        .Vec3(p.x, p.y + 0.05f, p.z),
+                                            ),
+                                        glb = crateGlb,
+                                        contentKey = "crate-v1",
+                                    ),
+                                    com.spatialkit.render.SceneNode.Mesh(
+                                        id = "red-cube",
+                                        transform =
+                                            com.spatialkit.core.math.Transform(
+                                                position =
+                                                    com.spatialkit.core.math
+                                                        .Vec3(p.x + 0.25f, p.y + 0.06f, p.z),
+                                                scale =
+                                                    com.spatialkit.core.math
+                                                        .Vec3(0.12f, 0.12f, 0.12f),
+                                            ),
+                                        geometry =
+                                            com.spatialkit.render.GeometryData(
+                                                com.spatialkit.render.GeometryType.CUBE,
+                                            ),
+                                        material =
+                                            com.spatialkit.render.MaterialData(
+                                                type = com.spatialkit.render.MaterialType.PBR,
+                                                baseColor =
+                                                    com.spatialkit.core.math
+                                                        .Vec4(0.85f, 0.12f, 0.09f, 1f),
+                                                metallic = 0f,
+                                                roughness = 0.4f,
+                                            ),
+                                    ),
+                                ),
+                        ),
+                    )
+                    onStatus("Crate + cube at (%.2f, %.2f, %.2f) — walk around them".format(p.x, p.y, p.z))
                 }
             },
     )
