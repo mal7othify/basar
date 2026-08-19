@@ -43,8 +43,15 @@ internal class CameraStream(
     private val indexBuffer: IndexBuffer
     private val entity: Int = EntityManager.get().create()
 
-    private var importedTextureId: Int = -1
-    private var texture: Texture? = null
+    /** Imported Filament textures keyed by GL texture name — ARCore rotates
+     * through the registered names, so each frame may use a different one. */
+    private val importedTextures = HashMap<Int, Texture>()
+    private val cameraSampler =
+        TextureSampler(
+            TextureSampler.MinFilter.LINEAR,
+            TextureSampler.MagFilter.LINEAR,
+            TextureSampler.WrapMode.CLAMP_TO_EDGE,
+        )
     private var appliedUvs: FloatArray? = null
     private var addedToScene = false
 
@@ -93,35 +100,27 @@ internal class CameraStream(
             .culling(false)
             // Render before scene content so early-z can skip covered pixels
             .priority(0)
-            .geometry(entity, RenderableManager.PrimitiveType.TRIANGLES, vertexBuffer, indexBuffer)
+            .geometry(0, RenderableManager.PrimitiveType.TRIANGLES, vertexBuffer, indexBuffer)
             .material(0, materialInstance)
             .build(engine, entity)
     }
 
     /** Per-frame update; adds the quad to the scene on the first image. */
     fun update(image: CameraImage) {
-        if (image.textureId != importedTextureId) {
-            texture?.let(engine::destroyTexture)
-            texture =
+        val texture =
+            importedTextures.getOrPut(image.textureId) {
                 Texture
                     .Builder()
                     .sampler(Texture.Sampler.SAMPLER_EXTERNAL)
                     .format(Texture.InternalFormat.RGB8)
                     .importTexture(image.textureId.toLong())
                     .build(engine)
-                    .also { imported ->
-                        materialInstance.setParameter(
-                            "cameraTexture",
-                            imported,
-                            TextureSampler(
-                                TextureSampler.MinFilter.LINEAR,
-                                TextureSampler.MagFilter.LINEAR,
-                                TextureSampler.WrapMode.CLAMP_TO_EDGE,
-                            ),
-                        )
-                    }
-            importedTextureId = image.textureId
-        }
+            }
+        // Set every frame, not just on change: ARCore updates the texture on
+        // the tracking (shared) context, and GL's shared-object rules only
+        // guarantee the render context sees the new image after it re-binds
+        // the texture. A stale binding samples uninitialized memory (noise).
+        materialInstance.setParameter("cameraTexture", texture, cameraSampler)
 
         if (!image.uvTransform.contentEquals(appliedUvs)) {
             setUvs(image.uvTransform)
@@ -146,7 +145,8 @@ internal class CameraStream(
         EntityManager.get().destroy(entity)
         engine.destroyVertexBuffer(vertexBuffer)
         engine.destroyIndexBuffer(indexBuffer)
-        texture?.let(engine::destroyTexture)
+        importedTextures.values.forEach(engine::destroyTexture)
+        importedTextures.clear()
         engine.destroyMaterialInstance(materialInstance)
         engine.destroyMaterial(material)
     }

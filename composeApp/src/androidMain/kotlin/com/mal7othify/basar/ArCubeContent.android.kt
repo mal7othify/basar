@@ -52,7 +52,9 @@ actual fun ArCubeContent(
     }
 
     LaunchedEffect(Unit) {
-        provider.setCameraTextureIds(intArrayOf(egl.createExternalTexture()))
+        // Several texture names: ARCore rotates through them (its internal
+        // double-buffering), reporting the per-frame one via cameraTextureName.
+        provider.setCameraTextureIds(IntArray(6) { egl.createExternalTexture() })
         runtime.onFrame = { frame ->
             if (!planesSeen && frame != null && frame.planes.isNotEmpty()) {
                 planesSeen = true

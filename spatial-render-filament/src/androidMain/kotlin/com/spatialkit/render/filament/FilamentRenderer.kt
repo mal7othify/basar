@@ -49,7 +49,20 @@ public class FilamentRenderer(
     }
 
     internal val engine: Engine =
-        if (sharedEglContext != null) Engine.create(sharedEglContext) else Engine.create()
+        if (sharedEglContext != null) {
+            // Backend must be OpenGL explicitly: the AR camera path shares GL
+            // texture names with the tracking context, and Filament's default
+            // Android backend is no longer guaranteed to be GL (Vulkan default
+            // since ~1.6x). Engine.create(sharedContext)'s docs claim OpenGL,
+            // but the implementation only sets the shared context.
+            Engine
+                .Builder()
+                .backend(Engine.Backend.OPENGL)
+                .sharedContext(sharedEglContext)
+                .build()
+        } else {
+            Engine.create()
+        }
     internal val renderer: Renderer = engine.createRenderer()
     internal val scene: Scene = engine.createScene()
     internal val view: View = engine.createView()

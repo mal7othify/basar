@@ -112,8 +112,12 @@ public class ARCoreTrackingProvider(
 
     // Scratch buffers for the per-frame UV transform (NDC quad corners →
     // camera texture UVs); recomputed only when display geometry changes.
+    // Corner order matches the renderer's fullscreen quad (BL, BR, TL, TR);
+    // x is mirrored because the Filament device-domain quad rasterizes with
+    // screen-x opposite to ARCore's GL NDC convention (validated on device —
+    // without the mirror the camera pass-through is left/right flipped).
     private val ndcCorners =
-        floatArrayOf(-1f, -1f, 1f, -1f, -1f, 1f, 1f, 1f)
+        floatArrayOf(1f, -1f, -1f, -1f, 1f, 1f, -1f, 1f)
     private var uvTransform: FloatArray? = null
 
     override suspend fun initialize(config: TrackingConfig) {
@@ -323,7 +327,10 @@ public class ARCoreTrackingProvider(
             trackingState = camera.trackingState.toTrackingState(),
             planes = if (isTracking) detectedPlanes(arSession) else emptyList(),
             lightEstimate = if (isTracking) lightEstimate(frame) else null,
-            cameraImage = CameraImage(textureIds[0], uvTransform ?: FALLBACK_UVS),
+            // The texture ARCore actually wrote this frame — with multiple
+            // registered names ARCore rotates through them (double-buffering),
+            // and the renderer must bind the per-frame one.
+            cameraImage = CameraImage(frame.cameraTextureName, uvTransform ?: FALLBACK_UVS),
             depthImage = if (isTracking) acquireDepth(frame) else null,
             anchors = if (isTracking) anchorStates() else emptyList(),
             trackedImages = if (isTracking) trackedImages(arSession) else emptyList(),

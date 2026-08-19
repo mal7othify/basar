@@ -29,6 +29,10 @@ material {
 fragment {
     void material(inout MaterialInputs material) {
         prepareMaterial(material);
-        material.baseColor = texture(materialParams_cameraTexture, getUV0());
+        vec4 cameraColor = texture(materialParams_cameraTexture, getUV0());
+        // The camera image is already display-encoded; feed the inverse
+        // tonemap so Filament's forward tone mapping reproduces the image
+        // instead of washing it out (the Sceneform camera-material pattern).
+        material.baseColor = vec4(inverseTonemapSRGB(cameraColor.rgb), 1.0);
     }
 }
