@@ -8,7 +8,6 @@ import com.spatialkit.engine.Aabb
 import com.spatialkit.engine.AnchorRequest
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
-import com.spatialkit.render.AnchorType
 import com.spatialkit.engine.DetectedPlane
 import com.spatialkit.engine.EngineCapabilities
 import com.spatialkit.engine.EngineConfig
@@ -25,7 +24,6 @@ import com.spatialkit.engine.Pose
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneBounds
 import com.spatialkit.engine.SceneData
-import com.spatialkit.render.SceneNode
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.TextureData
@@ -36,6 +34,8 @@ import com.spatialkit.engine.TrackedImage
 import com.spatialkit.engine.TrackedImageStatus
 import com.spatialkit.engine.TrackingState
 import com.spatialkit.engine.generateVertexNormals
+import com.spatialkit.render.AnchorType
+import com.spatialkit.render.SceneNode
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.FloatVar

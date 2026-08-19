@@ -2,8 +2,8 @@ package com.spatialkit.dsl
 
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
-import com.spatialkit.render.AnchorType
 import com.spatialkit.engine.GeometryData
+import com.spatialkit.render.AnchorType
 import com.spatialkit.scene.CapsuleNode
 import com.spatialkit.scene.CubeNode
 import com.spatialkit.scene.CustomMeshNode

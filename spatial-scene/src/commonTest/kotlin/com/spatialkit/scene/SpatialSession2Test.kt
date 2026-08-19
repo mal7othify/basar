@@ -139,7 +139,12 @@ class SpatialSession2Test {
         session.handleFrame(null)
         session.handleFrame(null)
         assertEquals(2, renderer.submitted.size)
-        assertEquals(1, renderer.submitted.last().nodes.size)
+        assertEquals(
+            1,
+            renderer.submitted
+                .last()
+                .nodes.size,
+        )
     }
 
     @Test

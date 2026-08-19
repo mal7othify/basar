@@ -2,10 +2,10 @@ package com.spatialkit.scene
 
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
-import com.spatialkit.render.AnchorType
 import com.spatialkit.engine.Pose
 import com.spatialkit.engine.Quaternion
 import com.spatialkit.engine.Vec3
+import com.spatialkit.render.AnchorType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

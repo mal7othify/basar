@@ -1,9 +1,8 @@
 package com.spatialkit.engine
 
-import com.spatialkit.render.SceneNode
-
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Transform
+import com.spatialkit.render.SceneNode
 import kotlin.math.PI
 import kotlin.test.Test
 import kotlin.test.assertEquals

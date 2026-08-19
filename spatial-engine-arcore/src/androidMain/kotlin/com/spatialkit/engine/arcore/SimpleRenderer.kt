@@ -18,12 +18,12 @@ import com.spatialkit.engine.LightEstimate
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneBounds
 import com.spatialkit.engine.SceneData
-import com.spatialkit.render.SceneNode
 import com.spatialkit.engine.SceneRaycaster
 import com.spatialkit.engine.TextureData
 import com.spatialkit.engine.TextureFilter
 import com.spatialkit.engine.TextureWrap
 import com.spatialkit.engine.Vec3
+import com.spatialkit.render.SceneNode
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer

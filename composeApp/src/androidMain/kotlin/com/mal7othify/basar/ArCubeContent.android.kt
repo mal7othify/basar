@@ -20,7 +20,6 @@ import com.spatialkit.render.filament.FilamentRenderer
 import com.spatialkit.render.filament.FilamentSurfaceHost
 import com.spatialkit.scene.SpatialRuntime2
 import com.spatialkit.tracking.TrackingConfig
-import com.spatialkit.tracking.TrackingState
 import com.spatialkit.tracking.arcore.ARCoreTrackingProvider
 
 @Composable
@@ -38,6 +37,9 @@ actual fun ArCubeContent(
     val runtime = remember { SpatialRuntime2(provider, renderer) }
 
     val crateGlb = remember { createCrateGltf().encodeToByteArray() }
+    // ~91k-vertex lat-long sphere (301x301 grid): exercises the 32-bit
+    // index path — the R3 ">65k vertices" verification mesh.
+    val denseSphereGeometry = remember { denseSphere(stacks = 300, slices = 300) }
     var planesSeen by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
@@ -109,6 +111,30 @@ actual fun ArCubeContent(
                                         glb = crateGlb,
                                         contentKey = "crate-v1",
                                     ),
+                                    // R3 exit check: a >65k-vertex custom mesh
+                                    // (32-bit index path). ~91k vertices.
+                                    com.spatialkit.render.SceneNode.Mesh(
+                                        id = "dense-sphere",
+                                        transform =
+                                            com.spatialkit.core.math.Transform(
+                                                position =
+                                                    com.spatialkit.core.math
+                                                        .Vec3(p.x - 0.25f, p.y + 0.1f, p.z),
+                                                scale =
+                                                    com.spatialkit.core.math
+                                                        .Vec3(0.1f, 0.1f, 0.1f),
+                                            ),
+                                        geometry = denseSphereGeometry,
+                                        material =
+                                            com.spatialkit.render.MaterialData(
+                                                type = com.spatialkit.render.MaterialType.PBR,
+                                                baseColor =
+                                                    com.spatialkit.core.math
+                                                        .Vec4(0.2f, 0.5f, 0.9f, 1f),
+                                                metallic = 0.8f,
+                                                roughness = 0.25f,
+                                            ),
+                                    ),
                                     com.spatialkit.render.SceneNode.Mesh(
                                         id = "red-cube",
                                         transform =
@@ -140,6 +166,54 @@ actual fun ArCubeContent(
                     onStatus("Crate + cube at (%.2f, %.2f, %.2f) — walk around them".format(p.x, p.y, p.z))
                 }
             },
+    )
+}
+
+/** Unit lat-long sphere with (stacks+1)*(slices+1) vertices, 32-bit indices. */
+private fun denseSphere(
+    stacks: Int,
+    slices: Int,
+): com.spatialkit.render.GeometryData {
+    val vertexCount = (stacks + 1) * (slices + 1)
+    val positions = FloatArray(vertexCount * 3)
+    val normals = FloatArray(vertexCount * 3)
+    var v = 0
+    for (stack in 0..stacks) {
+        val phi = Math.PI * stack / stacks
+        val y = kotlin.math.cos(phi).toFloat()
+        val r = kotlin.math.sin(phi).toFloat()
+        for (slice in 0..slices) {
+            val theta = 2.0 * Math.PI * slice / slices
+            val x = (r * kotlin.math.sin(theta)).toFloat()
+            val z = (r * kotlin.math.cos(theta)).toFloat()
+            positions[v * 3] = x
+            positions[v * 3 + 1] = y
+            positions[v * 3 + 2] = z
+            normals[v * 3] = x
+            normals[v * 3 + 1] = y
+            normals[v * 3 + 2] = z
+            v++
+        }
+    }
+    val indices = IntArray(stacks * slices * 6)
+    var i = 0
+    for (stack in 0 until stacks) {
+        for (slice in 0 until slices) {
+            val a = stack * (slices + 1) + slice
+            val b = a + slices + 1
+            indices[i++] = a
+            indices[i++] = b
+            indices[i++] = a + 1
+            indices[i++] = a + 1
+            indices[i++] = b
+            indices[i++] = b + 1
+        }
+    }
+    return com.spatialkit.render.GeometryData(
+        type = com.spatialkit.render.GeometryType.CUSTOM_MESH,
+        vertices = positions,
+        indices = indices,
+        normals = normals,
     )
 }
 

@@ -12,7 +12,6 @@ import com.google.android.filament.MaterialInstance
 import com.google.android.filament.RenderableManager
 import com.google.android.filament.Scene
 import com.google.android.filament.Texture
-import com.google.android.filament.TextureSampler as FilamentSampler
 import com.google.android.filament.VertexBuffer
 import com.google.android.filament.android.TextureHelper
 import com.google.android.filament.gltfio.AssetLoader
@@ -29,6 +28,7 @@ import com.spatialkit.render.TextureFilter
 import com.spatialkit.render.TextureWrap
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import com.google.android.filament.TextureSampler as FilamentSampler
 
 /**
  * Retained-mode sync of [SceneData] snapshots into Filament (R3).
@@ -364,7 +364,13 @@ internal class SceneGraphSync(
                 TextureFilter.NEAREST -> FilamentSampler.MagFilter.NEAREST
                 TextureFilter.LINEAR -> FilamentSampler.MagFilter.LINEAR
             }
-        return FilamentSampler(minFilter, magFilter, wrapMode(sampler?.wrapU), wrapMode(sampler?.wrapV), FilamentSampler.WrapMode.CLAMP_TO_EDGE)
+        return FilamentSampler(
+            minFilter,
+            magFilter,
+            wrapMode(sampler?.wrapU),
+            wrapMode(sampler?.wrapV),
+            FilamentSampler.WrapMode.CLAMP_TO_EDGE,
+        )
     }
 
     private fun wrapMode(wrap: TextureWrap?): FilamentSampler.WrapMode =

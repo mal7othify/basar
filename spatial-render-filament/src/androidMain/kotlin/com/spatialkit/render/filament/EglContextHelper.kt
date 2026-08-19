@@ -39,11 +39,16 @@ public class EglContextHelper {
         val numConfigs = IntArray(1)
         val configAttribs =
             intArrayOf(
-                EGL14.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
-                EGL14.EGL_SURFACE_TYPE, EGL14.EGL_PBUFFER_BIT,
-                EGL14.EGL_RED_SIZE, 8,
-                EGL14.EGL_GREEN_SIZE, 8,
-                EGL14.EGL_BLUE_SIZE, 8,
+                EGL14.EGL_RENDERABLE_TYPE,
+                EGL_OPENGL_ES3_BIT,
+                EGL14.EGL_SURFACE_TYPE,
+                EGL14.EGL_PBUFFER_BIT,
+                EGL14.EGL_RED_SIZE,
+                8,
+                EGL14.EGL_GREEN_SIZE,
+                8,
+                EGL14.EGL_BLUE_SIZE,
+                8,
                 EGL14.EGL_NONE,
             )
         check(

@@ -1,7 +1,6 @@
 package com.spatialkit.engine
 
 import com.spatialkit.render.SceneNode
-
 import kotlin.math.abs
 import kotlin.math.sqrt
 

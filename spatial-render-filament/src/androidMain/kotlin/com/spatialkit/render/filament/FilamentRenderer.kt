@@ -322,10 +322,22 @@ public class FilamentRenderer(
         val tz = -center[2] * scale
         val matrix =
             floatArrayOf(
-                scale, 0f, 0f, 0f,
-                0f, scale, 0f, 0f,
-                0f, 0f, scale, 0f,
-                tx, ty, tz, 1f,
+                scale,
+                0f,
+                0f,
+                0f,
+                0f,
+                scale,
+                0f,
+                0f,
+                0f,
+                0f,
+                scale,
+                0f,
+                tx,
+                ty,
+                tz,
+                1f,
             )
         val tm = engine.transformManager
         tm.setTransform(tm.getInstance(asset.root), matrix)
@@ -343,8 +355,10 @@ internal object FilamentInit {
 
     fun ensure() {
         if (!initialized) {
-            com.google.android.filament.Filament.init()
-            com.google.android.filament.gltfio.Gltfio.init()
+            com.google.android.filament.Filament
+                .init()
+            com.google.android.filament.gltfio.Gltfio
+                .init()
             initialized = true
         }
     }

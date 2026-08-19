@@ -1,8 +1,8 @@
 package com.spatialkit.scene
 
 import com.spatialkit.engine.Quaternion
-import com.spatialkit.render.SceneNode
 import com.spatialkit.engine.Vec3
+import com.spatialkit.render.SceneNode
 import kotlin.random.Random
 
 /**

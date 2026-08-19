@@ -25,7 +25,6 @@ import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.engine.AnchorRequest
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
-import com.spatialkit.render.AnchorType
 import com.spatialkit.engine.DetectedPlane
 import com.spatialkit.engine.EngineCapabilities
 import com.spatialkit.engine.EngineConfig
@@ -44,6 +43,7 @@ import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.TrackedImage
 import com.spatialkit.engine.TrackedImageStatus
 import com.spatialkit.engine.Vec3
+import com.spatialkit.render.AnchorType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

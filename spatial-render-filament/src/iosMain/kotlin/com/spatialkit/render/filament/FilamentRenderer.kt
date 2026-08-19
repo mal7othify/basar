@@ -1,12 +1,12 @@
 package com.spatialkit.render.filament
 
+import cnames.structs.FbrEngine
 import com.spatialkit.render.AnimationClip
 import com.spatialkit.render.AnimationState
 import com.spatialkit.render.ModelHandle
 import com.spatialkit.render.RenderCapabilities
 import com.spatialkit.render.SceneData
 import com.spatialkit.render.SceneRenderer
-import cnames.structs.FbrEngine
 import com.spatialkit.render.filament.bridge.fbr_animation_count
 import com.spatialkit.render.filament.bridge.fbr_animation_duration
 import com.spatialkit.render.filament.bridge.fbr_animation_name

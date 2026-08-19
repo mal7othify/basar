@@ -1,9 +1,9 @@
 package com.spatialkit.scene
 
-import com.spatialkit.render.AnchorType
 import com.spatialkit.engine.Quaternion
-import com.spatialkit.render.SceneNode
 import com.spatialkit.engine.Vec3
+import com.spatialkit.render.AnchorType
+import com.spatialkit.render.SceneNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
