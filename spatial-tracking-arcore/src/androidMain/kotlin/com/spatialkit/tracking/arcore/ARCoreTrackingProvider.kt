@@ -9,9 +9,11 @@ import com.google.ar.core.AugmentedImage
 import com.google.ar.core.AugmentedImageDatabase
 import com.google.ar.core.Config
 import com.google.ar.core.Coordinates2d
+import com.google.ar.core.DepthPoint
 import com.google.ar.core.Frame
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
+import com.google.ar.core.Point
 import com.google.ar.core.Session
 import com.google.ar.core.exceptions.CameraNotAvailableException
 import com.spatialkit.core.log.SpatialLog
@@ -355,7 +357,21 @@ public class ARCoreTrackingProvider(
                 SpatialLog.debug(TAG) { "hitTest on superseded frame rejected: ${e.message}" }
                 return null
             }
-        val hit = hits.firstOrNull() ?: return null
+        // The raw list includes hits on the infinite extension of detected
+        // planes and arbitrary feature points — a tap that misses tracked
+        // geometry can "hit" many meters away. Accept only trustworthy
+        // geometry (the hello_ar filter): plane hits inside the detected
+        // polygon, depth-map hits, and surface-normal-oriented point hits.
+        // The list is distance-sorted, so this picks the closest valid hit.
+        val hit =
+            hits.firstOrNull { h ->
+                when (val trackable = h.trackable) {
+                    is Plane -> trackable.isPoseInPolygon(h.hitPose)
+                    is DepthPoint -> true
+                    is Point -> trackable.orientationMode == Point.OrientationMode.ESTIMATED_SURFACE_NORMAL
+                    else -> false
+                }
+            } ?: return null
 
         val pose = hit.hitPose
         val plane = hit.trackable as? Plane
