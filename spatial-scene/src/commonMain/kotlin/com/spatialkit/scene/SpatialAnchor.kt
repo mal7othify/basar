@@ -3,7 +3,7 @@ package com.spatialkit.scene
 import com.spatialkit.engine.AnchorRequest
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
-import com.spatialkit.engine.AnchorType
+import com.spatialkit.render.AnchorType
 import com.spatialkit.engine.Pose
 import kotlin.random.Random
 

@@ -18,7 +18,7 @@ import com.spatialkit.engine.LightEstimate
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneBounds
 import com.spatialkit.engine.SceneData
-import com.spatialkit.engine.SceneNode
+import com.spatialkit.render.SceneNode
 import com.spatialkit.engine.SceneRaycaster
 import com.spatialkit.engine.TextureData
 import com.spatialkit.engine.TextureFilter
@@ -917,6 +917,8 @@ public class SimpleRenderer(
                 when (node) {
                     is SceneNode.Mesh -> node.material.baseColorTexture?.let { liveTextureIds.add(it.id) }
                     is SceneNode.Group -> collect(node.children)
+                    // v2-only node type; the v1 GLES renderer never receives it.
+                    is SceneNode.Model -> Unit
                 }
             }
         }
@@ -1296,6 +1298,8 @@ public class SimpleRenderer(
                             Matrix.multiplyMM(composed, 0, parentMatrix, 0, node.transform.toMatrix().toFloatArray(), 0)
                             renderNodes(node.children, composed)
                         }
+                    // v2-only node type; the v1 GLES renderer never receives it.
+                    is SceneNode.Model -> Unit
                 }
             }
         }

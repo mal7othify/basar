@@ -1,0 +1,47 @@
+// Standard lit material for scene-graph meshes (R3): one material, one
+// instance per node. MaterialData maps onto it directly:
+//   baseColor        → baseColorFactor (linear RGBA)
+//   metallic         → metallic
+//   roughness        → roughness
+//   baseColorTexture → baseColorMap (sRGB; a 1x1 white texture when absent,
+//                      so the shader multiplies unconditionally — glTF
+//                      baseColorFactor semantics)
+// The doubleSided flag lets MaterialInstance.setDoubleSided() honor
+// MaterialData.doubleSided per node without a second material.
+//
+// Compiled by scripts/compile-materials.sh with the version-pinned matc —
+// .filamat files are matc-version-locked to the Filament runtime.
+material {
+    name : standard_lit,
+    shadingModel : lit,
+    doubleSided : true,
+    requires : [ uv0 ],
+    parameters : [
+        {
+            type : float4,
+            name : baseColorFactor
+        },
+        {
+            type : float,
+            name : metallic
+        },
+        {
+            type : float,
+            name : roughness
+        },
+        {
+            type : sampler2d,
+            name : baseColorMap
+        }
+    ]
+}
+
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        material.baseColor = materialParams.baseColorFactor *
+            texture(materialParams_baseColorMap, getUV0());
+        material.metallic = materialParams.metallic;
+        material.roughness = materialParams.roughness;
+    }
+}

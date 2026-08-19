@@ -123,11 +123,31 @@ public class FilamentRenderer(
         scene.addEntity(sunEntity)
     }
 
+    private val sceneSync: SceneGraphSync by lazy {
+        SceneGraphSync(
+            engine = engine,
+            scene = scene,
+            context =
+                requireNotNull(context) {
+                    "FilamentRenderer needs a Context to load the standard scene materials"
+                },
+            assetLoader = assetLoader,
+            resourceLoader = resourceLoader,
+        )
+    }
+    private var sceneSyncStarted = false
+
+    override fun submitScene(scene: com.spatialkit.render.SceneData) {
+        sceneSyncStarted = true
+        sceneSync.submit(scene)
+    }
+
     override fun render(
         frame: TrackingFrame?,
         frameTimeNanos: Long,
     ) {
         advanceAnimations(frameTimeNanos)
+        if (sceneSyncStarted) sceneSync.advanceAnimations(frameTimeNanos)
 
         if (frame != null) {
             if (!arMode) {
@@ -236,6 +256,7 @@ public class FilamentRenderer(
             assetLoader.destroyAsset(model.asset)
         }
         models.clear()
+        if (sceneSyncStarted) sceneSync.dispose()
         cameraStream?.destroy()
         cameraStream = null
         resourceLoader.destroy()

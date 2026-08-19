@@ -5,9 +5,9 @@ package com.spatialkit.render
  * (Filament) shared by every platform, fed by a thin per-platform tracking
  * adapter (see `docs/V2_REALISM_REWRITE.md` §4).
  *
- * R0 scope: model loading + animation control. Scene submission
- * (`submitScene(SceneData)`) and AR frame consumption (`render(TrackingFrame)`)
- * join the contract in R1 when `spatial-tracking` exists.
+ * R0 added model loading + animation control; R1 added AR frame consumption
+ * (`render(TrackingFrame)`); R3 added retained-mode scene submission
+ * ([submitScene]), which is how the scene graph drives the renderer.
  *
  * Threading: all methods must be called from the platform frame thread (the
  * thread that drives rendering — Choreographer on Android, the display link
@@ -37,6 +37,23 @@ public interface SceneRenderer {
         frame: com.spatialkit.tracking.TrackingFrame?,
         frameTimeNanos: Long,
     )
+
+    /**
+     * Submits the scene snapshot to render (R3).
+     *
+     * The renderer retains per-node GPU state keyed by [SceneNode.id] and
+     * diffs consecutive snapshots: transform/visibility changes update in
+     * place (no entity churn), geometry/material changes rebuild only the
+     * affected node, and nodes absent from the new snapshot are destroyed.
+     * Submitting an unchanged scene is cheap, so callers may submit every
+     * frame.
+     *
+     * [SceneData.anchors] is ignored here — anchor lifecycles belong to the
+     * tracking layer; the session routes them to the `TrackingProvider`.
+     *
+     * Frame-thread only, like every other method.
+     */
+    public fun submitScene(scene: SceneData)
 
     /**
      * Loads a binary glTF (.glb) asset and returns a handle to the live model

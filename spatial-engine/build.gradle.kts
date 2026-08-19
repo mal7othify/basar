@@ -25,15 +25,20 @@ kotlin {
 
     jvm()
 
-    js(IR) {
-        browser()
-    }
+    // js target dropped on the v2-realism branch: the web tier is parked
+    // (webxr/preview modules are out of settings.gradle.kts) and the scene
+    // payload types now live in :spatial-render, which has no js target.
+    // Revisit post-R8 per docs/V2_REALISM_REWRITE.md.
 
     sourceSets {
         commonMain.dependencies {
             // api: the engine contract exposes spatial-core types
             // (Math.kt typealiases, Transform in SceneData, Vec3/Quaternion in Pose)
             api(project(":spatial-core"))
+            // api: the scene payload types (SceneData, GeometryData, MaterialData,
+            // AnchorRequest, ...) moved to :spatial-render in R3; this module
+            // re-exports them as typealiases for v1 source compatibility.
+            api(project(":spatial-render"))
             // api: SpatialEngine.state is a StateFlow
             api(libs.kotlinx.coroutines.core)
         }

@@ -2,7 +2,7 @@ package com.spatialkit.scene
 
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
-import com.spatialkit.engine.SceneNode
+import com.spatialkit.render.SceneNode
 import kotlin.math.PI
 import kotlin.test.Test
 import kotlin.test.assertEquals

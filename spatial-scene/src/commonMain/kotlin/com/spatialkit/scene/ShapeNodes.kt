@@ -7,7 +7,7 @@ import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
 import com.spatialkit.engine.MaterialData
 import com.spatialkit.engine.MaterialType
-import com.spatialkit.engine.SceneNode
+import com.spatialkit.render.SceneNode
 import com.spatialkit.engine.TextureData
 import com.spatialkit.engine.Vec4
 

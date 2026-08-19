@@ -1,7 +1,7 @@
 package com.spatialkit.scene
 
 import com.spatialkit.core.math.Transform
-import com.spatialkit.engine.SceneNode
+import com.spatialkit.render.SceneNode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

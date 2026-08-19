@@ -1,5 +1,7 @@
 package com.spatialkit.engine
 
+import com.spatialkit.render.SceneNode
+
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -72,6 +74,10 @@ public object SceneRaycaster {
                 }
 
                 is SceneNode.Mesh -> intersectGeometry(node, localOrigin, localDirection)
+
+                // Renderer-loaded glTF (v2 R3+): no CPU-side triangles to
+                // intersect; model picking is a v2 concern (R6).
+                is SceneNode.Model -> null
             } ?: return null
 
         // Lift the hit back into the caller's space. Normals transform by the

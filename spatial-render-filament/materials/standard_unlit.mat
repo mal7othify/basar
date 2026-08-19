@@ -1,0 +1,30 @@
+// Unlit variant of standard_lit (MaterialType.UNLIT): baseColor × texture,
+// no lighting. Same parameter block minus the PBR factors so the renderer
+// binds both materials uniformly.
+//
+// Compiled by scripts/compile-materials.sh with the version-pinned matc —
+// .filamat files are matc-version-locked to the Filament runtime.
+material {
+    name : standard_unlit,
+    shadingModel : unlit,
+    doubleSided : true,
+    requires : [ uv0 ],
+    parameters : [
+        {
+            type : float4,
+            name : baseColorFactor
+        },
+        {
+            type : sampler2d,
+            name : baseColorMap
+        }
+    ]
+}
+
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        material.baseColor = materialParams.baseColorFactor *
+            texture(materialParams_baseColorMap, getUV0());
+    }
+}

@@ -25,7 +25,7 @@ import com.spatialkit.core.log.SpatialLog
 import com.spatialkit.engine.AnchorRequest
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
-import com.spatialkit.engine.AnchorType
+import com.spatialkit.render.AnchorType
 import com.spatialkit.engine.DetectedPlane
 import com.spatialkit.engine.EngineCapabilities
 import com.spatialkit.engine.EngineConfig

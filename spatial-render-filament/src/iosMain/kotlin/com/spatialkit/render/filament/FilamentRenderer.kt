@@ -4,6 +4,7 @@ import com.spatialkit.render.AnimationClip
 import com.spatialkit.render.AnimationState
 import com.spatialkit.render.ModelHandle
 import com.spatialkit.render.RenderCapabilities
+import com.spatialkit.render.SceneData
 import com.spatialkit.render.SceneRenderer
 import cnames.structs.FbrEngine
 import com.spatialkit.render.filament.bridge.fbr_animation_count
@@ -63,6 +64,12 @@ public class FilamentRenderer : SceneRenderer {
         // R0/R1: the bridge view's internal display link drives rendering and
         // animation on iOS; AR frame consumption (camera matrices + captured
         // image) is wired through the bridge in R2.
+    }
+
+    override fun submitScene(scene: SceneData) {
+        // R3 scene submission lands on iOS together with the R2 ARKit
+        // adapter (needs fbr_* bridge surface for primitive meshes and
+        // materials). Until then iOS renders models via loadModel only.
     }
 
     override suspend fun loadModel(glb: ByteArray): ModelHandle {

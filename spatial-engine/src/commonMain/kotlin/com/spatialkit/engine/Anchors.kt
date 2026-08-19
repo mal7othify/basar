@@ -1,77 +1,14 @@
 package com.spatialkit.engine
 
 /**
- * Request to create a spatial anchor.
- *
- * Anchors are the key abstraction for AR - they pin content to the real world.
- * The engine tracks anchor poses and updates them as tracking improves.
- *
- * @property id Unique identifier for this anchor
- * @property type The type of anchor to create
+ * Anchor request/type moved to `:spatial-render` in R3 (they travel with
+ * [SceneData]); typealiased here for v1 source compatibility. New code
+ * should import `com.spatialkit.render.*` directly. [AnchorState] and
+ * [AnchorStatus] stay engine-local (reported via FrameData).
  */
-public data class AnchorRequest(
-    val id: String,
-    val type: AnchorType,
-)
+public typealias AnchorRequest = com.spatialkit.render.AnchorRequest
 
-/**
- * Types of spatial anchors that can be created.
- */
-public sealed interface AnchorType {
-    /**
-     * Attach to a detected plane.
-     *
-     * Most stable for AR - anchors to a specific detected surface.
-     *
-     * @property planeId ID of the detected plane from FrameData
-     * @property offsetFromCenter Offset from the plane's center point
-     */
-    public data class Plane(
-        val planeId: String,
-        val offsetFromCenter: Vec3 = Vec3.ZERO,
-    ) : AnchorType
-
-    /**
-     * Attach to a hit test result.
-     *
-     * Anchors to a point in space found by raycasting against detected geometry.
-     *
-     * @property hitPoint The 3D position where the ray hit
-     * @property hitNormal The surface normal at the hit point
-     */
-    public data class HitTest(
-        val hitPoint: Vec3,
-        val hitNormal: Vec3,
-    ) : AnchorType
-
-    /**
-     * World position anchor (may drift over time).
-     *
-     * Less stable than plane or hit test anchors - use when no surfaces are detected.
-     *
-     * @property position World-space position
-     * @property rotation World-space rotation
-     */
-    public data class World(
-        val position: Vec3,
-        val rotation: Quaternion,
-    ) : AnchorType
-
-    /**
-     * Restores an anchor persisted in an earlier session (M12.3).
-     *
-     * Only honored where [EngineCapabilities.supportsAnchorPersistence] is
-     * true — currently the WebXR engine (persistent-anchor handles); the
-     * anchor reports [AnchorStatus.ERROR] elsewhere. Create handles with
-     * [SpatialEngine.persistAnchor] and store them app-side.
-     *
-     * @property handle Opaque persistence handle returned by
-     *   [SpatialEngine.persistAnchor] in a previous session
-     */
-    public data class Persistent(
-        val handle: String,
-    ) : AnchorType
-}
+public typealias AnchorType = com.spatialkit.render.AnchorType
 
 /**
  * Current state of a spatial anchor.

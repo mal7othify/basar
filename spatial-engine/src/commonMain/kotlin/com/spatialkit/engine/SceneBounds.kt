@@ -1,5 +1,7 @@
 package com.spatialkit.engine
 
+import com.spatialkit.render.SceneNode
+
 /**
  * Axis-aligned bounding box.
  *
@@ -184,6 +186,10 @@ public object SceneBounds {
                 }
                 result
             }
+
+            // Renderer-loaded glTF (v2 R3+): geometry lives inside the
+            // renderer, so CPU-side bounds are unknown here.
+            is SceneNode.Model -> null
         }
     }
 

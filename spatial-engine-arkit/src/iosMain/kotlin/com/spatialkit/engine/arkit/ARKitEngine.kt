@@ -8,7 +8,7 @@ import com.spatialkit.engine.Aabb
 import com.spatialkit.engine.AnchorRequest
 import com.spatialkit.engine.AnchorState
 import com.spatialkit.engine.AnchorStatus
-import com.spatialkit.engine.AnchorType
+import com.spatialkit.render.AnchorType
 import com.spatialkit.engine.DetectedPlane
 import com.spatialkit.engine.EngineCapabilities
 import com.spatialkit.engine.EngineConfig
@@ -25,7 +25,7 @@ import com.spatialkit.engine.Pose
 import com.spatialkit.engine.RaycastResult
 import com.spatialkit.engine.SceneBounds
 import com.spatialkit.engine.SceneData
-import com.spatialkit.engine.SceneNode
+import com.spatialkit.render.SceneNode
 import com.spatialkit.engine.SessionMode
 import com.spatialkit.engine.SpatialEngine
 import com.spatialkit.engine.TextureData
@@ -1093,6 +1093,8 @@ public class ARKitEngine : SpatialEngine {
             when (node) {
                 is SceneNode.Mesh -> node.material.baseColorTexture?.let { ids.add(it.id) }
                 is SceneNode.Group -> collectTextureIds(node.children, ids)
+                // v2-only node type; the v1 SceneKit renderer never receives it.
+                is SceneNode.Model -> Unit
             }
         }
     }
@@ -1116,6 +1118,8 @@ public class ARKitEngine : SpatialEngine {
         when (node) {
             is SceneNode.Mesh -> processMeshNode(node, parent)
             is SceneNode.Group -> processGroupNode(node, parent)
+            // v2-only node type; the v1 SceneKit renderer never receives it.
+            is SceneNode.Model -> Unit
         }
     }
 
