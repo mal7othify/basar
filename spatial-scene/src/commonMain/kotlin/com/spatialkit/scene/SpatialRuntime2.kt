@@ -29,6 +29,13 @@ public class SpatialRuntime2(
     public var onFrame: ((TrackingFrame?) -> Unit)? = null
 
     /**
+     * Called when a tick throws (including from [onFrame]). Without a
+     * handler the exception propagates and kills the frame loop — set one
+     * to report and keep ticking (the session layer does).
+     */
+    public var onFrameError: ((Throwable) -> Unit)? = null
+
+    /**
      * Initializes and starts tracking, then begins ticking the frame loop.
      * Suspends until tracking is running; throws on setup failure.
      */
@@ -60,8 +67,12 @@ public class SpatialRuntime2(
 
     private fun tick(frameTimeNanos: Long) {
         if (!running) return
-        val frame = provider.update(frameTimeNanos)
-        onFrame?.invoke(frame)
-        renderer.render(frame, frameTimeNanos)
+        try {
+            val frame = provider.update(frameTimeNanos)
+            onFrame?.invoke(frame)
+            renderer.render(frame, frameTimeNanos)
+        } catch (t: Throwable) {
+            onFrameError?.invoke(t) ?: throw t
+        }
     }
 }
