@@ -42,10 +42,15 @@ kotlin {
             api(project(":spatial-core"))
         }
 
-        // No Android engine dependency on purpose: ARCore needs a Context the
-        // library can't supply, and bundling it would force it on every consumer.
-        // Apps provide an engine via SpatialView's `engine` parameter or
-        // LocalSpatialEngine (see spatial-engine-arcore).
+        // v1 note: no Android *engine* dependency on purpose — apps provide
+        // one via SpatialView's `engine` parameter or LocalSpatialEngine.
+        // v2 (SpatialView2) is deliberately opinionated instead: one
+        // Filament renderer + the platform tracking adapter, created from
+        // the composition's Context.
+        androidMain.dependencies {
+            implementation(project(":spatial-render-filament"))
+            implementation(project(":spatial-tracking-arcore"))
+        }
 
         iosMain.dependencies {
             // ARKit engine for iOS

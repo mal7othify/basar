@@ -7,15 +7,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.spatialkit.compose.SpatialView
+import com.spatialkit.compose.SpatialView2
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.dsl.rgb
-import com.spatialkit.engine.EngineConfig
-import com.spatialkit.engine.SessionMode
 import com.spatialkit.scene.CubeNode
 import com.spatialkit.scene.CylinderNode
 import com.spatialkit.scene.GroupNode
-import com.spatialkit.scene.SpatialSession
+import com.spatialkit.scene.SpatialSession2
 
 /**
  * Retail use case: preview furniture in the customer's own room.
@@ -33,10 +31,8 @@ fun FurnitureDemo(onBack: () -> Unit) {
     var placedCount by remember { mutableStateOf(0) }
 
     DemoScaffold(screen = DemoScreen.FURNITURE, status = status, onBack = onBack) {
-        SpatialView(
+        SpatialView2(
             modifier = Modifier.fillMaxSize(),
-            mode = SessionMode.AR,
-            config = EngineConfig(preferredMode = SessionMode.AR, enableDepthOcclusion = true),
             onSessionReady = { session ->
                 // Showroom piece so there's something on screen before the
                 // first placement (structural scene ops are synchronized)
@@ -89,7 +85,7 @@ fun FurnitureDemo(onBack: () -> Unit) {
  */
 private fun buildChair(
     id: String,
-    session: SpatialSession? = null,
+    session: SpatialSession2? = null,
     onRemoved: () -> Unit = {},
 ): GroupNode {
     val wood = rgb(0x9C6B30)

@@ -7,11 +7,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.spatialkit.compose.SpatialView
+import com.spatialkit.compose.SpatialView2
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.dsl.rgb
 import com.spatialkit.dsl.vec3
-import com.spatialkit.engine.SessionMode
 import com.spatialkit.scene.CylinderNode
 import com.spatialkit.scene.SpatialNode
 import kotlin.math.cos
@@ -49,9 +48,10 @@ fun SolarSystemDemo(onBack: () -> Unit) {
     var moonAngle = 0f
 
     DemoScaffold(screen = DemoScreen.SOLAR_SYSTEM, status = status, onBack = onBack) {
-        SpatialView(
+        // v2 (R3): the same declarative content + onFrame mutation, now on
+        // the Filament/ARCore runtime. iOS rejoins at R2 (ARKit adapter).
+        SpatialView2(
             modifier = Modifier.fillMaxSize(),
-            mode = SessionMode.AR,
             onFrame = { frame ->
                 // Update model: nodes are mutated imperatively per frame
                 for (i in planets.indices) {

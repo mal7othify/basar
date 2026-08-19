@@ -7,14 +7,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.spatialkit.compose.SpatialView
+import com.spatialkit.compose.SpatialView2
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.dsl.rgb
-import com.spatialkit.engine.SessionMode
 import com.spatialkit.scene.CylinderNode
 import com.spatialkit.scene.SpatialNode
-import com.spatialkit.scene.SpatialSession
+import com.spatialkit.scene.SpatialSession2
 import com.spatialkit.scene.SphereNode
 
 /**
@@ -38,9 +37,8 @@ fun MeasureDemo(onBack: () -> Unit) {
     var totalLength by remember { mutableStateOf(0f) }
 
     DemoScaffold(screen = DemoScreen.MEASURE, status = status, onBack = onBack) {
-        SpatialView(
+        SpatialView2(
             modifier = Modifier.fillMaxSize(),
-            mode = SessionMode.AR,
             onSessionReady = { session ->
                 val clearAll = {
                     measureNodes.forEach { session.scene.remove(it) }
@@ -86,7 +84,7 @@ fun MeasureDemo(onBack: () -> Unit) {
  * the previous one with a thin measured segment.
  */
 private fun addMeasurePoint(
-    session: SpatialSession,
+    session: SpatialSession2,
     position: Vec3,
     points: MutableList<Vec3>,
     measureNodes: MutableList<SpatialNode>,

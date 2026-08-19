@@ -8,23 +8,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.spatialkit.compose.SpatialView
+import com.spatialkit.compose.SpatialView2
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.math.cm
 import com.spatialkit.core.math.degrees
 import com.spatialkit.dsl.rgb
 import com.spatialkit.dsl.vec3
-import com.spatialkit.engine.EngineConfig
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
-import com.spatialkit.engine.SessionMode
 import com.spatialkit.scene.Easing
 import com.spatialkit.scene.GltfLoader
 import com.spatialkit.scene.GltfModel
 import com.spatialkit.scene.SpatialAnimator
 import com.spatialkit.scene.SpatialNode
-import com.spatialkit.scene.SpatialSession
+import com.spatialkit.scene.SpatialSession2
 import com.spatialkit.scene.loadGltf
 import kotlin.math.PI
 import kotlin.math.cos
@@ -105,13 +103,11 @@ fun ShowcaseDemo(onBack: () -> Unit) {
         }
 
     DemoScaffold(screen = DemoScreen.SHOWCASE, status = status, onBack = onBack) {
-        SpatialView(
+        SpatialView2(
             modifier = Modifier.fillMaxSize(),
-            mode = SessionMode.AR,
             // M9: light estimation is on by default; depth occlusion is
             // opt-in (real-world geometry hides virtual content where
             // supportsDepthOcclusion — currently ARCore Depth devices)
-            config = EngineConfig(preferredMode = SessionMode.AR, enableDepthOcclusion = true),
             onSessionReady = { spatialSession ->
                 sessionReady = true
 
@@ -391,7 +387,7 @@ fun ShowcaseDemo(onBack: () -> Unit) {
  * the user's dragging. (A production app would re-anchor when a drag ends.)
  */
 private fun placeCrate(
-    session: SpatialSession,
+    session: SpatialSession2,
     model: GltfModel,
     position: Vec3,
     bounce: (SpatialNode) -> Unit,
