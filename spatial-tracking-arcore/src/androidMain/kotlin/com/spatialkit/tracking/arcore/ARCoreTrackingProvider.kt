@@ -22,6 +22,7 @@ import com.spatialkit.tracking.AnchorStatus
 import com.spatialkit.tracking.CameraImage
 import com.spatialkit.tracking.DepthImage
 import com.spatialkit.tracking.DetectedPlane
+import com.spatialkit.tracking.EnvironmentCubemap
 import com.spatialkit.tracking.HitTestResult
 import com.spatialkit.tracking.LightEstimate
 import com.spatialkit.tracking.PlaneType
@@ -110,6 +111,7 @@ public class ARCoreTrackingProvider(
     private var displayGeometryDirty = true
 
     private var lastFrameTimeNanos = 0L
+    private var lastCubemapTimestampNs = 0L
     private var lastTimestamp = 0L
 
     // Scratch buffers for the per-frame UV transform (NDC quad corners →
@@ -499,7 +501,7 @@ public class ARCoreTrackingProvider(
                     // contract (and Filament) wants the travel direction.
                     mainLightDirection = Vec3(-towardLight[0], -towardLight[1], -towardLight[2]),
                     sphericalHarmonics = sh,
-                    environmentCubemap = null, // acquired on demand from R4
+                    environmentCubemap = acquireCubemap(frame),
                 )
             }
 
@@ -516,6 +518,52 @@ public class ARCoreTrackingProvider(
             }
 
             else -> null
+        }
+    }
+
+    /**
+     * Copies the six RGBA16F faces of ARCore's HDR environment estimate,
+     * throttled to ~1 Hz (R4): the estimate evolves slowly and the consumer
+     * (Filament IBL prefiltering) is expensive. Null between refreshes —
+     * the renderer keeps its last reflections.
+     */
+    private fun acquireCubemap(frame: Frame): EnvironmentCubemap? {
+        val nowNs = frame.timestamp
+        if (nowNs - lastCubemapTimestampNs < CUBEMAP_REFRESH_INTERVAL_NS) return null
+        val images =
+            try {
+                frame.lightEstimate.acquireEnvironmentalHdrCubeMap() ?: return null
+            } catch (e: Exception) {
+                return null // NotYetAvailableException while the estimate warms up
+            }
+        try {
+            if (images.size != 6) return null
+            val size = images[0].width
+            val bytesPerPixel = 8 // RGBA16F
+            val faces =
+                images.map { image ->
+                    val plane = image.planes[0]
+                    val src = plane.buffer
+                    val rowStride = plane.rowStride
+                    val tight = size * bytesPerPixel
+                    val out = ByteBuffer.allocateDirect(size * tight).order(ByteOrder.nativeOrder())
+                    if (rowStride == tight) {
+                        out.put(src)
+                    } else {
+                        val row = ByteArray(tight)
+                        for (y in 0 until size) {
+                            src.position(y * rowStride)
+                            src.get(row, 0, row.size)
+                            out.put(row)
+                        }
+                    }
+                    out.rewind()
+                    out
+                }
+            lastCubemapTimestampNs = nowNs
+            return EnvironmentCubemap(faces, size)
+        } finally {
+            images.forEach { it.close() }
         }
     }
 
@@ -659,6 +707,7 @@ public class ARCoreTrackingProvider(
         // ARCore's documented middle-grey reference for pixelIntensity;
         // dividing by it normalizes so 1.0 = nominal lighting (v1 contract).
         const val MIDDLE_GREY_PIXEL_INTENSITY = 0.466f
+        const val CUBEMAP_REFRESH_INTERVAL_NS = 1_000_000_000L
 
         // ENVIRONMENTAL_HDR main-light intensity is relative radiance where
         // ~1.0 corresponds to direct sunlight; scale into lux for the

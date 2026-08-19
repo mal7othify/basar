@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.mal7othify.basar.resources.Res
 import com.spatialkit.compose.SpatialView2
 import com.spatialkit.core.math.Quaternion
 import com.spatialkit.core.math.Vec3
@@ -17,6 +18,8 @@ import com.spatialkit.dsl.rgb
 import com.spatialkit.dsl.vec3
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.engine.GeometryType
+import com.spatialkit.render.AnimationState
+import com.spatialkit.scene.AnimatedModelNode
 import com.spatialkit.scene.Easing
 import com.spatialkit.scene.GltfLoader
 import com.spatialkit.scene.GltfModel
@@ -59,6 +62,28 @@ fun ShowcaseDemo(onBack: () -> Unit) {
         crateModel = loadGltf(createCrateGltf().encodeToByteArray())
     }
     val crate = crateModel
+
+    // R4: a renderer-animated skinned character (gltfio Animator). Bytes
+    // load async; the node is added once the session runs — structural
+    // scene ops are synchronized, so adding from a coroutine is fine.
+    var walkerGlb by remember { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(Unit) {
+        walkerGlb = Res.readBytes("files/CesiumMan.glb")
+    }
+    var session by remember { mutableStateOf<SpatialSession2?>(null) }
+    LaunchedEffect(session, walkerGlb) {
+        val s = session ?: return@LaunchedEffect
+        val glb = walkerGlb ?: return@LaunchedEffect
+        if (s.scene.findNodeById("walker") == null) {
+            s.scene.add(
+                AnimatedModelNode(glb, id = "walker").apply {
+                    position = Vec3(0.55f, 0f, -0.6f)
+                    scale = Vec3(0.25f, 0.25f, 0.25f)
+                    animation = AnimationState(clip = 0, loop = true)
+                },
+            )
+        }
+    }
 
     val animator = remember { SpatialAnimator() }
 
@@ -110,6 +135,7 @@ fun ShowcaseDemo(onBack: () -> Unit) {
             // supportsDepthOcclusion — currently ARCore Depth devices)
             onSessionReady = { spatialSession ->
                 sessionReady = true
+                session = spatialSession
 
                 // M8: taps that hit no interactive node place a crate on
                 // the tapped real-world surface. Runs on the render

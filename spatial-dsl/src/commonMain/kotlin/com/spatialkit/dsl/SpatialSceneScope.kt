@@ -4,6 +4,7 @@ import com.spatialkit.core.math.Vec3
 import com.spatialkit.core.types.Color
 import com.spatialkit.engine.GeometryData
 import com.spatialkit.render.AnchorType
+import com.spatialkit.scene.AnimatedModelNode
 import com.spatialkit.scene.CapsuleNode
 import com.spatialkit.scene.CubeNode
 import com.spatialkit.scene.CustomMeshNode
@@ -173,6 +174,23 @@ public class SpatialSceneScope(
         id: String = SpatialNode.generateId(),
         configure: ModelNode.() -> Unit = {},
     ): ModelNode = ModelNode(model, id).apply(configure).also { scene.add(it) }
+
+    /**
+     * Places a renderer-loaded glTF binary (v2 R4): parsing, materials, and
+     * skinned/morph **animation** are handled natively by the renderer.
+     * Control playback with [AnimatedModelNode.animation] (see the `animation {}`
+     * helper); reuse one byte array per asset — the renderer caches by
+     * content.
+     *
+     * @param glb Encoded .glb bytes
+     * @param id Optional unique identifier
+     * @param configure Lambda to configure the node (transform, animation)
+     */
+    public fun gltfModel(
+        glb: ByteArray,
+        id: String = SpatialNode.generateId(),
+        configure: AnimatedModelNode.() -> Unit = {},
+    ): AnimatedModelNode = AnimatedModelNode(glb, id).apply(configure).also { scene.add(it) }
 
     /**
      * Creates a group node with nested content.

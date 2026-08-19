@@ -2,6 +2,7 @@ package com.spatialkit.dsl
 
 import com.spatialkit.core.types.Color
 import com.spatialkit.engine.GeometryData
+import com.spatialkit.scene.AnimatedModelNode
 import com.spatialkit.scene.CapsuleNode
 import com.spatialkit.scene.CubeNode
 import com.spatialkit.scene.CustomMeshNode
@@ -112,6 +113,17 @@ public class GroupScope(
         id: String = SpatialNode.generateId(),
         configure: ModelNode.() -> Unit = {},
     ): ModelNode = ModelNode(model, id).apply(configure).also { group.addChild(it) }
+
+    /**
+     * Places a renderer-loaded glTF binary as a child of this group.
+     *
+     * See [SpatialSceneScope.gltfModel] for semantics.
+     */
+    public fun gltfModel(
+        glb: ByteArray,
+        id: String = SpatialNode.generateId(),
+        configure: AnimatedModelNode.() -> Unit = {},
+    ): AnimatedModelNode = AnimatedModelNode(glb, id).apply(configure).also { group.addChild(it) }
 
     /**
      * Creates a nested group node.

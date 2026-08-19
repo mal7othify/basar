@@ -95,6 +95,8 @@ public class FilamentRenderer(
     internal var swapChain: SwapChain? = null
 
     private var cameraStream: CameraStream? = null
+    private val iblManager: IblManager by lazy { IblManager(engine, scene, sunEntity) }
+    private var iblStarted = false
     private var arMode = false
     private var surfaceWidth = 0
     private var surfaceHeight = 0
@@ -161,6 +163,10 @@ public class FilamentRenderer(
                         cameraStream = it
                     }
                 stream.update(image)
+            }
+            frame.lightEstimate?.let { estimate ->
+                iblStarted = true
+                iblManager.update(estimate)
             }
             if (frame.trackingState == TrackingState.NORMAL) {
                 camera.setCustomProjection(
@@ -257,6 +263,7 @@ public class FilamentRenderer(
         }
         models.clear()
         if (sceneSyncStarted) sceneSync.dispose()
+        if (iblStarted) iblManager.dispose()
         cameraStream?.destroy()
         cameraStream = null
         resourceLoader.destroy()
