@@ -95,6 +95,7 @@ public class FilamentRenderer(
     internal var swapChain: SwapChain? = null
 
     private var cameraStream: CameraStream? = null
+    private var planeCatchers: PlaneShadowCatchers? = null
     private val iblManager: IblManager by lazy { IblManager(engine, scene, sunEntity) }
     private var iblStarted = false
     private var arMode = false
@@ -104,9 +105,12 @@ public class FilamentRenderer(
 
     override val capabilities: RenderCapabilities =
         RenderCapabilities(
-            supportsIbl = true, // wired in R4; the engine itself is capable
-            supportsShadows = true,
-            supportsOcclusion = false, // depth-write background lands in R5
+            supportsIbl = true, // R4: HDR estimate feeds IndirectLight + sun
+            supportsShadows = true, // R5: shadow maps + plane shadow catchers
+            // R5: the depth-writing camera background occludes per pixel —
+            // effective only when the tracking session produces depth images
+            // (TrackingConfig.depth on a Depth-API device).
+            supportsOcclusion = true,
             supportsAnimation = true,
         )
 
@@ -121,7 +125,13 @@ public class FilamentRenderer(
             .intensity(110_000.0f)
             .direction(-0.28f, -0.78f, -0.56f)
             .castShadows(true)
-            .build(engine, sunEntity)
+            .shadowOptions(
+                LightManager.ShadowOptions().apply {
+                    mapSize = 2048
+                    // Short-range detail where the shadow map runs out (R5).
+                    screenSpaceContactShadows = true
+                },
+            ).build(engine, sunEntity)
         scene.addEntity(sunEntity)
     }
 
@@ -159,10 +169,22 @@ public class FilamentRenderer(
             }
             frame.cameraImage?.let { image ->
                 val stream =
-                    cameraStream ?: CameraStream(engine, scene, loadCameraMaterial()).also {
-                        cameraStream = it
-                    }
-                stream.update(image)
+                    cameraStream ?: CameraStream(
+                        engine,
+                        scene,
+                        loadRenderAsset("materials/camera_flat.filamat"),
+                        loadRenderAsset("materials/camera_depth.filamat"),
+                    ).also { cameraStream = it }
+                stream.update(image, frame.depthImage)
+            }
+            if (frame.planes.isNotEmpty() || planeCatchers != null) {
+                val catchers =
+                    planeCatchers ?: PlaneShadowCatchers(
+                        engine,
+                        scene,
+                        loadRenderAsset("materials/shadow_catcher.filamat"),
+                    ).also { planeCatchers = it }
+                catchers.update(frame.planes)
             }
             frame.lightEstimate?.let { estimate ->
                 iblStarted = true
@@ -264,6 +286,8 @@ public class FilamentRenderer(
         models.clear()
         if (sceneSyncStarted) sceneSync.dispose()
         if (iblStarted) iblManager.dispose()
+        planeCatchers?.destroy()
+        planeCatchers = null
         cameraStream?.destroy()
         cameraStream = null
         resourceLoader.destroy()
@@ -282,12 +306,12 @@ public class FilamentRenderer(
         engine.destroy()
     }
 
-    private fun loadCameraMaterial(): ByteArray {
+    private fun loadRenderAsset(assetPath: String): ByteArray {
         val ctx =
             requireNotNull(context) {
-                "FilamentRenderer needs a Context to load the AR camera material"
+                "FilamentRenderer needs a Context to load '$assetPath'"
             }
-        return ctx.assets.open("materials/camera_flat.filamat").use { it.readBytes() }
+        return ctx.assets.open(assetPath).use { it.readBytes() }
     }
 
     private fun advanceAnimations(frameTimeNanos: Long) {
@@ -365,6 +389,10 @@ internal object FilamentInit {
             com.google.android.filament.Filament
                 .init()
             com.google.android.filament.gltfio.Gltfio
+                .init()
+            // filament-utils has its own JNI layer (IBLPrefilterContext, KTX
+            // loading) — without this, first use throws UnsatisfiedLinkError.
+            com.google.android.filament.utils.Utils
                 .init()
             initialized = true
         }

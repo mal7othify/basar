@@ -1,0 +1,55 @@
+// AR camera background, depth-writing variant (R5 occlusion): draws the
+// camera image like camera_flat AND writes real-world depth per pixel, so
+// virtual geometry z-tests against the real scene naturally — no
+// per-material changes anywhere else (the SceneView-proven approach).
+//
+// depthTexture packs ARCore DEPTH16 millimeters into RG8:
+// r = low byte / 255, g = high byte / 255 → mm = dot(rg, (255, 65280)).
+// Pixels with no depth estimate (0) fall back to the far plane so they
+// never occlude.
+//
+// Compiled by scripts/compile-materials.sh with the version-pinned matc —
+// .filamat files are matc-version-locked to the Filament runtime.
+material {
+    name : camera_depth,
+    shadingModel : unlit,
+    vertexDomain : device,
+    depthWrite : true,
+    depthCulling : false,
+    culling : none,
+    requires : [ uv0 ],
+    parameters : [
+        {
+            type : samplerExternal,
+            name : cameraTexture
+        },
+        {
+            type : sampler2d,
+            name : depthTexture
+        }
+    ],
+    variantFilter : [ skinning, shadowReceiver, vsm, fog, ssr ]
+}
+
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        vec4 cameraColor = texture(materialParams_cameraTexture, getUV0());
+        // Inverse tonemap so Filament's forward tone mapping reproduces the
+        // camera image (same as camera_flat).
+        material.baseColor = vec4(inverseTonemapSRGB(cameraColor.rgb), 1.0);
+
+        vec2 packedDepth = texture(materialParams_depthTexture, getUV0()).xy;
+        // DEPTH16: 13 LSB = millimeters, 3 MSB = confidence — mask the
+        // confidence bits or depth reads far too large/corrupted.
+        uint rawMm = uint(packedDepth.x * 255.0 + 0.5) | (uint(packedDepth.y * 255.0 + 0.5) << 8u);
+        float depthMm = float(rawMm & 0x1FFFu);
+        // 0 = no estimate: push to 100m so it never occludes content.
+        float depthM = depthMm > 0.5 ? depthMm / 1000.0 : 100.0;
+        vec4 clipPos = mulMat4x4Float3(getClipFromViewMatrix(), vec3(0.0, 0.0, -depthM));
+        // clip.z/clip.w IS window depth here: Filament shaders use [0,1]
+        // clip depth internally and convert to GL's range in the vertex
+        // stage, so no [-1,1]→[0,1] remap belongs in fragment code.
+        gl_FragDepth = clamp(clipPos.z / clipPos.w, 0.0, 1.0);
+    }
+}

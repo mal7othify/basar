@@ -1,0 +1,29 @@
+// Invisible shadow catcher for detected real-world planes (R5): renders
+// nothing where unshadowed and a soft dark multiply where virtual content
+// casts a shadow — Filament's canonical AR ground-shadow recipe
+// (unlit + shadowMultiplier + transparent, see samples/groundShadow.mat).
+//
+// strength = maximum shadow opacity (0..1).
+//
+// Compiled by scripts/compile-materials.sh with the version-pinned matc —
+// .filamat files are matc-version-locked to the Filament runtime.
+material {
+    name : shadow_catcher,
+    shadingModel : unlit,
+    shadowMultiplier : true,
+    blending : transparent,
+    parameters : [
+        {
+            type : float,
+            name : strength
+        }
+    ],
+    variantFilter : [ skinning, fog, ssr ]
+}
+
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        material.baseColor = vec4(0.0, 0.0, 0.0, materialParams.strength);
+    }
+}

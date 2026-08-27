@@ -26,6 +26,7 @@ import com.spatialkit.scene.GltfModel
 import com.spatialkit.scene.SpatialAnimator
 import com.spatialkit.scene.SpatialNode
 import com.spatialkit.scene.SpatialSession2
+import com.spatialkit.tracking.TrackingConfig
 import com.spatialkit.scene.loadGltf
 import kotlin.math.PI
 import kotlin.math.cos
@@ -80,6 +81,7 @@ fun ShowcaseDemo(onBack: () -> Unit) {
                     position = Vec3(0.55f, 0f, -0.6f)
                     scale = Vec3(0.25f, 0.25f, 0.25f)
                     animation = AnimationState(clip = 0, loop = true)
+                    castsShadow = true // R5: real shadow-map shadow
                 },
             )
         }
@@ -130,6 +132,8 @@ fun ShowcaseDemo(onBack: () -> Unit) {
     DemoScaffold(screen = DemoScreen.SHOWCASE, status = status, onBack = onBack) {
         SpatialView2(
             modifier = Modifier.fillMaxSize(),
+            // R5: depth images enable per-pixel occlusion on Depth devices.
+            config = TrackingConfig(depth = true),
             // M9: light estimation is on by default; depth occlusion is
             // opt-in (real-world geometry hides virtual content where
             // supportsDepthOcclusion — currently ARCore Depth devices)

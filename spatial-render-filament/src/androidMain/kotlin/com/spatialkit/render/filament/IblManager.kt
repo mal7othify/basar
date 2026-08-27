@@ -106,7 +106,9 @@ internal class IblManager(
                 .height(size)
                 .levels(0xff)
                 .sampler(Texture.Sampler.SAMPLER_CUBEMAP)
-                .format(Texture.InternalFormat.R11F_G11F_B10F)
+                // Must accept an RGBA/HALF upload (ARCore's face format) —
+                // R11F_G11F_B10F rejects RGBA data at the upload validation.
+                .format(Texture.InternalFormat.RGBA16F)
                 .usage(Texture.Usage.DEFAULT or Texture.Usage.GEN_MIPMAPPABLE)
                 .build(engine)
 

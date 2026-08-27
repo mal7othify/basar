@@ -14,6 +14,7 @@ import com.spatialkit.scene.CubeNode
 import com.spatialkit.scene.CylinderNode
 import com.spatialkit.scene.GroupNode
 import com.spatialkit.scene.SpatialSession2
+import com.spatialkit.tracking.TrackingConfig
 
 /**
  * Retail use case: preview furniture in the customer's own room.
@@ -33,6 +34,8 @@ fun FurnitureDemo(onBack: () -> Unit) {
     DemoScaffold(screen = DemoScreen.FURNITURE, status = status, onBack = onBack) {
         SpatialView2(
             modifier = Modifier.fillMaxSize(),
+            // R5: depth images enable per-pixel occlusion on Depth devices.
+            config = TrackingConfig(depth = true),
             onSessionReady = { session ->
                 // Showroom piece so there's something on screen before the
                 // first placement (structural scene ops are synchronized)

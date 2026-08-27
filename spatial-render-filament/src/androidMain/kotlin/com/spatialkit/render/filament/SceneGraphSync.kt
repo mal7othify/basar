@@ -78,6 +78,7 @@ internal class SceneGraphSync(
         var geometry: GeometryData,
         var material: MaterialData,
         var worldMatrix: FloatArray,
+        var castsShadow: Boolean,
         var inScene: Boolean,
     )
 
@@ -87,6 +88,7 @@ internal class SceneGraphSync(
         var animation: AnimationState?,
         var animationStartNanos: Long,
         var worldMatrix: FloatArray,
+        var castsShadow: Boolean,
         var inScene: Boolean,
     )
 
@@ -205,6 +207,7 @@ internal class SceneGraphSync(
 
         if (state != null && state.geometry !== node.geometry && state.geometry != node.geometry) {
             // Geometry replaced: rebuild the node from scratch (rare).
+            android.util.Log.i("SceneSyncDebug", "geometry rebuild for '${node.id}'")
             destroyMesh(state)
             meshes.remove(node.id)
             state = null
@@ -217,7 +220,16 @@ internal class SceneGraphSync(
             if (state.material !== node.material && state.material != node.material) {
                 applyMaterial(state, node.material)
             }
+            if (state.castsShadow != node.castsShadow) {
+                val rm = engine.renderableManager
+                rm.setCastShadows(rm.getInstance(state.entity), node.castsShadow)
+                state.castsShadow = node.castsShadow
+            }
             if (!state.worldMatrix.contentEquals(worldMatrix)) {
+                val sx = worldMatrix[0]
+                if (sx.isNaN() || kotlin.math.abs(sx) < 1e-5f) {
+                    android.util.Log.w("SceneSyncDebug", "mesh '${node.id}' suspicious matrix m0=$sx")
+                }
                 val tm = engine.transformManager
                 tm.setTransform(tm.getInstance(state.entity), worldMatrix)
                 worldMatrix.copyInto(state.worldMatrix)
@@ -228,6 +240,7 @@ internal class SceneGraphSync(
             scene.addEntity(state.entity)
             state.inScene = true
         } else if (!node.visible && state.inScene) {
+            android.util.Log.i("SceneSyncDebug", "mesh '${node.id}' hidden (visible=false)")
             scene.removeEntity(state.entity)
             state.inScene = false
         }
@@ -275,9 +288,9 @@ internal class SceneGraphSync(
             .boundingBox(boundsOf(mesh.positions))
             .geometry(0, RenderableManager.PrimitiveType.TRIANGLES, vertexBuffer, indexBuffer)
             .material(0, instance)
-            // Real shadow casting/receiving is capability-gated R5 work.
-            .castShadows(false)
-            .receiveShadows(false)
+            // R5: real directional shadow maps.
+            .castShadows(node.castsShadow)
+            .receiveShadows(true)
             .build(engine, entity)
 
         engine.transformManager.create(entity)
@@ -292,6 +305,7 @@ internal class SceneGraphSync(
                 geometry = node.geometry,
                 material = node.material,
                 worldMatrix = worldMatrix.copyOf(),
+                castsShadow = node.castsShadow,
                 inScene = false,
             )
         applyMaterial(state, node.material)
@@ -411,15 +425,21 @@ internal class SceneGraphSync(
                     animation = node.animation,
                     animationStartNanos = -1L,
                     worldMatrix = worldMatrix.copyOf(),
+                    castsShadow = node.castsShadow,
                     inScene = false,
                 )
             models[node.id] = state
+            applyModelShadows(state)
             val tm = engine.transformManager
             tm.setTransform(tm.getInstance(asset.root), worldMatrix)
         } else {
             if (state.animation != node.animation) {
                 state.animation = node.animation
                 state.animationStartNanos = -1L
+            }
+            if (state.castsShadow != node.castsShadow) {
+                state.castsShadow = node.castsShadow
+                applyModelShadows(state)
             }
             if (!state.worldMatrix.contentEquals(worldMatrix)) {
                 val tm = engine.transformManager
@@ -438,6 +458,7 @@ internal class SceneGraphSync(
     }
 
     private fun destroyMesh(state: MeshState) {
+        android.util.Log.i("SceneSyncDebug", "destroyMesh entity=${state.entity}")
         if (state.inScene) scene.removeEntity(state.entity)
         engine.destroyEntity(state.entity)
         EntityManager.get().destroy(state.entity)
@@ -446,7 +467,19 @@ internal class SceneGraphSync(
         engine.destroyMaterialInstance(state.materialInstance)
     }
 
+    /** R5: glTF renderables cast per the node flag and receive shadows. */
+    private fun applyModelShadows(state: ModelState) {
+        val rm = engine.renderableManager
+        for (entity in state.asset.entities) {
+            if (!rm.hasComponent(entity)) continue
+            val instance = rm.getInstance(entity)
+            rm.setCastShadows(instance, state.castsShadow)
+            rm.setReceiveShadows(instance, true)
+        }
+    }
+
     private fun destroyModel(state: ModelState) {
+        android.util.Log.i("SceneSyncDebug", "destroyModel key=${state.contentKey}")
         if (state.inScene) scene.removeEntities(state.asset.entities)
         assetLoader.destroyAsset(state.asset)
     }
